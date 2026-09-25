@@ -1,0 +1,13 @@
+{
+  "name": "atalaya-temas",
+  "private": true,
+  "description": "Kit para diseñar temas de Atalaya",
+  "atalaya": "0.17.0",
+  "scripts": {
+    "start": "node sim/server.js",
+    "check": "node test/themes.test.js"
+  },
+  "engines": {
+    "node": ">=20"
+  }
+}
