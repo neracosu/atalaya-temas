@@ -7,6 +7,7 @@
 // Regla de oro del tema: nada redondeado, el color solo significa algo (amigo, alerta, hostil).
 import { Application, Container, Graphics, Text, Rectangle } from '/vendor/pixi.csp.mjs';
 import { esc, fmtBytes } from '/js/hud.js';
+import { accountCaption } from '/js/accounts.js';
 
 const TAU = Math.PI * 2;
 const hexn = h => parseInt(String(h || '#ffffff').slice(1), 16);
@@ -102,7 +103,7 @@ export default class OpsWorld {
     if (key === this.layoutKey) return;
     this.layoutKey = key;
     for (const b of this.blips.values()) b.c.destroy({ children: true });
-    for (const s of this.sectors.values()) s.label.destroy();
+    for (const s of this.sectors.values()) { s.label.destroy(); s.sub.destroy(); }
     this.blips.clear(); this.sectors.clear();
     const C = this.C, g = this.sectorG;
     g.clear();
@@ -120,9 +121,14 @@ export default class OpsWorld {
       label.anchor.set(0.5); label.x = Math.cos(mid) * lr; label.y = Math.sin(mid) * lr;
       label.eventMode = 'static'; label.cursor = 'pointer';
       label.on('pointertap', () => { if (!this.dragMoved) this.pick('district', acc.id); });
-      this.tipOn(label, () => ({ title: acc.label, body: `Sector con ${(by[acc.id] || []).length} contactos: servicios (cuadrados llenos) y sitios (cuadrados vacíos).`, hint: 'Clic para ver el sector' }));
+      this.tipOn(label, () => ({ title: acc.label, body: `Sector con ${(by[acc.id] || []).length} contactos: servicios (cuadrados llenos) y sitios (cuadrados vacíos).`, meta: this.sectors.get(acc.id)?.caption || '', hint: 'Clic para ver el sector' }));
       this.labelL.addChild(label);
-      this.sectors.set(acc.id, { a0, a1, mid, label, acc });
+      const nA = (by[acc.id] || []).filter(x => x._k === 'app').length;
+      const caption = accountCaption(acc, nA, (by[acc.id] || []).length - nA);
+      const sub = new Text({ text: caption.toUpperCase(), style: { fontFamily: FONT, fontSize: 20, fill: C.dim, letterSpacing: 1 } });
+      sub.anchor.set(0.5); sub.x = label.x; sub.y = label.y + 24;
+      this.labelL.addChild(sub);
+      this.sectors.set(acc.id, { a0, a1, mid, label, sub, acc, caption });
       // contactos en anillos, de adentro hacia afuera
       const items = (by[acc.id] || []).sort((x, y) => (x._k === y._k ? 0 : x._k === 'app' ? -1 : 1));
       let ring = 0, placed = 0;

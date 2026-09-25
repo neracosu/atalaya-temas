@@ -10,6 +10,7 @@
 // Regla de oro: el color es la clase o el estado, nunca adorno; los numeros de combate cuentan lo que pasa.
 import { Application, Container, Graphics, Sprite, Text, Texture, Rectangle } from '/vendor/pixi.csp.mjs';
 import { esc, fmtBytes } from '/js/hud.js';
+import { accountCaption } from '/js/accounts.js';
 
 const U = 16;
 const FONT = "'Jersey 10', ui-monospace, monospace";
@@ -181,11 +182,13 @@ export default class RaidWorld {
       const lbl = this.label(`Grupo ${gi + 1} · ${g.a.label}`, 24, '#e8c55a');
       g.label = lbl; g.labelPos = { x: g.x + 20, y: g.y + 4 };
       lbl.anchor.set(0, 1);
+      { const nA = g.items.filter(x => x._k === 'app').length; g.caption = accountCaption(g.a, nA, g.items.length - nA); }
+      g.sub = this.label(g.caption, 18, '#cdbf9c'); g.sub.anchor.set(0, 1);
       const pad = new Graphics().rect(g.x, g.y + 8, g.w, g.h - 8).fill({ color: 0x000000, alpha: 0.18 }).rect(g.x, g.y + 8, 3, g.h - 8).fill(hexn(g.a.color));
       this.floor.addChild(pad);
       const hit = new Container(); hit.eventMode = 'static'; hit.cursor = 'pointer'; hit.hitArea = new Rectangle(g.x, g.y - 20, g.w, 30);
       hit.on('pointertap', () => { if (!this.dragMoved) this.pick('district', g.a.id); });
-      this.tipOn(hit, () => ({ title: g.a.label, body: `Grupo de ${g.items.length} héroes: servicios y sitios de esta cuenta.`, hint: 'Clic para ver el grupo' }));
+      this.tipOn(hit, () => ({ title: g.a.label, body: `Grupo de ${g.items.length} héroes: servicios y sitios de esta cuenta.`, meta: g.caption, hint: 'Clic para ver el grupo' }));
       this.scene.addChild(hit);
       g.items.forEach((it, i) => this.addHero(it, g.x + 34 + (i % COLS) * HW, g.y + 50 + Math.floor(i / COLS) * HH, g.a));
       this.groups.set(g.a.id, g);
@@ -412,7 +415,7 @@ export default class RaidWorld {
     this.world.x = Math.round(W / 2 + this.cam.x); this.world.y = Math.round(H / 2 + this.cam.y);
     const toS = p => ({ x: this.world.x + p.x * this.cam.s, y: this.world.y + p.y * this.cam.s });
     if (this.bossName) { const p = toS({ x: 0, y: this.arena.y0 + 132 }); this.bossName.x = p.x; this.bossName.y = p.y + 24; }
-    for (const gr of this.groups.values()) { const p = toS(gr.labelPos); gr.label.x = p.x; gr.label.y = p.y; }
+    for (const gr of this.groups.values()) { const p = toS(gr.labelPos); gr.label.x = p.x; gr.label.y = p.y; gr.sub.x = p.x + gr.label.width + 14; gr.sub.y = p.y - 2; }
     for (const p of this.players.values()) if (p.castPos) { const q = toS(p.castPos); p.castT.x = q.x; p.castT.y = q.y; p.castT.visible = this.cam.s > 1.2; }
     for (const f of this.fx) if (f.world) { const p = toS(f.world); f.obj.x = p.x; f.obj.y = p.y; }
     if (this.manualUntil && this.manualUntil < this.t) { this.manualUntil = 0; this.camTarget = this.overview; this.navChanged(); }
