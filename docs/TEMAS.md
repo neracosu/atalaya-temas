@@ -4,13 +4,16 @@ Un tema cambia **el mundo** (cómo se dibujan el servidor, las cuentas, los serv
 los ataques y los agentes) **y el HUD** (cómo se ven y dónde van los paneles). No es una paleta de
 colores: es otra forma de mirar el mismo servidor.
 
-Atalaya trae tres temas que sirven de ejemplo:
+Atalaya trae seis temas que sirven de ejemplo:
 
 | Tema | Mundo | HUD |
 |---|---|---|
 | `ciudad` | Ciudad isométrica: distritos, edificios, robots | Paneles a los lados, cinta abajo |
-| `ops` | Radar táctico polar: base, sectores, contactos | Lecturas arriba, parte de operaciones arriba a la derecha, esquinas de mira |
-| `villa` | RPG de casillas desde arriba: castillo, pueblos, aldeanos, slimes, magos | Marcos de madera, barras de estado a la derecha, registro tipo chat abajo a la izquierda |
+| `villa` | RPG de casillas desde arriba: castillo, pueblos, aldeanos, slimes, magos | Marcos de madera, barras de estado a la derecha, registro tipo chat |
+| `raid` | Arena de MMO: grupos de héroes con vida y maná, jefe, números de combate | Barra de acción abajo, registro de combate, medidor |
+| `ops` | Radar táctico polar: base, sectores, contactos | Lecturas arriba, parte de operaciones en columna, esquinas de mira |
+| `acuario` | Acuario de costado: peceras, peces, medusas, buzos | Franja inferior con tres placas |
+| `planta` | Fábrica con cintas (paleta PICO-8): naves, máquinas, piezas, drones | Sala de control con pantallas LCD y tickets impresos |
 
 `villa` es el ejemplo más completo de **arte hecho en código**: todas las texturas (pasto, caminos,
 murallas, casas, castillo, personajes) se pintan con funciones o matrices de caracteres, sin

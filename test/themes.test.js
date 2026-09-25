@@ -11,7 +11,9 @@ assert.ok(ids.includes('ciudad') && ids.includes('ops'), 'vienen los temas base'
 const METHODS = ['init', 'update', 'onEvent', 'pick', 'clearSelection', 'setDirector', 'resetView', 'zoomBy', 'setInsets', 'destroy', 'navChanged'];
 const EMOJI = /[\u{1F300}-\u{1FAFF}\u{2600}-\u{26FF}\u{1F000}-\u{1F2FF}]/u;
 for (const id of ids) {
-  const m = JSON.parse(fs.readFileSync(path.join(dir, id, 'theme.json'), 'utf8'));
+  const mf = path.join(dir, id, 'theme.json');
+  assert.ok(fs.existsSync(mf), `${id}: falta theme.json (toda carpeta de web/themes es un tema)`);
+  let m; try { m = JSON.parse(fs.readFileSync(mf, 'utf8')); } catch (e) { assert.fail(`${id}: theme.json no es JSON válido (${e.message})`); }
   assert.strictEqual(m.id, id, `${id}: el id del manifiesto es el de la carpeta`);
   assert.ok(/^[a-z0-9][a-z0-9-]{0,30}$/.test(id), `${id}: id valido`);
   for (const k of ['name', 'description', 'author', 'version', 'license', 'world', 'rule']) assert.ok(m[k], `${id}: falta ${k}`);

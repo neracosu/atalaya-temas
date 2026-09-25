@@ -1,0 +1,31 @@
+{
+  "id": "acuario",
+  "name": "Acuario",
+  "description": "Un acuario idle visto de costado, como los que hoy viven en una franja del escritorio: cada cuenta es una pecera, cada servicio un pez único que nada según su CPU, las visitas son comida que cae, los ataques son medusas contra la tapa y los agentes de Claude Code son buzos. El agua sube con el disco usado.",
+  "author": "NERACOSU",
+  "version": "1.0.0",
+  "license": "Propietaria · arte propio · fuente Pixelify Sans bajo SIL OFL 1.1",
+  "world": "world.js",
+  "css": "theme.css",
+  "preview": "preview.png",
+  "hud": { "layout": "franja-inferior" },
+  "palette": { "ok": "#7be06b", "warn": "#ffb347", "crit": "#ff4d5e", "hostile": "#e07ad8", "friendly": "#a6e3c8", "accent": "#a6e3c8", "bg": "#0b1e2d", "ink": "#e6f4ee" },
+  "rule": "Calma: nada de golpes ni destellos fuertes. Todo se mueve lento y se entiende de un vistazo.",
+  "credits": [{ "what": "Fuente Pixelify Sans", "author": "The Pixelify Sans Project Authors", "license": "SIL OFL 1.1", "url": "https://fonts.google.com/specimen/Pixelify+Sans" }],
+  "legend": [
+    { "title": "El acuario", "items": [
+      { "icon": "db", "title": "Nivel del agua", "text": "Sube con el disco usado del servidor. Las burbujas del filtro, a la izquierda, van más rápido con más carga." },
+      { "icon": "house", "title": "Peceras", "text": "Cada cuenta es una pecera separada por vidrio, con su placa abajo." },
+      { "icon": "shield", "title": "La tapa", "text": "El cortafuegos: las medusas (intentos de acceso) chocan contra ella; se enciende naranja cuando pasa." }
+    ] },
+    { "title": "Los habitantes", "items": [
+      { "color": "#ff8a3d", "title": "Peces", "text": "Cada servicio (con rayas) o sitio (más chico) es un pez único: su forma y colores salen de su nombre. Tamaño: memoria. Velocidad: CPU. Burbujas: visitas." },
+      { "color": "#8a9aa0", "title": "Pez gris panza arriba", "text": "Un servicio caído. Si se queda quieto en el fondo, está a medias (parcial)." },
+      { "color": "#d9c08c", "title": "Comida", "text": "Cada visita es una bolita que cae y el pez se come (gris si es un robot). Una nube roja turbia es un error del servidor." },
+      { "icon": "bot", "title": "Buzo", "text": "Una sesión de Claude Code. Burbujas por la manguera: trabajando. Un «?» naranja: espera su permiso." }
+    ] },
+    { "title": "La interfaz", "items": [
+      { "icon": "chart", "title": "Franja de abajo", "text": "Los niveles del servidor, la bitácora del acuarista (las novedades) y los buzos." }
+    ] }
+  ]
+}
