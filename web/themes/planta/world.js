@@ -12,6 +12,7 @@
 import { Application, Container, Graphics, Sprite, Text, Texture, Rectangle } from '/vendor/pixi.csp.mjs';
 import { signTexture } from '/js/sprites.js';
 import { esc, fmtBytes } from '/js/hud.js';
+import { accountCaption } from '/js/accounts.js';
 
 const U = 16;
 const FONT = "'Silkscreen', ui-monospace, monospace";
@@ -136,9 +137,12 @@ export default class PlantaWorld {
       g.rect(h.x, h.y, h.w, h.h).fill(P8.black).rect(h.x + 2, h.y + 2, h.w - 4, h.h - 4).fill(0x22222b).rect(h.x + 2, h.y + 2, h.w - 4, 10).fill(h.roof);
       this.hallL.addChild(g);
       h.label = this.label(h.a.label.toUpperCase(), 14, '#fff1e8'); h.labelPos = { x: h.x + 8, y: h.y + 7 }; h.label.anchor.set(0, 0.5);
+      { const nA = h.items.filter(x => x._k === 'app').length; h.caption = accountCaption(h.a, nA, h.items.length - nA); }
+      // debajo de la nave: su cuenta (cPanel y dominio en privado; cuantas maquinas en publico)
+      h.sub = this.label(h.caption.toUpperCase(), 12, '#c2c3c7'); h.sub.anchor.set(0, 0); h.subPos = { x: h.x + 4, y: h.y + h.h + 3 };
       const hit = new Container(); hit.eventMode = 'static'; hit.cursor = 'pointer'; hit.hitArea = new Rectangle(h.x, h.y, h.w, 12);
       hit.on('pointertap', () => { if (!this.dragMoved) this.pick('district', h.a.id); });
-      this.tipOn(hit, () => ({ title: h.a.label, body: `Nave con ${h.items.length} máquinas (servicios) y prensas (sitios).`, hint: 'Clic para ver la nave' }));
+      this.tipOn(hit, () => ({ title: h.a.label, body: `Nave con ${h.items.length} máquinas (servicios) y prensas (sitios).`, meta: h.caption, hint: 'Clic para ver la nave' }));
       this.stat.addChild(hit);
       h.barrier = { x: h.x - 8, y: h.y + 26 };
       h.rowY = [];
@@ -364,7 +368,7 @@ export default class PlantaWorld {
     this.world.x = Math.round(W / 2 + this.cam.x); this.world.y = Math.round(H / 2 + this.cam.y);
     const toS = p => ({ x: this.world.x + p.x * this.cam.s, y: this.world.y + p.y * this.cam.s });
     if (this.box) {
-      for (const h of this.halls.values()) { const p = toS(h.labelPos); h.label.x = p.x; h.label.y = p.y; }
+      for (const h of this.halls.values()) { const p = toS(h.labelPos); h.label.x = p.x; h.label.y = p.y; const q = toS(h.subPos); h.sub.x = q.x; h.sub.y = q.y; }
       const pb = toS({ x: this.bin.x, y: this.bin.y + 24 }); this.binLabel.x = pb.x; this.binLabel.y = pb.y; this.binLabel.text = `CHATARRA ${this.scrap}`;
       const pt = toS({ x: this.turret.x - 10, y: this.turret.y + 26 }); this.rejLabel.x = pt.x; this.rejLabel.y = pt.y; this.rejLabel.text = `RECHAZADOS ${this.rejected}`;
       const pp = toS({ x: this.plant.x + this.plant.w / 2, y: this.plant.y + this.plant.h + 10 }); this.plantLabel.x = pp.x; this.plantLabel.y = pp.y;

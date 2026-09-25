@@ -66,3 +66,8 @@ body[data-theme="planta"] .dstat { background: #000; }
 body[data-theme="planta"] .btn { background: #1d2b53; border: 2px solid #29adff; color: var(--ink); }
 body[data-theme="planta"] .btn.ghost { background: none; }
 body[data-theme="planta"] .cc { font-family: var(--font); background: #000; border-color: #5f574f; }
+
+/* columna mas corta (arriba va el parte de novedades): graficas mas bajas y 5 procesos */
+body[data-theme="planta"] #right .chart { height: clamp(3.5rem, 8vh, 6rem); }
+body[data-theme="planta"] #right .procs > :nth-child(n+6) { display: none; }
+body[data-theme="planta"] #right .projrow:nth-child(n+4) { display: none; }

@@ -10,6 +10,7 @@
 // Regla de oro: calma. Nada de golpes ni destellos fuertes; todo se mueve lento y se lee de un vistazo.
 import { Application, Container, Graphics, Sprite, Text, Texture, Rectangle } from '/vendor/pixi.csp.mjs';
 import { esc, fmtBytes } from '/js/hud.js';
+import { accountCaption } from '/js/accounts.js';
 
 const FONT = "'Pixelify Sans', ui-monospace, monospace";
 const clamp = (v, a, b) => Math.max(a, Math.min(b, v));
@@ -117,9 +118,11 @@ export default class AcuarioWorld {
       const maxCh = Math.max(6, Math.floor((g.x1 - g.x0) / 9));
       const plate = this.label(g.a.label.length > maxCh ? g.a.label.slice(0, maxCh - 1) + '…' : g.a.label, 20, '#f4e7c5');
       g.label = plate; g.labelPos = { x: (g.x0 + g.x1) / 2, y: B.y1 + 20 };
+      { const nA = g.items.filter(x => x._k === 'app').length; g.caption = accountCaption(g.a, nA, g.items.length - nA); }
+      g.sub = this.label(g.caption.length > maxCh + 4 ? g.caption.slice(0, maxCh + 3) + '…' : g.caption, 15, '#8fc7b8');
       const hit = new Container(); hit.eventMode = 'static'; hit.cursor = 'pointer'; hit.hitArea = new Rectangle(g.x0, B.sand, g.x1 - g.x0, B.y1 - B.sand + 26);
       hit.on('pointertap', () => { if (!this.dragMoved) this.pick('district', g.a.id); });
-      this.tipOn(hit, () => ({ title: g.a.label, body: `Pecera con ${g.items.length} peces: los servicios y sitios de esta cuenta.`, hint: 'Clic para ver la pecera' }));
+      this.tipOn(hit, () => ({ title: g.a.label, body: `Pecera con ${g.items.length} peces: los servicios y sitios de esta cuenta.`, meta: g.caption, hint: 'Clic para ver la pecera' }));
       this.decor.addChild(hit);
       g.items.forEach(it => this.addFish(it, g));
       this.tanks.set(g.a.id, g);
@@ -346,7 +349,7 @@ export default class AcuarioWorld {
     this.world.scale.set(this.cam.s);
     this.world.x = Math.round(W / 2 + this.cam.x); this.world.y = Math.round(H / 2 + this.cam.y);
     const toS = p => ({ x: this.world.x + p.x * this.cam.s, y: this.world.y + p.y * this.cam.s });
-    for (const tk of this.tanks.values()) { const p = toS(tk.labelPos); tk.label.x = p.x; tk.label.y = p.y - 16; }
+    for (const tk of this.tanks.values()) { const p = toS(tk.labelPos); tk.label.x = p.x; tk.label.y = p.y - 16; tk.sub.x = p.x; tk.sub.y = p.y + 8; }
     for (const f of this.fx) if (f.world) { const p = toS(f.world); f.obj.x = p.x; f.obj.y = p.y; }
     if (this.manualUntil && this.manualUntil < this.t) { this.manualUntil = 0; this.camTarget = this.overview; this.navChanged(); }
     else if (this.manualUntil && Math.floor(this.t) !== this.lastNav) { this.lastNav = Math.floor(this.t); this.navChanged(); }

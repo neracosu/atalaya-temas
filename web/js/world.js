@@ -4,6 +4,7 @@ import { px } from './pixicons.js';
 import { robotTextures, monoTextures, iconTexture, signTexture, INVADER, ENVELOPE } from './sprites.js';
 import { STATION_TIPS } from './tips.js';
 import { esc, fmtBytes } from './hud.js';
+import { accountCaption } from './accounts.js';
 
 const TW = 64, TH = 32; // tile isometrico
 const iso = (gx, gy) => ({ x: (gx - gy) * TW / 2, y: (gx + gy) * TH / 2 });
@@ -425,11 +426,7 @@ export class World {
     name.x = front0.x; name.y = front0.y + 120;
     this.labels.addChild(name);
     const nApps = apps.filter(e => !e._site).length, nSites = apps.length - nApps;
-    const virt = { '_sys': `${nApps} servicio${nApps === 1 ? '' : 's'} de systemd`, '_docker': `${nApps} contenedor${nApps === 1 ? '' : 'es'}`, '_web': `${nSites} sitio${nSites === 1 ? '' : 's'} del servidor` };
-    if (/^_vercel-/.test(a.id)) virt[a.id] = `${nApps} proyecto${nApps === 1 ? '' : 's'} en Vercel`;
-    if (/^_supa-/.test(a.id)) virt[a.id] = `${nApps} base${nApps === 1 ? '' : 's'} de datos`;
-    if (/^_dev-/.test(a.id)) virt[a.id] = 'Claude Code remoto';
-    const sub = label(virt[a.id] || (a.cpanel ? `${a.panel || 'cuenta'} ${a.cpanel}${a.main ? ' · ' + a.main : ''}` : `${nApps} servicio${nApps === 1 ? '' : 's'} · ${nSites} sitio${nSites === 1 ? '' : 's'}`), 14, 0x8a9ab3, UI_FONT);
+    const sub = label(accountCaption(a, nApps, nSites), 14, 0x8a9ab3, UI_FONT);
     sub.x = name.x; sub.y = name.y + 26;
     this.labels.addChild(sub);
     const d = { id: a.id, color: a.color, plate, name, sub, center: { x: it.cx, y: it.cy }, entry: P(W / 2, H / 2), apps: [] };

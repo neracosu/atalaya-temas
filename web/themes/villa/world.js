@@ -9,6 +9,7 @@
 import { Application, Container, Graphics, Sprite, Text, Texture, TilingSprite, Rectangle } from '/vendor/pixi.csp.mjs';
 import { signTexture } from '/js/sprites.js';
 import { esc, fmtBytes } from '/js/hud.js';
+import { accountCaption } from '/js/accounts.js';
 
 const U = 16; // una casilla = 16 pixeles de arte
 const FONT_T = "'Jacquard 24', 'Pixelify Sans', serif";
@@ -327,7 +328,7 @@ export default class VillaWorld {
     this.roads.addChild(plaza);
     const hit = new Container(); hit.eventMode = 'static'; hit.cursor = 'pointer'; hit.hitArea = new Rectangle(x0, plazaTy * U, v.w * U, 3 * U);
     hit.on('pointertap', () => { if (!this.dragMoved) this.pick('district', a.id); });
-    this.tipOn(hit, () => ({ title: a.label, body: `Pueblo con ${v.items.length} casas: de piedra con chimenea los servicios, de paja los sitios.`, hint: 'Clic para ver el pueblo' }));
+    this.tipOn(hit, () => ({ title: a.label, body: `Pueblo con ${v.items.length} casas: de piedra con chimenea los servicios, de paja los sitios.`, meta: v.sub ? v.sub.text : '', hint: 'Clic para ver el pueblo' }));
     this.roads.addChild(hit);
     const houseTy = v.gateTop ? v.y + 4 : v.y + 1;
     v.items.forEach((it, i) => {
@@ -336,6 +337,8 @@ export default class VillaWorld {
     });
     v.plaza = { x: x0 + 2 * U, y: (plazaTy + 1) * U + 4, w: (v.w - 4) * U, h: U };
     v.label = this.label(a.label, false);
+    const nA = v.items.filter(x => x._k === 'app').length;
+    v.sub = this.subLabel(accountCaption(a, nA, v.items.length - nA));
     v.labelPos = { x: x0 + v.w * U / 2, y: y0 - 6 };
     this.villages.set(a.id, v);
   }
@@ -356,6 +359,12 @@ export default class VillaWorld {
     });
     this.scene.addChild(s, sign);
     this.houses.set(it.id, h);
+  }
+
+  subLabel(text) {
+    const t = new Text({ text, style: { fontFamily: FONT, fontSize: 17, fill: '#e6d3a6', stroke: { color: '#2a1a0c', width: 4 }, fontWeight: '600' } });
+    t.anchor.set(0.5, 1); this.screen.addChild(t);
+    return t;
   }
 
   label(text, big) {
@@ -589,7 +598,7 @@ export default class VillaWorld {
     // textos en pantalla: siguen su punto del mundo
     const toScreen = p => ({ x: this.world.x + p.x * this.cam.s, y: this.world.y + p.y * this.cam.s });
     if (this.castleLabel) { const p = toScreen({ x: 0, y: -4.4 * U }); this.castleLabel.x = p.x; this.castleLabel.y = p.y; }
-    for (const v of this.villages.values()) { const p = toScreen(v.labelPos); v.label.x = p.x; v.label.y = p.y; }
+    for (const v of this.villages.values()) { const p = toScreen(v.labelPos); v.label.x = p.x; v.label.y = p.y - 20; v.sub.x = p.x; v.sub.y = p.y; }
     for (const f of this.fx) if (f.world) { const p = toScreen(f.world); f.obj.x = p.x; f.obj.y = p.y; }
     if (this.manualUntil && this.manualUntil < this.t) { this.manualUntil = 0; this.camTarget = this.overview; this.navChanged(); }
     else if (this.manualUntil && Math.floor(this.t) !== this.lastNav) { this.lastNav = Math.floor(this.t); this.navChanged(); }

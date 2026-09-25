@@ -80,3 +80,8 @@ body[data-theme="ops"] .dstat b { font-weight: 400; font-size: 1.3rem; }
 body[data-theme="ops"] .btn.primary, body[data-theme="ops"] .btn:not(.ghost) { background: rgba(159, 211, 86, .12); border-color: var(--accent); color: var(--ink); }
 body[data-theme="ops"] .score { border-radius: 0; }
 body[data-theme="ops"] .cc { font-family: var(--pixel); font-size: .95em; border-color: var(--line-strong); background: none; }
+
+/* columna mas corta (arriba va el parte de novedades): graficas mas bajas y 5 procesos */
+body[data-theme="ops"] #right .chart { height: clamp(3.5rem, 8vh, 6rem); }
+body[data-theme="ops"] #right .procs > :nth-child(n+6) { display: none; }
+body[data-theme="ops"] #right .projrow:nth-child(n+4) { display: none; }
