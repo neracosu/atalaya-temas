@@ -236,6 +236,7 @@ export default class OficinaWorld {
     this.layoutKey = key;
     this.world.removeChildren().forEach(c => c.destroy({ children: true }));
     this.tags.removeChildren().forEach(c => c.destroy());
+    this.selG = null; this.racks = null; this.gateLamp = null; // se rearman con la sala
     for (const r of this.rooms.values()) if (r.plaque) r.plaque.remove();
     for (const m of this.mates.values()) m.dead = true;
     this.rooms.clear(); this.desks.clear(); this.mates.clear();

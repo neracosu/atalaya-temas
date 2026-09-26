@@ -414,6 +414,31 @@ function connect() {
   };
 }
 
+// ---------------------------------------------------------------- telefonos y tablets
+// Con pantalla chica el HUD se reacomoda (en CSS, body.compact): el mundo ocupa el centro y los paneles
+// (agentes, metricas y novedades) se abren como hojas desde la barra de pestanas de abajo.
+const compactMQ = matchMedia('(max-width: 1100px), (max-height: 560px)');
+function openSheet(id) {
+  document.body.dataset.sheet = id || '';
+  document.querySelectorAll('#tabs [data-sheet]').forEach(b => b.setAttribute('aria-pressed', String(b.dataset.sheet === (id || ''))));
+  if (id === 'right') rethemeCharts(); // las graficas se miden al abrirse la hoja
+}
+function applyCompact() {
+  document.body.classList.toggle('compact', compactMQ.matches);
+  if (!compactMQ.matches) openSheet('');
+  if (world) requestAnimationFrame(() => world.setInsets(insets()));
+}
+compactMQ.addEventListener('change', applyCompact);
+$('tabs').addEventListener('click', e => { const b = e.target.closest('[data-sheet]'); if (b) openSheet(document.body.dataset.sheet === b.dataset.sheet ? '' : b.dataset.sheet); });
+$('sheetBack').addEventListener('click', () => openSheet(''));
+document.addEventListener('keydown', e => { if (e.key === 'Escape' && document.body.dataset.sheet) openSheet(''); });
+// al tocar algo dentro de una hoja se abre su detalle: la hoja se cierra para dejarle lugar
+document.addEventListener('click', e => { if (document.body.classList.contains('compact') && document.body.dataset.sheet && e.target.closest('#left [data-go], #right [data-go], #ticker [data-go], #left .agent, #tall')) setTimeout(() => openSheet(''), 0); }, true);
+// contadores en las pestanas
+const mirror = (from, to) => new MutationObserver(() => { $(to).textContent = $(from).textContent === '0' ? '' : $(from).textContent; }).observe($(from), { childList: true, characterData: true, subtree: true });
+mirror('agentCount', 'tabAgents'); mirror('tcount', 'tabEvents');
+applyCompact();
+
 (async () => {
   initKpis();
   await document.fonts.ready.catch(() => { });

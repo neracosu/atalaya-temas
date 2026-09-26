@@ -185,7 +185,8 @@ export class Stage3D {
     const aw = Math.max(200, this.W - ins.left - ins.right), ah = Math.max(200, this.H - ins.top - ins.bottom);
     const cx = ins.left + aw / 2, cy = ins.top + ah / 2;
     this.camera.setViewOffset(this.W, this.H, this.W / 2 - cx, this.H / 2 - cy, this.W, this.H);
-    this.fitZoom = Math.min(aw / this.W, ah / this.H) * (this.fitScale || 1.2);
+    // en un area mas alta que ancha (telefono en vertical) se aleja: la escena suele ser mas ancha que alta
+    this.fitZoom = Math.min(aw / this.W, ah / this.H) * (this.fitScale || 1.2) * (aw < ah ? (aw / ah) ** 2 : 1);
     this.camera.updateProjectionMatrix();
   }
   // el tema fija su vista general (y la camara va hacia ella)

@@ -304,7 +304,7 @@ export default class Ops3D extends Stage3D {
   placeLabels() {
     super.placeLabels();
     if (!this.W || !this.sectors.size) return;
-    const zoomed = this.orbit.zoom > 1.4;
+    const zoomed = this.orbit.zoom > 1.4 || this.cardsOff; // sin lugar a los costados (telefono): sin fichas
     const ins = this.insets, top = ins.top + 8, bottom = this.H - ins.bottom - 8;
     const c = this.toScreen(new THREE.Vector3(this.orbit.tx, 0, this.orbit.tz));
     const rimPx = Math.abs(this.toScreen(new THREE.Vector3(this.orbit.tx + R * 1.12, 0, this.orbit.tz)).x - c.x);
@@ -354,7 +354,8 @@ export default class Ops3D extends Stage3D {
     if (!this.W) return;
     const aw = Math.max(200, this.W - ins.left - ins.right);
     const w = CARD_W * clamp(this.H / 1080, 0.75, 2);
-    const k = aw / Math.max(200, aw - 2 * (w + 50)); // cuanto mas ancha debe "verse" la mesa
+    this.cardsOff = aw < 2 * (w + 50) + 320;
+    const k = this.cardsOff ? 1 : aw / Math.max(200, aw - 2 * (w + 50)); // cuanto mas ancha debe "verse" la mesa
     this.setView({ dist: this.distToFit(R * 2.3 * k, R * 2.3 * Math.sin(this.view.el) + 1.5) }, true);
   }
 

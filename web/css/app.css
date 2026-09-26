@@ -382,3 +382,79 @@ button.ev:hover { background: rgba(255, 255, 255, .06); }
 .w3-fish { translate: -50% -100%; font-size: .74rem; font-weight: 600; color: var(--ink); background: rgba(5, 9, 18, .72); padding: 0 .3rem; }
 .w3-fish.down { color: var(--bad); }
 .w3-plaque.compact .fishlist { display: none; }
+
+/* ================================================================ telefonos y tablets (body.compact)
+   Lo pone main.js con pantallas de hasta 1100 px de ancho o 560 px de alto. Todos los temas comparten esta
+   disposicion (cada uno conserva sus colores y su letra): barra arriba, tira de indicadores, el mundo en el
+   centro, la ultima novedad y la barra de pestanas abajo. Agentes, metricas y novedades se abren como hojas. */
+#tabs, #sheetBack { display: none; }
+html:has(body.compact) { font-size: 14px; }
+body.compact { --top-h: 3.2rem; --kpi-h: 3.5rem; --tab-h: calc(3.6rem + env(safe-area-inset-bottom)); --news-h: 2.3rem; }
+html body.compact #top { position: fixed !important; top: 0 !important; left: 0 !important; right: 0 !important; bottom: auto !important; width: auto !important; height: var(--top-h) !important; margin: 0 !important; transform: none !important;
+  padding: 0 .7rem !important; display: flex !important; align-items: center; gap: .5rem; border-width: 0 0 1px !important; z-index: 12; }
+html body.compact #top .brand p, html body.compact #top .clock { display: none !important; }
+html body.compact #top .brand h1 { font-size: 1.05rem; }
+html body.compact #top .right { margin-left: auto; }
+html body.compact .kpis { position: fixed !important; top: var(--top-h) !important; left: 0 !important; right: 0 !important; bottom: auto !important; width: auto !important; height: var(--kpi-h) !important;
+  display: flex !important; grid-template-columns: none !important; justify-content: flex-start !important; gap: .4rem !important; padding: .35rem .6rem !important; margin: 0 !important; transform: none !important;
+  overflow-x: auto !important; overflow-y: hidden !important; scrollbar-width: none; background: var(--panel-solid) !important; border: 0 !important; border-bottom: 1px solid var(--line) !important; box-shadow: none !important; z-index: 11; }
+html body.compact .kpis::-webkit-scrollbar { display: none; }
+html body.compact .kpi { flex: none !important; min-width: 5.4rem !important; height: auto !important; padding: .25rem .5rem !important; }
+html body.compact .kpi .v { font-size: 1.05rem !important; }
+html body.compact #worldArea { display: block !important; top: calc(var(--top-h) + var(--kpi-h)) !important; bottom: calc(var(--tab-h) + var(--news-h)) !important; left: 0 !important; right: 0 !important; }
+html body.compact #navbar { position: fixed !important; top: auto !important; left: auto !important; right: .5rem !important; bottom: calc(var(--tab-h) + var(--news-h) + .5rem) !important; transform: none !important; margin: 0 !important; z-index: 9; }
+html body.compact #navState { display: none !important; }
+html body.compact #navbar button { width: 2.5rem; height: 2.5rem; }
+/* la ultima novedad, en una linea sobre las pestanas (tocarla abre la hoja de novedades) */
+html body.compact #ticker { position: fixed !important; top: auto !important; left: 0 !important; right: 0 !important; bottom: var(--tab-h) !important; width: auto !important; height: var(--news-h) !important; max-height: none !important; min-height: 0 !important;
+  margin: 0 !important; padding: 0 .7rem !important; transform: none !important; display: flex !important; flex-direction: row !important; align-items: center !important; border-width: 1px 0 0 !important; border-radius: 0 !important; z-index: 11; }
+html body.compact #ticker::before { display: none !important; }
+html body.compact #ticker .tscroll { overflow: hidden !important; flex: 1; }
+html body.compact #ticker #log { flex-direction: column !important; white-space: nowrap !important; width: 100% !important; }
+html body.compact #ticker #log .ev { display: block !important; overflow: hidden; text-overflow: ellipsis; white-space: nowrap !important; width: 100%; text-align: left !important; }
+html body.compact #ticker #log .ev:nth-child(n+2) { display: none !important; }
+html body.compact #ticker #tall { display: none !important; }
+/* paneles cerrados; abiertos como hojas desde abajo */
+html body.compact #left, html body.compact #right { display: none !important; }
+html body.compact[data-sheet="left"] #left, html body.compact[data-sheet="right"] #right, html body.compact[data-sheet="ticker"] #ticker {
+  display: flex !important; flex-direction: column !important; position: fixed !important; top: auto !important; left: 0 !important; right: 0 !important; bottom: var(--tab-h) !important;
+  width: auto !important; height: auto !important; min-height: 40dvh !important; max-height: calc(100dvh - var(--top-h) - var(--tab-h) - 1.5rem) !important; margin: 0 !important; transform: none !important;
+  padding: 1rem !important; overflow-y: auto !important; gap: .8rem; z-index: 20 !important; border-radius: 16px 16px 0 0; box-shadow: 0 -12px 40px rgba(0, 0, 0, .45) !important; }
+html body.compact[data-sheet="ticker"] #ticker { align-items: stretch !important; }
+html body.compact[data-sheet="ticker"] #ticker .tscroll { overflow-y: auto !important; }
+html body.compact[data-sheet="ticker"] #ticker #log { white-space: normal !important; gap: .35rem !important; }
+html body.compact[data-sheet="ticker"] #ticker #log .ev { white-space: normal !important; overflow: visible; display: block !important; }
+html body.compact[data-sheet="ticker"] #ticker #tall { display: inline-flex !important; align-self: flex-end; position: static !important; }
+html body.compact #right section, html body.compact #right .duo { flex-shrink: 0; }
+html body.compact #right .chart { height: 7rem !important; }
+html body.compact #sheetBack { display: block; position: fixed; inset: 0; z-index: 15; background: rgba(0, 0, 0, .45); opacity: 0; pointer-events: none; transition: opacity .2s; }
+html body.compact[data-sheet="left"] #sheetBack, html body.compact[data-sheet="right"] #sheetBack, html body.compact[data-sheet="ticker"] #sheetBack { opacity: 1; pointer-events: auto; }
+/* barra de pestanas */
+html body.compact #tabs { display: grid; grid-template-columns: repeat(4, 1fr); position: fixed; left: 0; right: 0; bottom: 0; height: var(--tab-h); padding-bottom: env(safe-area-inset-bottom); z-index: 21;
+  background: var(--panel-solid); border-top: 1px solid var(--line-strong); }
+#tabs button { position: relative; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: .15rem; border: 0; background: none; color: var(--ink-3); font: inherit; font-size: .72rem; cursor: pointer; }
+#tabs button .px { width: 1.35rem; height: 1.35rem; image-rendering: pixelated; opacity: .7; }
+#tabs button b { font-weight: 600; }
+#tabs button[aria-pressed="true"] { color: var(--accent); }
+#tabs button[aria-pressed="true"] .px { opacity: 1; }
+#tabs button[aria-pressed="true"]::before { content: ''; position: absolute; top: 0; left: 25%; right: 25%; height: 2px; background: var(--accent); }
+#tabs button i { position: absolute; top: .35rem; left: calc(50% + .5rem); min-width: 1.1rem; padding: 0 .25rem; border-radius: 9px; background: var(--accent); color: var(--bg); font-style: normal; font-size: .62rem; font-weight: 700; line-height: 1.1rem; text-align: center; }
+#tabs button i:empty { display: none; }
+/* detalle: hoja desde abajo, sobre todo */
+html body.compact .drawer { top: auto !important; left: 0 !important; right: 0 !important; bottom: 0 !important; width: auto !important; max-height: 82dvh !important; z-index: 40 !important; border-radius: 18px 18px 0 0; }
+/* en pantallas chicas los titulos del mundo 3D van mas chicos y sin subtitulo (no se enciman) */
+html body.compact .w3-group b { font-size: .82rem !important; }
+html body.compact .w3-group small { display: none; }
+html body.compact .w3-item { font-size: .68rem; }
+/* telefono acostado: las pestanas pasan a una barra vertical a la derecha y el mundo gana alto */
+@media (max-height: 500px) and (orientation: landscape) {
+  body.compact { --tab-h: 0px; --rail-w: 4.4rem; --top-h: 2.8rem; --kpi-h: 3.2rem; }
+  html body.compact #tabs { grid-template-columns: none; grid-template-rows: repeat(4, 1fr); top: 0; bottom: 0; left: auto; right: 0; width: var(--rail-w); height: auto; padding: 0 env(safe-area-inset-right) 0 0; border-top: 0; border-left: 1px solid var(--line-strong); }
+  #tabs button[aria-pressed="true"]::before { top: 25%; bottom: 25%; left: 0; right: auto; width: 2px; height: auto; }
+  html body.compact #top, html body.compact .kpis, html body.compact #ticker { right: var(--rail-w) !important; }
+  html body.compact #worldArea { right: var(--rail-w) !important; bottom: var(--news-h) !important; }
+  html body.compact #navbar { right: calc(var(--rail-w) + .5rem) !important; bottom: calc(var(--news-h) + .4rem) !important; }
+  html body.compact[data-sheet="left"] #left, html body.compact[data-sheet="right"] #right, html body.compact[data-sheet="ticker"] #ticker { right: var(--rail-w) !important; bottom: 0 !important; max-height: calc(100dvh - var(--top-h) - .5rem) !important; }
+  html body.compact .drawer { right: var(--rail-w) !important; max-height: 92dvh !important; }
+}
+html body.compact #menu { z-index: 30 !important; position: fixed !important; top: calc(var(--top-h) + .3rem) !important; right: .5rem !important; left: auto !important; max-height: calc(100dvh - var(--top-h) - var(--tab-h) - 1rem); overflow-y: auto; }

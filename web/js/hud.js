@@ -88,7 +88,7 @@ function buildCharts() {
 export function rethemeCharts() { if (chCpu) { fitRight(); buildCharts(); } }
 // si la columna derecha no cabe en su alto, las dos graficas se achican lo justo (hasta 3 rem) para que se vea todo
 function fitRight() {
-  const r = $('right'); if (!r) return;
+  const r = $('right'); if (!r || document.body.classList.contains('compact')) return;
   const charts = [...r.querySelectorAll('.chart')];
   charts.forEach(c => { c.style.height = ''; });
   const over = r.scrollHeight - r.clientHeight;
