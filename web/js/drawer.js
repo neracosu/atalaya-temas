@@ -83,6 +83,25 @@ export class Drawer {
         return;
       }
       // activar o apagar la actividad de bases: el ayudante crea o borra el usuario de solo PROCESS
+      // defensa: bloquear, desbloquear y ajustes
+      const bl = e.target.closest('[data-block-ip], [data-unblock-ip], [data-def-save]');
+      if (bl) {
+        e.preventDefault();
+        const post = (u, b) => fetch(u, { method: 'POST', headers: { 'Content-Type': 'application/json', 'X-Atalaya': '1' }, body: JSON.stringify(b) }).then(x => x.json()).catch(() => ({ error: 'Sin conexión' }));
+        let r;
+        if (bl.dataset.blockIp) {
+          if (!confirm(`¿Bloquear ${bl.dataset.blockIp}? No podrá entrar a ningún sitio del servidor hasta que venza el bloqueo.`)) return;
+          bl.disabled = true; bl.textContent = 'Bloqueando…'; r = await post('api/defense/block', { ip: bl.dataset.blockIp });
+        } else if (bl.dataset.unblockIp) { bl.disabled = true; r = await post('api/defense/unblock', { ip: bl.dataset.unblockIp }); }
+        else {
+          const box = bl.closest('.defbox');
+          r = await post('api/defense/settings', { auto: box.querySelector('[name=auto]').checked, hours: +box.querySelector('[name=hours]').value,
+            allow: box.querySelector('[name=allow]').value.split(/[\s,]+/).filter(Boolean) });
+        }
+        if (r.error) { bl.insertAdjacentHTML('afterend', `<span class="dmuted"> ${esc(r.error)}</span>`); bl.disabled = false; return; }
+        this.load();
+        return;
+      }
       const dm = e.target.closest('[data-dbmon]');
       if (dm) {
         e.preventDefault();
@@ -581,11 +600,15 @@ export class Drawer {
     if (w) {
       const since = ago(Date.now() - w.since);
       const T = {
+        exposed: ['bad', 'bad', `Una ruta sensible respondió${w.path ? `: <code>${esc(w.path)}</code>` : ''}`, 'Alguien encontró algo. Corrija la causa (niegue la ruta para todos los nombres del sitio o saque el archivo del docroot), cambie las claves que pudiera contener y bloquee la IP que lo encontró.'],
+        bruteforce: ['bad', 'key', `Fuerza bruta: ${fmtNum(w.n)} intentos de entrar al login en 10 min${w.topIp ? ` (${esc(w.topIp)})` : ''}`, 'Una IP prueba contraseñas. Bloquéela, use contraseñas largas, doble factor y, en WordPress, limite los intentos o cierre xmlrpc.php.'],
+        multi: ['bad', 'siren', `La misma IP sondea ${fmtNum(w.n)} de sus sitios${w.topIp ? ` (${esc(w.topIp)})` : ''}`, 'Un robot recorre el servidor completo. Bloquearlo una vez lo frena en todos los sitios.'],
         scan: ['bad', 'siren', `Escaneo en curso: ${fmtNum(w.n)} sondeos a rutas sensibles en 15 min`, 'Robots probando .env, phpinfo, paneles y archivos de configuración. Mire abajo en Defensa web si alguno respondió; si todos dan 404, no encontraron nada.'],
         scraping: ['bad', 'siren', `Scraping: una sola IP hizo ${fmtNum(w.n)} pedidos en 5 min${w.topIp ? ` (${esc(w.topIp)})` : ''}`, 'Una sola dirección se lleva el sitio página por página o lo satura. Si no es un servicio suyo, bloquee la IP en el firewall (o en cPHulk / CSF) y considere límites de velocidad.'],
         surge: ['warn', 'fire', `Pico de visitas: ${fmtNum(w.n)} por minuto (lo normal es ${fmtNum(w.base || 0)}) desde ${fmtNum(w.ips)} IPs`, 'Puede ser que se hizo viral (llegan de muchos países, con referer de redes o buscadores) o un ataque distribuido (muchas IPs, mismas páginas, sin referer). Compare países, referer y páginas más pedidas en esta ficha.'],
       }[w.reason];
-      if (T) body.insertAdjacentHTML('afterbegin', `<section class="dsec"><div class="afind ${T[0]}"><h5>${px(T[1])} ${T[2]}</h5><p class="dmuted">Desde hace ${since}.</p><p class="fix">${T[3]}</p></div></section>`);
+      const blockBtn = w.topIp && w.reason !== 'surge' ? `<p class="row"><button class="btn small danger" data-block-ip="${esc(w.topIp)}">Bloquear esta IP (${esc(w.topIp)})</button><span class="dmuted">se levanta sola al vencer</span></p>` : '';
+      if (T) body.insertAdjacentHTML('afterbegin', `<section class="dsec"><div class="afind ${T[0]}"><h5>${px(T[1])} ${T[2]}</h5><p class="dmuted">Desde hace ${since}.</p><p class="fix">${T[3]}</p>${blockBtn}</div></section>`);
     }
     if (!d.probes || !d.probes.n) return;
     body.insertAdjacentHTML('beforeend', `<section class="dsec"><h4>Defensa web</h4><p class="${d.probes.exposed ? 'afind bad' : 'dmuted'}">${px(d.probes.exposed ? 'bad' : 'invader')}
@@ -609,8 +632,9 @@ export class Drawer {
     this.content(`<div class="dstats">${stat('Última hora', fmtNum(d.hour))}${stat('Últimas 24 h', fmtNum(d.day))}${stat('Expuestos', fmtNum(d.exposed.filter(x => x.sev === 'bad').length), d.exposed.some(x => x.sev === 'bad') ? 'bad' : '')}</div>
       ${exp}${fams}${sites}${paths}${ips}${cc}
       ${d.priv ? '' : '<p class="dmuted small">En modo privado se ven las rutas, las IPs y qué archivo quedó expuesto.</p>'}
+      ${defenseSection(d.defense, d.priv)}
       ${defsLine(window.atalaya && window.atalaya.state)}
-      <p class="dmuted small">Atalaya solo mira: no bloquea. Cuando una ruta de secretos o de webshell responde, la vuelve a pedir una vez para confirmar si de verdad expone algo; nunca guarda su contenido.</p>`);
+      <p class="dmuted small">Atalaya solo bloquea cuando usted lo pide o enciende la defensa automática, y siempre por un tiempo. Cuando una ruta de secretos o de webshell responde, la vuelve a pedir una vez para confirmar si de verdad expone algo; nunca guarda su contenido.</p>`);
   }
 
   renderSecurity(d) {
@@ -789,6 +813,26 @@ const KIND_ICON = { vercel: px('triangle'), supabase: px('bolt'), app: px('gear'
 const LEVEL_ICON = { ok: px('ok'), info: px('info'), warn: px('warn'), bad: px('bad'), unknown: px('unknown') };
 const scoreCls = s => s >= 85 ? 'ok' : s >= 60 ? 'warn' : 'bad';
 function projJob(j) { return j ? `<p class="dmuted">⏳ En curso: ${esc(j.label)} (hace ${ago(Date.now() - j.startedAt)}).</p>` : ''; }
+
+// defensa de Atalaya: bloqueos (activos e historial) y la defensa automatica
+function defenseSection(D, priv) {
+  if (!D || !D.available) return '';
+  const now = Date.now();
+  const rows = D.records.slice(0, 15).map(r => {
+    const on = r.status === 'active' && r.until > now;
+    const left = on ? `vence en ${ago(r.until - now + 60000).replace(/^hace /, '')}` : r.status === 'lifted' ? 'desbloqueada' : 'venció';
+    return `<li><span class="grow">${priv && r.ip ? `<span class="mono">${esc(r.ip)}</span> · ` : ''}${esc(r.why)}${r.site ? ` · ${esc(r.site)}` : ''}<br>
+      <span class="dmuted">${r.by === 'auto' ? 'automático' : 'por ' + esc(r.by)} · ${new Date(r.at).toLocaleString('es-VE', { hour12: false, day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' })} · ${left}</span></span>
+      ${on && priv && r.ip ? `<button class="btn small ghost" data-unblock-ip="${esc(r.ip)}">Desbloquear</button>` : on ? '<span class="pill bad">activo</span>' : ''}</li>`;
+  }).join('');
+  const conf = priv ? `<div class="defbox">
+      <label class="check"><input type="checkbox" name="auto" ${D.auto ? 'checked' : ''}><span><b>Defensa automática</b><small>Bloquea sola a quien encontró una ruta expuesta, hace fuerza bruta, scraping o sondea varios sitios; y si MySQL o la carga llegan al límite, a quienes atacan en ese momento. Nunca a Cloudflare, redes privadas, este servidor, usuarios de Atalaya ni la lista blanca.</small></span></label>
+      <div class="row"><label>Duración <select name="hours">${[1, 6, 24, 72, 168].map(h => `<option value="${h}"${h === D.hours ? ' selected' : ''}>${h < 24 ? h + ' h' : h / 24 + ' día' + (h > 24 ? 's' : '')}</option>`).join('')}</select></label></div>
+      <label class="stack">IPs que nunca se bloquean (una por línea)<textarea name="allow" rows="2" spellcheck="false">${esc((D.allow || []).join('\n'))}</textarea></label>
+      <p class="row"><button class="btn small" data-def-save>Guardar</button></p></div>` : `<p class="dmuted">Defensa automática: <b>${D.auto ? 'encendida' : 'apagada'}</b>.</p>`;
+  return `<section class="dsec"><h4>${px('shield')} Defensa de Atalaya ${D.active ? `<span class="pill bad">${D.active} bloqueo(s) activo(s)</span>` : ''}</h4>
+    ${conf}${rows ? `<ul class="dlist">${rows}</ul>` : '<p class="dmuted">Todavía no hay bloqueos.</p>'}</section>`;
+}
 
 // actividad de las bases: lo que importa (conexiones contra el maximo, consultas por segundo) y las bases mas
 // ocupadas; el texto de las consultas solo en privado y sin valores

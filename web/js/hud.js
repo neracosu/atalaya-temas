@@ -267,8 +267,19 @@ export function tickerEvent(e, accounts, priv) {
       const st = window.atalaya && window.atalaya.state;
       const nm = e.name || (st && ((st.sites.find(x => x.id === e.site) || st.apps.find(x => x.id === e.app)) || {}).name) || 'un sitio';
       const T = { scan: [`Escaneo en ${nm}: ${e.n} sondeos en 15 min`, '#ef4444', 'siren'], scraping: [`Scraping en ${nm}: una IP hizo ${e.n} pedidos en 5 min${priv && e.ip ? ' · ' + e.ip : ''}`, '#ef4444', 'siren'],
-        surge: [`Pico de visitas en ${nm}: ${e.n}/min desde ${e.ips} IPs · ¿se hizo viral o es un ataque?`, '#fbbf24', 'fire'] }[e.reason];
+        surge: [`Pico de visitas en ${nm}: ${e.n}/min desde ${e.ips} IPs · ¿se hizo viral o es un ataque?`, '#fbbf24', 'fire'],
+        exposed: [`Ruta expuesta en ${nm}${priv && e.path ? ': ' + e.path : ''} · alguien encontró algo`, '#ef4444', 'bad'],
+        bruteforce: [`Fuerza bruta en ${nm}: ${e.n} intentos de login en 10 min${priv && e.ip ? ' · ' + e.ip : ''}`, '#ef4444', 'key'],
+        multi: [`La misma IP sondea ${e.n} de sus sitios${priv && e.ip ? ' · ' + e.ip : ''}`, '#ef4444', 'siren'] }[e.reason];
       if (T) addTicker(T[2], e.label || '', T[0], T[1], e.reason === 'surge' ? (e.site ? 'site:' + e.site : 'app:' + e.app) : 'webdef:all');
+      return;
+    }
+    case 'defense': {
+      const st = window.atalaya && window.atalaya.state;
+      const nm = e.name || (st && ((st.sites.find(x => x.id === e.site) || st.apps.find(x => x.id === e.app)) || {}).name) || '';
+      const who = priv && e.ip ? e.ip : 'Una IP';
+      if (e.action === 'block') addTicker('shield', e.label || '', `${who} bloqueada ${e.hours} h${nm ? ' en ' + nm : ''}${e.by === 'auto' ? ' · defensa automática' : ''}`, '#4ade80', 'webdef:all');
+      else if (e.action === 'unblock') addTicker('shield', e.label || '', `${who} desbloqueada`, '#94a3b8', 'webdef:all');
       return;
     }
     case 'db':

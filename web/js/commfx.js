@@ -55,6 +55,8 @@ export class CommFx {
 
   onEvent(e) {
     if (e.kind === 'probe') return this.probe(e);
+    // bloqueo: las patrullas se llevan al auto sospechoso a la torre
+    if (e.kind === 'defense' && e.action === 'block' && (e.app || e.site)) return this.escort(e.app ? 'app' : 'site', e.app || e.site);
     // consulta lenta: un solo pulso ambar sobre el edificio que usa la base (si no se sabe cual, solo el ticker)
     if (e.kind === 'db' && e.action === 'slow') {
       const at = e.app ? this.pos('app', e.app) : e.site ? this.pos('site', e.site) : null;
@@ -157,6 +159,13 @@ export class CommFx {
     }
     if (this.patrols.size) this.run();
   }
+  escort(kind, id) {
+    const k = kind + ':' + id, now = performance.now() / 1000;
+    const P = this.patrols.get(k);
+    if (P && P.w.reason !== 'surge') { P.phase = 'back'; P.t0 = now; P.escort = true; }
+    else this.patrols.set(k, { w: { kind, id, reason: 'block' }, phase: 'back', t0: now, park: [], escort: true });
+    this.run();
+  }
   // de donde salen: la torre de control del tema; si no la hay, el borde de la pantalla mas cercano
   home(b) {
     const w = this.getWorld();
@@ -187,6 +196,7 @@ export class CommFx {
       }
       const home = this.home(b), e = t - P.t0;
       let moving = false;
+      const drawn = [];
       for (const i of [0, 1]) {
         const side = i ? 1 : -1;
         if (b) P.park[i] = { x: b.x + side * 48, y: b.y - 4 };
@@ -194,18 +204,29 @@ export class CommFx {
         const hover = Math.sin(t * 2.2 + i * 1.7) * 3;
         if (!park || !home) continue;
         const from = P.phase === 'back' ? park : home, to = P.phase === 'back' ? home : park;
-        const d = Math.hypot(to.x - from.x, to.y - from.y), dur = this.still ? 0.6 : Math.min(3.2, Math.max(1.4, d / 300));
-        let u = P.phase === 'on' ? 1 : Math.min(1, Math.max(0, (e - i * 0.35) / dur));
+        // vuelo pausado, para disfrutarlo en pantalla: 4 a 9 s segun la distancia; la escolta, mas lenta todavia
+        const d = Math.hypot(to.x - from.x, to.y - from.y), dur = this.still ? 0.6 : P.escort && P.phase === 'back' ? Math.min(11, Math.max(5, d / 80)) : Math.min(9, Math.max(4, d / 110));
+        let u = P.phase === 'on' ? 1 : Math.min(1, Math.max(0, (e - i * 0.6) / dur));
         if (P.phase !== 'on' && u < 1) moving = true;
         if (P.phase === 'out' && u <= 0) continue; // todavia no despego
         if (P.phase === 'back' && u >= 1) continue; // ya llego a la torre
-        const k2 = ease(u), lift = Math.min(170, 50 + d * 0.3);
+        const k2 = ease(u), lift = Math.min(200, 60 + d * 0.35);
         const mx = (from.x + to.x) / 2, my = Math.min(from.y, to.y) - lift;
         const x = (1 - k2) ** 2 * from.x + 2 * (1 - k2) * k2 * mx + k2 * k2 * to.x;
         const y = (1 - k2) ** 2 * from.y + 2 * (1 - k2) * k2 * my + k2 * k2 * to.y + (P.phase === 'on' ? hover : 0);
         // en vuelo mira hacia donde va; suspendida, hacia el edificio
         const flip = P.phase === 'on' ? side > 0 : to.x < from.x;
         this.car('fly', x, y, t + i * 0.3, flip);
+        drawn.push({ x, y, flip });
+      }
+      // escolta: el auto sospechoso va entre las dos patrullas, un poco mas abajo, con su cartel
+      if (P.escort && P.phase === 'back' && drawn.length === 2) {
+        const sx = (drawn[0].x + drawn[1].x) / 2, sy = (drawn[0].y + drawn[1].y) / 2 + 16;
+        this.car('probe', sx, sy, t, drawn[0].flip);
+        cx.font = "700 10px 'Space Grotesk', system-ui, sans-serif"; cx.textAlign = 'center';
+        const tw = cx.measureText('IP BLOQUEADA').width + 10;
+        cx.fillStyle = 'rgba(5, 9, 18, .85)'; cx.fillRect(Math.round(sx - tw / 2), Math.round(sy - 36), Math.round(tw), 15);
+        cx.fillStyle = '#4ade80'; cx.fillText('IP BLOQUEADA', sx, sy - 25);
       }
       if (P.phase === 'out' && !moving && e > 0.5) P.phase = 'on';
       if (P.phase === 'back' && !moving && e > 0.5) { this.patrols.delete(k); continue; }
@@ -213,7 +234,9 @@ export class CommFx {
         cx.globalAlpha = 0.16; cx.fillStyle = Math.floor(t * 6) % 2 ? '#ef4444' : '#3b82f6';
         cx.fillRect(Math.round(b.x - 72), Math.round(b.y + 14), 144, 12); cx.globalAlpha = 1;
       }
-      if (b && P.phase !== 'back') this.watchLabel(b, w.reason === 'scraping' ? `EN VIGILANCIA · UNA IP · ${w.n} pedidos` : `EN VIGILANCIA · ${w.n} sondeos`, '#ef4444');
+      const LBL = { scraping: `EN VIGILANCIA · UNA IP · ${w.n} pedidos`, scan: `EN VIGILANCIA · ${w.n} sondeos`, exposed: 'EXPUESTO · una ruta respondió',
+        bruteforce: `FUERZA BRUTA · ${w.n} intentos`, multi: `LA MISMA IP EN ${w.n} SITIOS` };
+      if (b && P.phase !== 'back' && LBL[w.reason]) this.watchLabel(b, LBL[w.reason], '#ef4444');
     }
   }
   watchLabel(p, label, col) {

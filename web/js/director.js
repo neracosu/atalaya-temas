@@ -38,8 +38,12 @@ export class Director {
     else if (e.kind === 'deploy') c = { kind: 'app', id: e.app, icon: 'rocket', score: e.action === 'error' ? 80 : 60, text: () => e.action === 'error' ? `Falló el despliegue de ${e.appName}` : e.action === 'ready' ? `${e.appName} se desplegó` : `Desplegando ${e.appName}` };
     else if (e.kind === 'probe' && e.exposed) { const [k, id] = where(e.app, e.site); if (k) c = { kind: k, id, icon: 'bad', score: 95, urgent: true, text: n => `Archivo expuesto en ${n || 'un sitio'}` }; }
     else if (e.kind === 'db' && e.action === 'slow') { const [k, id] = where(e.app, e.site); c = { kind: k || 'district', id: id || e.account, icon: 'db', score: 50, text: n => `Consulta lenta de ${e.secs} s${n ? ' en ' + n : ''}` }; }
-    else if (e.kind === 'watch' && e.action === 'start') { const [k, id] = where(e.app, e.site); if (k) c = { kind: k, id, icon: 'siren', score: e.reason === 'surge' ? 75 : 88, urgent: e.reason !== 'surge',
-      text: n => e.reason === 'surge' ? `Pico de visitas en ${n || 'un sitio'}: ${e.n}/min` : e.reason === 'scraping' ? `Una IP le hace ${e.n} pedidos a ${n || 'un sitio'}` : `Escaneo en ${n || 'un sitio'}: ${e.n} sondeos` }; }
+    else if (e.kind === 'watch' && e.action === 'start') { const [k, id] = where(e.app, e.site); if (k) c = { kind: k, id, icon: 'siren', score: e.reason === 'surge' ? 75 : e.reason === 'exposed' ? 96 : 88, urgent: e.reason !== 'surge',
+      text: n => ({ surge: `Pico de visitas en ${n || 'un sitio'}: ${e.n}/min`, scraping: `Una IP le hace ${e.n} pedidos a ${n || 'un sitio'}`,
+        exposed: `Alguien encontró una ruta expuesta en ${n || 'un sitio'}`, bruteforce: `Fuerza bruta al login de ${n || 'un sitio'}: ${e.n} intentos`,
+        multi: `La misma IP sondea ${e.n} de sus sitios`, scan: `Escaneo en ${n || 'un sitio'}: ${e.n} sondeos` }[e.reason] || `Vigilancia en ${n || 'un sitio'}`) }; }
+    else if (e.kind === 'defense' && e.action === 'block') { const [k, id] = where(e.app, e.site); if (k) c = { kind: k, id, icon: 'shield', score: 80,
+      text: n => `Las patrullas se llevan a la IP que atacaba ${n || 'el sitio'}${e.by === 'auto' ? ' · defensa automática' : ''}` }; }
     else if (e.kind === 'keysvc' && e.action === 'down') c = { kind: 'system', id: 'root', icon: 'siren', score: 95, urgent: true, text: () => `${e.label} falló` };
     if (!c || !c.id) return;
     c.key = e.kind + ':' + (e.action || '') + ':' + c.kind + ':' + c.id;
