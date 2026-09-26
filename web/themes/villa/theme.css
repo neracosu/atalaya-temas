@@ -45,7 +45,7 @@ body[data-theme="villa"] #kpi-mem .bar i { background: #3c7ab5; }
 body[data-theme="villa"] #kpi-disk .bar i { background: #c98a2b; }
 
 /* el resto de las lecturas debajo, en la misma columna */
-body[data-theme="villa"] #right { top: 12.6rem; right: 1.2rem; bottom: 1.2rem; width: clamp(270px, 22vw, 560px); gap: .8rem; }
+body[data-theme="villa"] #right { top: 16.4rem; right: 1.2rem; bottom: 1.2rem; width: clamp(270px, 22vw, 560px); gap: .8rem; }
 
 /* magos (agentes) arriba a la izquierda, bajo el cartel */
 body[data-theme="villa"] #left { top: 6.8rem; left: 1.2rem; bottom: auto; height: auto; max-height: 38vh; width: clamp(240px, 19vw, 480px); }

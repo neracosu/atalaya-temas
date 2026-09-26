@@ -92,9 +92,28 @@ function fitRight() {
   const charts = [...r.querySelectorAll('.chart')];
   charts.forEach(c => { c.style.height = ''; });
   const over = r.scrollHeight - r.clientHeight;
+  // limite de filas por regla de estilo (sobrevive a los redibujos de cada estado)
+  let st = document.getElementById('fitRightStyle');
+  if (!st) { st = document.createElement('style'); st.id = 'fitRightStyle'; document.head.appendChild(st); }
+  st.textContent = '';
   if (over > 0 && charts.length) {
     const min = parseFloat(getComputedStyle(document.documentElement).fontSize) * 3;
     charts.forEach(c => { c.style.height = Math.max(min, c.clientHeight - Math.ceil(over / charts.length)) + 'px'; });
+  }
+  // si aun no cabe: menos procesos (minimo 3) y menos proyectos (minimo 1)
+  const vis = sel => [...r.querySelectorAll(sel)].filter(x => getComputedStyle(x).display !== 'none').length;
+  let np = vis('#procs > *'), nj = vis('#proj .projrow');
+  while (r.scrollHeight > r.clientHeight + 1 && (np > 3 || nj > 1)) {
+    if (np > 3 && np >= nj + 2) np--; else if (nj > 1) nj--; else np--;
+    st.textContent = `#right #procs > :nth-child(n+${np + 1}), #right #proj .projrow:nth-of-type(n+${nj + 1}) { display: none !important; }`;
+  }
+  // ultimo recurso: achicar las secciones de texto (no las graficas: su cursor se descalibra con zoom), hasta 80 %
+  const over2 = r.scrollHeight - r.clientHeight;
+  if (over2 > 1) {
+    const txt = [...r.children].filter(x => !x.querySelector('.chart'));
+    const h = txt.reduce((n, x) => n + x.offsetHeight, 0);
+    const k = Math.max(0.8, (h - over2 - 2) / h).toFixed(3);
+    st.textContent += ` #right > :not(:has(.chart)) { zoom: ${k}; }`;
   }
   if (chCpu) { const e1 = $('chCpu'), e2 = $('chReq'); chCpu.setSize({ width: e1.clientWidth, height: e1.clientHeight }); chReq.setSize({ width: e2.clientWidth, height: e2.clientHeight }); }
 }
@@ -172,7 +191,19 @@ function renderProcs(top, system) {
     <span class="b"><i style="width:${Math.min(100, p.cpu / max * 100)}%"></i></span><span class="c">${p.cpu.toFixed(1)}%</span></div>`).join('');
   $('procCount').textContent = system ? `${system.procs} procesos · ${system.cores} núcleos` : '';
 }
+// salud del servidor: un chip por revision (respaldos, actualizaciones, correo, cron, puertos)
+function renderHealth(list) {
+  const el = $('health'); if (!el) return;
+  if (!list || !list.length) return;
+  const LBL = { ok: 'en orden', warn: 'para revisar', bad: 'grave', unknown: 'sin revisar' };
+  const SHORT = { backups: 'Respaldos', updates: 'Paquetes', mail: 'Correo', cron: 'Cron', ports: 'Puertos' };
+  el.innerHTML = list.map(h => `<span class="hchip ${h.status}" title="${esc(h.title)}: ${LBL[h.status] || h.status}">${px(h.icon)}<i>${esc(SHORT[h.id] || h.title)}</i><b>${h.bad + h.warn || (h.status === 'unknown' ? '?' : '')}</b></span>`).join('');
+  const bad = list.reduce((n, h) => n + h.bad, 0), warn = list.reduce((n, h) => n + h.warn, 0);
+  $('healthSub').textContent = bad ? `${bad} grave${bad === 1 ? '' : 's'}${warn ? ` · ${warn} para revisar` : ''}` : warn ? `${warn} para revisar` : 'en orden';
+  $('healthSub').className = 'sub ' + (bad ? 'bad' : warn ? 'warn' : 'ok');
+}
 function renderMini(state) {
+  renderHealth(state.health);
   const s = state.security, m = state.mail;
   $('sec').innerHTML = `<div><span>Intentos SSH</span><b>${fmtNum(s.failed)}</b></div><div><span>IPs bloqueadas</span><b>${fmtNum(s.blocked)}</b></div><div><span>Accesos OK</span><b>${fmtNum(s.logins)}</b></div>`;
   $('mail').innerHTML = `<div><span>Enviados</span><b>${fmtNum(m.out)}</b></div><div><span>Recibidos</span><b>${fmtNum(m.in)}</b></div><div><span>Rebotes</span><b>${fmtNum(m.bounce)}</b></div>`;
@@ -271,7 +302,7 @@ export function renderState(st) {
   renderAgents(st.sessions, st.accounts, st.priv);
   renderProcs(st.top, sys);
   renderMini(st);
-  const r = $('right'); if (r && r.scrollHeight > r.clientHeight + 2) fitRightSoon();
+  const r = $('right'); if (r && r.scrollHeight > r.clientHeight + 2) fitRightSoon(); // si algo crecio
 }
 
 export function resetAgents() { for (const el of cards.values()) el.remove(); cards.clear(); }

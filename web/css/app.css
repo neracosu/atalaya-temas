@@ -458,3 +458,24 @@ html body.compact .w3-item { font-size: .68rem; }
   html body.compact .drawer { right: var(--rail-w) !important; max-height: 92dvh !important; }
 }
 html body.compact #menu { z-index: 30 !important; position: fixed !important; top: calc(var(--top-h) + .3rem) !important; right: .5rem !important; left: auto !important; max-height: calc(100dvh - var(--top-h) - var(--tab-h) - 1rem); overflow-y: auto; }
+
+/* salud del servidor: un chip por revision */
+.health { display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); gap: .35rem; }
+.hchip { display: grid; justify-items: center; gap: .1rem; padding: .35rem .2rem; border-radius: 8px; border: 1px solid var(--line); background: rgba(255, 255, 255, .02); font-size: .66rem; color: var(--ink-3); min-width: 0; }
+.hchip .px { width: 1.3rem; height: 1.3rem; }
+.hchip i { font-style: normal; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 100%; }
+.hchip b { font-size: .85rem; line-height: 1; min-height: .85rem; color: var(--ink); }
+.hchip.ok { border-color: color-mix(in srgb, var(--good) 45%, transparent); }
+.hchip.warn { border-color: var(--warn); background: color-mix(in srgb, var(--warn) 10%, transparent); }
+.hchip.warn b { color: var(--warn); }
+.hchip.bad { border-color: var(--bad); background: color-mix(in srgb, var(--bad) 12%, transparent); }
+.hchip.bad b { color: var(--bad); }
+#healthSub.bad { color: var(--bad); } #healthSub.warn { color: var(--warn); } #healthSub.ok { color: var(--good); }
+.afind { padding: .6rem .7rem; border-radius: 10px; border: 1px solid var(--line); border-left: 4px solid var(--warn); margin: .4rem 0; background: rgba(255, 255, 255, .02); }
+.afind.bad { border-left-color: var(--bad); }
+.afind h5 { margin: 0 0 .2rem; font-size: .9rem; }
+.afind p { margin: .15rem 0; font-size: .82rem; color: var(--ink-2); }
+.afind .fix { color: var(--ink); }
+.afind .fix::before { content: 'Cómo arreglarlo: '; font-weight: 700; color: var(--accent); }
+.afind ul { margin: .3rem 0 0; padding-left: 1rem; font-size: .76rem; color: var(--ink-3); }
+.afind code { font-size: .74rem; word-break: break-all; }
