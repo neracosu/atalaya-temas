@@ -85,19 +85,19 @@ body[data-theme="ops"] #right .chart { height: clamp(3.5rem, 8vh, 6rem); }
 body[data-theme="ops"] #right .procs > :nth-child(n+6) { display: none; }
 body[data-theme="ops"] #right .projrow:nth-child(n+4) { display: none; }
 
-/* etiquetas del mundo 3D: texto HTML nitido que sigue a cada objeto */
-body[data-theme="ops"] .ops3-labels { position: absolute; inset: 0; pointer-events: none; overflow: hidden; }
-body[data-theme="ops"] .ops3-label { position: absolute; left: 0; top: 0; white-space: nowrap; will-change: transform; }
-body[data-theme="ops"] .ops3-sector { pointer-events: auto; cursor: pointer; display: grid; justify-items: center; gap: .1rem; translate: -50% -50%; text-align: center; }
-body[data-theme="ops"] .ops3-sector b { font-family: var(--pixel); font-weight: 400; font-size: 1.45rem; letter-spacing: .12em; text-transform: uppercase; color: var(--ink); border-bottom: 2px solid; padding: 0 .3rem; background: rgba(11, 13, 9, .75); }
-body[data-theme="ops"] .ops3-sector small { font-size: .78rem; color: var(--ink-2); background: rgba(11, 13, 9, .75); padding: 0 .3rem; }
-body[data-theme="ops"] .ops3-sector:hover b { color: var(--accent); }
-body[data-theme="ops"] .ops3-base { translate: -50% 0; font-family: var(--pixel); font-size: 1.4rem; letter-spacing: .2em; color: var(--ink); text-align: center; display: grid; }
-body[data-theme="ops"] .ops3-base small { font-family: var(--font); font-size: .7rem; letter-spacing: .05em; color: var(--ink-3); }
-body[data-theme="ops"] .ops3-item { translate: -50% -100%; font-size: .8rem; font-weight: 600; color: var(--ink); background: rgba(11, 13, 9, .8); border-left: 2px solid var(--accent); padding: .05rem .35rem; }
-body[data-theme="ops"] .ops3-item.down { color: #ffb4ac; border-color: var(--bad); }
-body[data-theme="ops"] .ops3-item:empty { display: none; }
-body[data-theme="ops"] .ops3-drone { translate: -50% -100%; font-family: var(--pixel); font-size: 1.05rem; letter-spacing: .1em; color: var(--ink-2); }
-body[data-theme="ops"] .ops3-drone em { font-style: normal; color: #0b0d09; background: var(--warn); padding: 0 .3rem; margin-left: .3rem; }
-body[data-theme="ops"] .ops3-float { translate: -50% -100%; font-family: var(--pixel); font-size: 1.35rem; letter-spacing: .12em; padding: .05rem .5rem; background: rgba(11, 13, 9, .85); border: 1px solid; }
-body[data-theme="ops"] .ops3-float.ok { color: var(--good); } body[data-theme="ops"] .ops3-float.warn { color: var(--warn); } body[data-theme="ops"] .ops3-float.crit { color: var(--bad); } body[data-theme="ops"] .ops3-float.dim { color: var(--ink-3); }
+/* mundo 3D: textos nitidos que siguen a cada objeto, fichas de sector con linea guia */
+body[data-theme="ops"] .ops-leaders { position: absolute; inset: 0; width: 100%; height: 100%; pointer-events: none; overflow: visible; }
+body[data-theme="ops"] .ops-leaders polyline { fill: none; stroke-width: 1.5; opacity: .75; }
+body[data-theme="ops"] .ops-card { translate: none; background: rgba(11, 13, 9, .9); border: 1px solid var(--line-strong); }
+body[data-theme="ops"] .ops-card > b { font-family: var(--pixel); font-size: 1.45em; letter-spacing: .1em; text-transform: uppercase; color: var(--ink); }
+body[data-theme="ops"] .ops-card .fishlist { grid-template-columns: repeat(auto-fill, minmax(9em, 1fr)); }
+body[data-theme="ops"] .ops-card .fishlist span { color: var(--ink-2); }
+body[data-theme="ops"] .ops-card .fishlist span.down { color: var(--bad); }
+body[data-theme="ops"] .ops-card .fishlist img { width: 1.1em; height: 1.1em; }
+body[data-theme="ops"] .ops-base b { font-family: var(--pixel); font-size: 1.4rem; letter-spacing: .2em; color: var(--ink); }
+body[data-theme="ops"] .ops-base small { color: var(--ink-3); }
+body[data-theme="ops"] .w3-item { background: rgba(11, 13, 9, .8); border-left-color: var(--accent); }
+body[data-theme="ops"] .w3-item.down { color: #ffb4ac; border-color: var(--bad); }
+body[data-theme="ops"] .ops-drone { font-family: var(--pixel); font-size: 1.05rem; letter-spacing: .1em; color: var(--ink-2); }
+body[data-theme="ops"] .ops-drone em { font-style: normal; color: #0b0d09; background: var(--warn); padding: 0 .3rem; margin-left: .3rem; }
+body[data-theme="ops"] .w3-float { font-family: var(--pixel); font-weight: 400; font-size: 1.35rem; letter-spacing: .12em; background: rgba(11, 13, 9, .85); }
