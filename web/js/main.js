@@ -515,7 +515,8 @@ function connect() {
     renderState(state);
     tm.update(state);
     comm.setWatch([...state.sites.filter(x => x.watch).map(x => ({ kind: 'site', id: x.id, ...x.watch })), ...state.apps.filter(x => x.watch).map(x => ({ kind: 'app', id: x.id, ...x.watch })),
-      ...state.sites.filter(x => x.php && !x.watch).map(x => ({ kind: 'site', id: x.id, reason: 'php', max: x.php.max, n: x.php.n }))]);
+      ...state.sites.filter(x => x.php && !x.watch && !x.phpbad).map(x => ({ kind: 'site', id: x.id, reason: 'php', max: x.php.max, n: x.php.n })),
+      ...state.sites.filter(x => x.phpbad && !x.watch).map(x => ({ kind: 'site', id: x.id, reason: 'phpbad', n: x.phpbad.n }))]);
     comm.setSaturation(state.saturation);
   });
   es.addEventListener('ev', e => {

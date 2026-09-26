@@ -85,6 +85,17 @@ export class Drawer {
       }
       // activar o apagar la actividad de bases: el ayudante crea o borra el usuario de solo PROCESS
       // defensa: bloquear, desbloquear y ajustes
+      const pq = e.target.closest('[data-php-q], [data-php-ack]');
+      if (pq) {
+        const q = !!pq.dataset.phpQ, file = pq.dataset.phpQ || pq.dataset.phpAck;
+        if (!(await ask(q ? { title: 'Poner en cuarentena', danger: true, icon: 'bad', ok: 'Sacar del sitio', body: `<code>${esc(file.replace(/^\/home\/[^/]+\//, '~/'))}</code> sale del sitio y deja de funcionar. Se guarda aparte, sin borrarse, por si hiciera falta recuperarlo.` }
+          : { title: 'Marcar como revisado', icon: 'ok', ok: 'Es mío, está bien', body: 'Deja de aparecer como sospechoso. Úselo solo si sabe de dónde salió este archivo.' }))) return;
+        pq.disabled = true;
+        const r = await fetch(q ? 'api/phpfiles/quarantine' : 'api/phpfiles/ack', { method: 'POST', headers: { 'Content-Type': 'application/json', 'X-Atalaya': '1' }, body: JSON.stringify({ path: file }) }).then(x => x.json()).catch(() => ({ error: 'Sin conexión' }));
+        if (r.error) { pq.insertAdjacentHTML('afterend', `<span class="dmuted"> ${esc(r.error)}</span>`); pq.disabled = false; return; }
+        this.load();
+        return;
+      }
       const rel = e.target.closest('[data-release-ip]');
       if (rel) {
         const perm = rel.dataset.perm === '1';
@@ -621,6 +632,15 @@ export class Drawer {
       }[w.reason];
       const blockBtn = w.topIp && w.blockable && w.reason !== 'surge' ? `<p class="row"><button class="btn small danger" data-block-ip="${esc(w.topIp)}">Bloquear esta IP (${esc(w.topIp)})</button><span class="dmuted">se levanta sola al vencer</span></p>` : '';
       if (T) body.insertAdjacentHTML('afterbegin', `<section class="dsec"><div class="afind ${T[0]}"><h5>${px(T[1])} ${T[2]}</h5><p class="dmuted">Desde hace ${since}.</p><p class="fix">${T[3]}</p>${blockBtn}</div></section>`);
+    }
+    // archivos PHP sospechosos (posibles puertas traseras), arriba de todo
+    if (d.phpSus && d.phpSus.length) {
+      const rows = d.phpSus.map(x => `<div class="afind bad"><h5>${px('bad')} ${x.short ? `<code>${esc(x.short)}</code>` : 'Archivo PHP sospechoso'}</h5>
+        <p>${x.why.map(esc).join(' · ')}</p>
+        <p class="dmuted">${fmtBytes(x.size)} · modificado el ${new Date(x.mtime).toLocaleDateString('es-VE')}${x.existing ? ' · ya estaba cuando Atalaya empezó a vigilar' : ` · apareció hace ${ago(Date.now() - x.at)}`}</p>
+        ${x.path ? `<p class="row"><button class="btn small danger" data-php-q="${esc(x.path)}">Poner en cuarentena</button><button class="btn small ghost" data-php-ack="${esc(x.path)}">Marcar como revisado</button></p>` : ''}</div>`).join('');
+      body.insertAdjacentHTML('afterbegin', `<section class="dsec"><h4>Archivos PHP sospechosos</h4>${rows}
+        <p class="hint">Cuarentena: el archivo sale del sitio (deja de funcionar) y se guarda aparte, sin borrarse. Si no lo subió usted, cambie además las contraseñas de cPanel, FTP y WordPress y actualice plugins y temas.</p>${d.phpSus.some(x => x.path) ? '' : '<p class="dmuted">Active el modo privado para ver las rutas y actuar.</p>'}</section>`);
     }
     if (!d.probes || !d.probes.n) return;
     body.insertAdjacentHTML('beforeend', `<section class="dsec"><h4>Defensa web</h4><p class="${d.probes.exposed ? 'afind bad' : 'dmuted'}">${px(d.probes.exposed ? 'bad' : 'invader')}

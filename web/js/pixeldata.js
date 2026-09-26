@@ -87,6 +87,11 @@ export const FLY_POLICE = [
   FLY(POLICE_CAR[1], ['...kcck......kcck...', '....oo........oo....', '....................']),
 ];
 export const PROBE_CAR = [CAR_SIDE('.........R..........', 'g', 'g'), CAR_SIDE('.........r..........', 'g', 'g')];
+// bicho 11x9 (archivo PHP sospechoso): escarabajo rojo con patas que se mueven (2 cuadros)
+export const BUG = [
+  ['.k.......k.', '..k.....k..', '..rrrrrrr..', 'krrwrrrwrrk', '.rrrrrrrrr.', 'krrrrrrrrrk', '.rrrrrrrrr.', 'k.rrrrrrr.k', '...r...r...'],
+  ['.k.......k.', '..k.....k..', '..rrrrrrr..', '.rrwrrrwrr.', 'krrrrrrrrrk', '.rrrrrrrrr.', 'krrrrrrrrrk', '..rrrrrrr..', '..r.....r..'],
+];
 export const CAR_COLORS = { k: '#0b1020', w: '#f8fafc', b: '#2563eb', g: '#334155', d: '#1e3a5f', t: '#020617', s: '#94a3b8', y: '#fef3c7',
   R: '#ef4444', B: '#3b82f6', r: '#7f1d1d', o: '#fb923c', c: '#a5f3fc' };
 // visto desde arriba 8x14 (autopista): C = color de la visita, frente hacia abajo

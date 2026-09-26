@@ -2,7 +2,7 @@
 // el resultado que vuelve, los mensajes (SendMessage) y el haz del agente al proyecto que lee o edita.
 // Cada tema dice donde esta cada cosa con world.screenOf(kind, id) -> { x, y } en pixeles de la ventana;
 // si no lo sabe, se usan las tarjetas del panel de agentes. Sobres y chispas en pixel art, textos nitidos.
-import { ENVELOPE, POLICE_CAR, FLY_POLICE, PROBE_CAR, CAR_COLORS, paintCanvas } from './pixeldata.js';
+import { ENVELOPE, POLICE_CAR, FLY_POLICE, PROBE_CAR, CAR_COLORS, BUG, paintCanvas } from './pixeldata.js';
 
 const COLORS = { task: '#22d3ee', result: '#4ade80', message: '#c084fc', edit: '#fbbf24', read: '#38bdf8' };
 const LABEL = { task: 'encargo', result: 'resultado', message: 'mensaje' };
@@ -23,6 +23,7 @@ export class CommFx {
     this.cars = { police: POLICE_CAR.map(f => paintCanvas(f, CAR_COLORS, 1)), fly: FLY_POLICE.map(f => paintCanvas(f, CAR_COLORS, 1)), probe: PROBE_CAR.map(f => paintCanvas(f, CAR_COLORS, 1)),
       queue: PROBE_CAR.map(f => paintCanvas(f.map(r => r.replace(/[Rr]/g, '.')), { ...CAR_COLORS, g: '#64748b', d: '#334155' }, 1)) };
     this.sat = null; // servidor al limite (del estado)
+    this.bug = BUG.map(f => paintCanvas(f, { k: '#111827', r: '#ef4444', w: '#fde68a' }, 1));
     this.patrols = new Map(); // sitio vigilado -> { w, phase: out | on | back, t0, park }
     this.resize = () => { const d = Math.min(2, devicePixelRatio || 1); this.dpr = d; this.cv.width = innerWidth * d; this.cv.height = innerHeight * d; };
     this.resize(); addEventListener('resize', this.resize);
@@ -155,11 +156,11 @@ export class CommFx {
     for (const w of list || []) {
       const k = w.kind + ':' + w.id; keys.add(k);
       const P = this.patrols.get(k);
-      if (!P) this.patrols.set(k, { w, phase: w.reason === 'surge' || w.reason === 'php' ? 'on' : 'out', t0: now, park: [] });
+      if (!P) this.patrols.set(k, { w, phase: w.reason === 'surge' || w.reason === 'php' || w.reason === 'phpbad' ? 'on' : 'out', t0: now, park: [] });
       else { P.w = w; if (P.phase === 'back' && !P.escort) { P.phase = 'out'; P.t0 = now; } } // una escolta en curso no se interrumpe
     }
     for (const [k, P] of this.patrols) if (!keys.has(k) && P.phase !== 'back' && P.phase !== 'home') {
-      if (P.w.reason === 'surge' || P.w.reason === 'php') this.patrols.delete(k); else { P.phase = 'back'; P.t0 = now; }
+      if (P.w.reason === 'surge' || P.w.reason === 'php' || P.w.reason === 'phpbad') this.patrols.delete(k); else { P.phase = 'back'; P.t0 = now; }
     }
     if (this.patrols.size) this.run();
   }
@@ -209,6 +210,17 @@ export class CommFx {
     const ease = u => (u < 0.5 ? 2 * u * u : 1 - (-2 * u + 2) ** 2 / 2);
     for (const [k, P] of this.patrols) {
       const w = P.w, b = this.pos(w.kind, w.id);
+      if (w.reason === 'phpbad') {
+        // archivo PHP sospechoso: un bicho rojo que camina en circulos sobre el edificio
+        if (!b) continue;
+        for (let i = 0; i < Math.min(3, w.n || 1); i++) {
+          const a = t * 1.3 + i * 2.1, img = this.bug[Math.floor(t * 8 + i) % 2], s = 2;
+          const x = b.x + Math.cos(a) * 26, y = b.y - 24 + Math.sin(a) * 12;
+          cx.save(); cx.translate(Math.round(x), Math.round(y)); cx.rotate(a + Math.PI); cx.drawImage(img, -img.width * s / 2, -img.height * s / 2, img.width * s, img.height * s); cx.restore();
+        }
+        this.watchLabel(b, w.n > 1 ? `${w.n} ARCHIVOS PHP SOSPECHOSOS` : 'ARCHIVO PHP SOSPECHOSO', '#ef4444');
+        continue;
+      }
       if (w.reason === 'php') {
         // sin procesos PHP: tres autos grises esperando en fila junto al edificio
         if (!b) continue;

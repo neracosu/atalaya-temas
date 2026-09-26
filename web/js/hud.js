@@ -275,6 +275,12 @@ export function tickerEvent(e, accounts, priv) {
       if (T) addTicker(T[2], e.label || '', T[0], T[1], e.reason === 'surge' ? (e.site ? 'site:' + e.site : 'app:' + e.app) : 'webdef:all');
       return;
     }
+    case 'phpfile': {
+      const st = window.atalaya && window.atalaya.state;
+      const nm = e.name || (st && (st.sites.find(x => x.id === e.site) || {}).name) || 'un sitio';
+      addTicker('bad', e.label || '', `Archivo PHP sospechoso en ${nm}${priv && e.path ? ': ' + e.path.replace(/^\/home\/[^/]+\//, '~/') : ''} · ${e.why || ''}`, '#ef4444', e.site ? 'site:' + e.site : null);
+      return;
+    }
     case 'saturation':
       if (e.action === 'start') addTicker('fire', 'Torre de control', `Servidor al límite: ${(e.causes || []).join(', ')}`, '#ef4444', 'system:root');
       else addTicker('ok', 'Torre de control', 'El servidor volvió a tener margen', '#4ade80', 'system:root');
