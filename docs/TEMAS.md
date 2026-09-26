@@ -75,8 +75,9 @@ Para probarlo en una pantalla sin cambiar las demás: `https://SU-ATALAYA/?theme
 
 ## 3. `world.js`: el mundo
 
-Un módulo ES que exporta **por defecto** una clase. PixiJS 8 se importa desde
-`/vendor/pixi.csp.mjs`. El administrador de temas la usa así:
+Un módulo ES que exporta **por defecto** una clase. Hay dos caminos: dibujar en 2D con PixiJS 8
+(`/vendor/pixi.csp.mjs`) o en 3D con three.js y el motor compartido `/js/stage3d.js` (ver
+[El motor 3D](#el-motor-3d-stage3d)). El administrador de temas la usa así:
 
 ```js
 const w = new World(contenedorDom, { manifest });   // manifest = el theme.json
@@ -110,8 +111,38 @@ Reglas técnicas:
 - **Todas las escuchas globales** (`window.addEventListener`) con un `AbortController`, y
   `destroy()` las quita. Si no, al cambiar de tema quedan escuchas vivas.
 - En Pixi 8 un `Graphics` no debe tener hijos: los textos van en un `Container` aparte.
-- Para un look pixel: `resolution: 0.5` (o menos), `antialias: false` y
-  `canvas.style.imageRendering = 'pixelated'` (así lo hace Ops).
+- Nunca bajen la resolución de todo el lienzo para lograr un look pixel: se ve borroso en un
+  televisor. Mezclen formas y textos nítidos con acentos en pixel art.
+
+### El motor 3D (`Stage3D`)
+
+Para un tema en 3D, extiendan `Stage3D` de `/js/stage3d.js`: ya trae la interfaz de arriba completa
+(cámara con director, navegación con arrastre y rueda, encuadre en el área libre del HUD, clics,
+tooltips y limpieza). El tema solo llena estos ganchos:
+
+```js
+import { Stage3D, THREE, color, clamp, billboard, rowsCanvas } from '/js/stage3d.js';
+
+export default class MiTema extends Stage3D {
+  constructor(el, opts) { super(el, opts); this.fov = 34; this.view = { az: -0.9, el: 0.8, dist: 50, tx: 0, ty: 0, tz: 0, zoom: 1 }; }
+  async build() { /* armar la escena en this.scene (luces, suelo) */ }
+  update(state) { /* crear o ajustar objetos; lo que se pueda tocar va en this.pickables con userData { kind, id } */ }
+  onEvent(e, priv) { /* efectos: this.float(pos, texto, tono), this.ring(pos), this.sparks(pos), this.travel(obj, curva, s) */ }
+  frame(dt) { /* animacion por cuadro; this.t es el tiempo */ }
+  shots() { return [{ x, y, z, zoom }]; }         // tomas del modo director
+  locate(kind, id) { return { x, y, z, zoom }; }  // a donde ir al elegir algo en el HUD
+  tipFor(u) { return { title, body, meta, hint }; } // tooltip de lo que esta bajo el mouse
+}
+```
+
+- **Textos nítidos**: `this.label(clase, html, pos)` crea una etiqueta HTML que sigue a un punto (o a
+  una función que devuelve el punto, o `null` para ocultarla). Las clases `w3-group`, `w3-item`,
+  `w3-agent`, `w3-plaque` y `w3-fish` ya tienen estilo; las `w3-item` y `w3-fish` se esconden solas
+  si se pisan en pantalla. Con `data-go="kind:id"` la etiqueta se puede tocar.
+- **Pixel art como acento**: `billboard(rowsCanvas(filas, paleta, escala), tamaño)` hace un sprite
+  nítido que siempre mira a la cámara (carteles, robots, invasores). El resto, formas limpias.
+- **Que se ubique todo sin hacer clic**: nombres visibles al acercarse, o una placa que liste lo que
+  hay adentro (así lo hacen Ciudad 3D y Acuario).
 
 ### El estado (`update(state)`)
 

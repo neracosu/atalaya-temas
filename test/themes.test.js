@@ -23,6 +23,8 @@ for (const id of ids) {
   let src = fs.readFileSync(path.join(dir, id, m.world), 'utf8');
   const re = src.match(/from\s+'\/js\/([\w.-]+)'/);
   if (re && /export\s*\{[^}]*as default/.test(src)) src = fs.readFileSync(path.join(__dirname, '../web/js', re[1]), 'utf8');
+  // los temas 3D heredan la interfaz del motor compartido
+  if (/from\s+'\/js\/stage3d\.js'/.test(src)) src += '\n' + fs.readFileSync(path.join(__dirname, '../web/js/stage3d.js'), 'utf8');
   for (const fn of METHODS) assert.ok(new RegExp(`\\n\\s+(async\\s+)?${fn}\\s*\\(`).test(src), `${id}: al mundo le falta ${fn}()`);
   assert.ok(!/fetch\(\s*['"`]https?:/.test(src), `${id}: el mundo no se conecta a otros servidores`);
   // sin emojis en nada del tema
