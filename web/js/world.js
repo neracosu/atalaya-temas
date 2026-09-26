@@ -1,7 +1,7 @@
 // Mundo isometrico de Atalaya (PixiJS v8)
 import { Application, Container, Graphics, Text, Sprite, Rectangle, Polygon } from '../vendor/pixi.csp.mjs';
 import { px } from './pixicons.js';
-import { robotTextures, monoTextures, iconTexture, signTexture, INVADER, ENVELOPE } from './sprites.js';
+import { robotTextures, monoTextures, iconTexture, signTexture, carTexture, INVADER, ENVELOPE } from './sprites.js';
 import { STATION_TIPS } from './tips.js';
 import { esc, fmtBytes } from './hud.js';
 import { accountCaption } from './accounts.js';
@@ -864,10 +864,10 @@ export class World {
     const pts = [{ x: lane, y: hw.toll - 520 }, { x: lane, y: hw.toll - 30 }, { x: lane, y: hw.toll + 20 }, { x: 0, y: -this.hq.h + 10 }, { x: 0, y: 30 }];
     if (d) pts.push({ ...d.center });
     if (b) pts.push({ x: b.x, y: b.y - b.h - TH / 2 });
-    // auto pixel visto desde arriba: carroceria del color de la visita, parabrisas y luces
-    const g = new Graphics();
-    g.rect(-4, -6, 8, 12).fill(color).rect(-3, -3, 6, 3).fill({ color: 0x0b1020, alpha: 0.85 }).rect(-3, 4, 2, 1).fill(0xfef3c7).rect(1, 4, 2, 1).fill(0xfef3c7);
-    if (e.bot) g.scale.set(0.8);
+    // auto pixel visto desde arriba (8x14): carroceria del color de la visita, parabrisas, faros y luces
+    // traseras; el frente mira hacia donde va
+    const g = new Sprite(carTexture('#' + color.toString(16).padStart(6, '0')));
+    g.anchor.set(0.5); g.scale.set(e.bot ? 1.1 : 1.4);
     g.x = pts[0].x; g.y = pts[0].y;
     let seg = 0; const speed = 520 + Math.random() * 200;
     this.addFx(g, (f, dt) => {
@@ -880,6 +880,7 @@ export class World {
       }
       const dx = a.x - g.x, dy = a.y - g.y, dd = Math.hypot(dx, dy);
       const st = speed * dt;
+      if (dd > 0.5) g.rotation = Math.atan2(dy, dx) - Math.PI / 2;
       if (dd <= st) { g.x = a.x; g.y = a.y; seg++; } else { g.x += dx / dd * st; g.y += dy / dd * st; }
       return true;
     });

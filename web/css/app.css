@@ -564,3 +564,13 @@ body.ed-equipo .sysonly, body.sys-lite .sysprocs, body.sys-lite #kpi-rx, body.sy
 .dbq { display: grid; gap: .25rem; margin: .4rem 0; font-size: .8rem; }
 .dbq code { display: block; font-family: var(--mono); font-size: .75rem; white-space: pre-wrap; overflow-wrap: anywhere; background: #050912; border: 1px solid var(--line); border-radius: 8px; padding: .5rem .6rem; color: #cffafe; }
 .dbq b.warn { color: #fcd34d; } .dbq b.bad { color: #f87171; }
+
+/* rotulo del director: que esta pasando (arriba al centro, sobre el mundo) */
+.dircap { position: fixed; z-index: 19; top: 6.6rem; left: 50%; transform: translate(-50%, -.6rem); opacity: 0; pointer-events: none;
+  display: flex; align-items: center; gap: .55rem; max-width: min(40rem, calc(100vw - 32px)); padding: .5rem 1rem .5rem .7rem;
+  background: rgba(5, 9, 18, .82); border: 1px solid var(--line-strong); border-left: 3px solid var(--accent); border-radius: 10px;
+  font-size: .95rem; color: var(--ink); box-shadow: 0 10px 30px rgba(0, 0, 0, .45); transition: opacity .35s, transform .35s; }
+.dircap.show { opacity: 1; transform: translate(-50%, 0); }
+.dircap .px { width: 1.3em; height: 1.3em; flex: none; }
+.dircap span { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+@media (prefers-reduced-motion: reduce) { .dircap { transition: none; } }

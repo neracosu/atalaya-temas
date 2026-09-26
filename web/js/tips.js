@@ -55,9 +55,9 @@ document.addEventListener('mousemove', e => moveTip(e.clientX, e.clientY));
 // ---------------------------------------------------------------- textos del mundo
 export const STATION_TIPS = {
   library: ['Biblioteca', 'Aquí el agente <b>lee y busca</b> en el código: Read, Grep, Glob.'],
-  workshop: ['Taller', 'Aquí el agente <b>edita o escribe</b> archivos: Edit, Write.'],
+  workshop: ['Escritorio de edición', 'Aquí el agente <b>edita o escribe</b> archivos: Edit, Write.'],
   terminal: ['Terminal', 'Aquí el agente <b>ejecuta comandos</b> en el servidor: Bash.'],
-  antenna: ['Antena', 'Aquí el agente <b>consulta la web</b> o servicios externos: WebFetch, WebSearch, MCP.'],
+  antenna: ['Globo · internet', 'Aquí el agente <b>consulta la web</b> o servicios externos: WebFetch, WebSearch, MCP.'],
   portal: ['Portal', 'Por aquí el agente <b>lanza subagentes</b> y los coordina. Los robots pequeños nacen aquí.'],
   desk: ['Escritorio', 'Aquí el agente <b>planifica</b>, organiza tareas o <b>descansa</b> cuando termina su turno.'],
 };

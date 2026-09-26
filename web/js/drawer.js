@@ -575,8 +575,19 @@ export class Drawer {
 
   // al final de la ficha de un sitio o app: cuantos robots lo sondearon y si quedo algo expuesto
   probesLine(d) {
-    if (!d.probes || !d.probes.n) return;
     const body = this.body.querySelector('.dcontent') || this.body; // se reemplaza en cada refresco: no se duplica
+    // en vigilancia: que pasa, desde cuando y que hacer (arriba de todo)
+    const w = d.watch;
+    if (w) {
+      const since = ago(Date.now() - w.since);
+      const T = {
+        scan: ['bad', 'siren', `Escaneo en curso: ${fmtNum(w.n)} sondeos a rutas sensibles en 15 min`, 'Robots probando .env, phpinfo, paneles y archivos de configuración. Mire abajo en Defensa web si alguno respondió; si todos dan 404, no encontraron nada.'],
+        scraping: ['bad', 'siren', `Scraping: una sola IP hizo ${fmtNum(w.n)} pedidos en 5 min${w.topIp ? ` (${esc(w.topIp)})` : ''}`, 'Una sola dirección se lleva el sitio página por página o lo satura. Si no es un servicio suyo, bloquee la IP en el firewall (o en cPHulk / CSF) y considere límites de velocidad.'],
+        surge: ['warn', 'fire', `Pico de visitas: ${fmtNum(w.n)} por minuto (lo normal es ${fmtNum(w.base || 0)}) desde ${fmtNum(w.ips)} IPs`, 'Puede ser que se hizo viral (llegan de muchos países, con referer de redes o buscadores) o un ataque distribuido (muchas IPs, mismas páginas, sin referer). Compare países, referer y páginas más pedidas en esta ficha.'],
+      }[w.reason];
+      if (T) body.insertAdjacentHTML('afterbegin', `<section class="dsec"><div class="afind ${T[0]}"><h5>${px(T[1])} ${T[2]}</h5><p class="dmuted">Desde hace ${since}.</p><p class="fix">${T[3]}</p></div></section>`);
+    }
+    if (!d.probes || !d.probes.n) return;
     body.insertAdjacentHTML('beforeend', `<section class="dsec"><h4>Defensa web</h4><p class="${d.probes.exposed ? 'afind bad' : 'dmuted'}">${px(d.probes.exposed ? 'bad' : 'invader')}
       ${fmtNum(d.probes.n)} sondeo(s) de robots en 24 h${d.probes.exposed ? ` · <b>${d.probes.exposed} archivo(s) expuesto(s)</b>` : ''} · <a data-go="webdef:${esc(d.id)}">Ver qué buscan</a></p></section>`);
   }

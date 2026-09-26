@@ -64,20 +64,45 @@ export const INVADER = [
 // ---- sobre 9x7 (correo) ----
 export const ENVELOPE = ['xxxxxxxxx', 'xx.....xx', 'x.x...x.x', 'x..x.x..x', 'x...x...x', 'x.......x', 'xxxxxxxxx'];
 
+// ---- autos ----
+// de perfil 20x10, mirando a la derecha. Patrulla: blanca con franja azul y barra de luces (R/B alternan).
+// Auto sospechoso (sondeos): oscuro, con una sirena roja que parpadea (R).
+const CAR_SIDE = (roof, body, stripe) => [
+  roof,
+  `......${body.repeat(8)}......`,
+  `.....${body}ddd${body}${body}ddd${body}.....`,
+  `...${body.repeat(3)}ddd${body}${body}ddd${body.repeat(4)}..`,
+  `..k${body.repeat(15)}k.`,
+  `.k${body}${body}${stripe.repeat(12)}${body}${body}${body}k`,
+  `.k${body.repeat(16)}yk`,
+  '..kkttkkkkkkkkttkk..',
+  '...tsst......tsst...',
+  '....tt........tt....',
+];
+export const POLICE_CAR = [CAR_SIDE('........RRBB........', 'w', 'b'), CAR_SIDE('........BBRR........', 'w', 'b')];
+export const PROBE_CAR = [CAR_SIDE('.........R..........', 'g', 'g'), CAR_SIDE('.........r..........', 'g', 'g')];
+export const CAR_COLORS = { k: '#0b1020', w: '#f8fafc', b: '#2563eb', g: '#334155', d: '#1e3a5f', t: '#020617', s: '#94a3b8', y: '#fef3c7',
+  R: '#ef4444', B: '#3b82f6', r: '#7f1d1d' };
+// visto desde arriba 8x14 (autopista): C = color de la visita, frente hacia abajo
+export const CAR_TOP = [
+  '.rCCCCr.', 'tCCCCCCt', 'tCddddCt', '.CddddC.', '.CCCCCC.', '.ChCCCC.', '.CCCCCC.',
+  '.CCCCCC.', '.CddddC.', 'tCddddCt', 'tCCCCCCt', '.CCCCCC.', '.yCCCCy.', '..CCCC..',
+];
+
 // ---- iconos de estaciones 12x12 ----
 export const ICONS = {
   library: [ // libros
     '............', '.rr.bb.gg...', '.rr.bb.gg.yy', '.rr.bb.gg.yy', '.rw.bw.gw.yy', '.rr.bb.gg.yy',
     '.rr.bb.gg.yy', '.rr.bb.gg.yy', '.rr.bb.gg.yy', 'kkkkkkkkkkkk', 'k..........k', '............'],
-  workshop: [ // llave y martillo
-    '............', '.kk......ss.', 'kkkk....s..s', '.kk.....s..s', '..k......ss.', '..k......s..',
-    '..k.....s...', '..k....s....', '..k...s.....', '..k..s......', '..k.........', '............'],
+  workshop: [ // hoja con renglones y un lapiz escribiendo (Editando)
+    '..........rr', '.........rrr', 'wwwwwww.yyr.', 'w.....wyyy..', 'w.kkk.yyy...', 'w....yyyw...',
+    'w.kk.yy.w...', 'w...s...w...', 'w.kkkkk.w...', 'w.......w...', 'w.kkk...w...', 'wwwwwwwww...'],
   terminal: [ // monitor con prompt
     '............', 'kkkkkkkkkkkk', 'k..........k', 'k.g........k', 'k..g.......k', 'k.g..ggg...k',
     'k..........k', 'k..........k', 'kkkkkkkkkkkk', '....kkkk....', '..kkkkkkkk..', '............'],
-  antenna: [ // antena parabolica
-    '.........y..', '........y...', '..kkkk.y....', '.k....ky....', 'k......k....', 'k.....k.....',
-    'k....k......', '.k.kk.......', '..kk........', '...k........', '..kkk.......', '.kkkkk......'],
+  antenna: [ // globo terraqueo con meridianos (Web: busca o lee en internet)
+    '....kkkk....', '..kkbbbbkk..', '.kbgwbbwbbk.', '.kggwgbbwbk.', 'kbggwgbbwgbk', 'kwwwwwwwwwwk',
+    'kbbwbbggwbbk', 'kbbwbgggwbbk', '.kbbwbggwbk.', '.kbbbwbwbbk.', '..kkbbbbkk..', '....kkkk....'],
   portal: [ // portal de subagentes
     '....pppp....', '..pp....pp..', '.p..wwww..p.', '.p.w....w.p.', 'p.w......w.p', 'p.w......w.p',
     'p.w......w.p', 'p.w......w.p', '.p.w....w.p.', '.p..wwww..p.', '..pp....pp..', '....pppp....'],

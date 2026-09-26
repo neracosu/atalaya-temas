@@ -262,6 +262,15 @@ export function tickerEvent(e, accounts, priv) {
     case 'keysvc':
       addTicker(e.action === 'down' ? 'siren' : 'ok', 'Torre de control', e.action === 'down' ? `${e.label} FALLÓ` : `${e.label} volvió a funcionar`, e.action === 'down' ? '#ef4444' : '#4ade80', 'system:root');
       return;
+    case 'watch': {
+      if (e.action !== 'start') return;
+      const st = window.atalaya && window.atalaya.state;
+      const nm = e.name || (st && ((st.sites.find(x => x.id === e.site) || st.apps.find(x => x.id === e.app)) || {}).name) || 'un sitio';
+      const T = { scan: [`Escaneo en ${nm}: ${e.n} sondeos en 15 min`, '#ef4444', 'siren'], scraping: [`Scraping en ${nm}: una IP hizo ${e.n} pedidos en 5 min${priv && e.ip ? ' · ' + e.ip : ''}`, '#ef4444', 'siren'],
+        surge: [`Pico de visitas en ${nm}: ${e.n}/min desde ${e.ips} IPs · ¿se hizo viral o es un ataque?`, '#fbbf24', 'fire'] }[e.reason];
+      if (T) addTicker(T[2], e.label || '', T[0], T[1], e.reason === 'surge' ? (e.site ? 'site:' + e.site : 'app:' + e.app) : 'webdef:all');
+      return;
+    }
     case 'db':
       if (e.action !== 'slow') return;
       addTicker('db', e.label || '', `Consulta lenta en ${e.db}: ${e.secs} s`, '#fbbf24', 'database:' + e.db);

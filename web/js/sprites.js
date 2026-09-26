@@ -3,7 +3,7 @@
 import { Texture, CanvasSource } from '../vendor/pixi.csp.mjs';
 import { favImage } from './favicons.js';
 
-import { ROBOT_FRAMES, INVADER, ENVELOPE, ICONS, SIGNS, ICON_COLORS, shade } from './pixeldata.js';
+import { ROBOT_FRAMES, INVADER, ENVELOPE, ICONS, SIGNS, ICON_COLORS, CAR_TOP, CAR_COLORS, shade } from './pixeldata.js';
 export { ROBOT_FRAMES, INVADER, ENVELOPE, ICONS, SIGNS };
 
 // Version DOM (para el panel de detalle): canvas escalado sin suavizado
@@ -69,6 +69,13 @@ export function robotTextures(color) {
 export function monoTextures(frames, color) {
   const key = 'm' + color + frames[0].join('');
   if (!cache.has(key)) cache.set(key, frames.map(f => paint(f, { x: color })));
+  return cache.get(key);
+}
+
+// auto de visita visto desde arriba, del color de la visita (cache por color)
+export function carTexture(color) {
+  const key = 'car' + color;
+  if (!cache.has(key)) cache.set(key, paint(CAR_TOP, { ...CAR_COLORS, C: color, h: shade(color, 0.45), d: '#0b1020', r: '#ef4444' }));
   return cache.get(key);
 }
 

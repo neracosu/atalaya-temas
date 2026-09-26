@@ -2,7 +2,7 @@
 // el resultado que vuelve, los mensajes (SendMessage) y el haz del agente al proyecto que lee o edita.
 // Cada tema dice donde esta cada cosa con world.screenOf(kind, id) -> { x, y } en pixeles de la ventana;
 // si no lo sabe, se usan las tarjetas del panel de agentes. Sobres y chispas en pixel art, textos nitidos.
-import { ENVELOPE, paintCanvas } from './pixeldata.js';
+import { ENVELOPE, POLICE_CAR, PROBE_CAR, CAR_COLORS, paintCanvas } from './pixeldata.js';
 
 const COLORS = { task: '#22d3ee', result: '#4ade80', message: '#c084fc', edit: '#fbbf24', read: '#38bdf8' };
 const LABEL = { task: 'encargo', result: 'resultado', message: 'mensaje' };
@@ -19,6 +19,9 @@ export class CommFx {
     this.env = {};
     for (const [k, c] of Object.entries(COLORS)) this.env[k] = paintCanvas(ENVELOPE, { x: c }, 1);
     this.still = matchMedia('(prefers-reduced-motion: reduce)').matches;
+    // autos de perfil (2 cuadros: las luces alternan); se dibujan al doble, sin suavizar
+    this.cars = { police: POLICE_CAR.map(f => paintCanvas(f, CAR_COLORS, 1)), probe: PROBE_CAR.map(f => paintCanvas(f, CAR_COLORS, 1)) };
+    this.watch = [];
     this.resize = () => { const d = Math.min(2, devicePixelRatio || 1); this.dpr = d; this.cv.width = innerWidth * d; this.cv.height = innerHeight * d; };
     this.resize(); addEventListener('resize', this.resize);
     this.raf = 0;
@@ -29,7 +32,7 @@ export class CommFx {
     const w = this.getWorld();
     let p = null;
     try { p = w && w.screenOf ? w.screenOf(kind, id) : null; } catch { p = null; }
-    if (p && p.x >= 0 && p.y >= 0 && p.x <= innerWidth && p.y <= innerHeight) return { ...p, world: true };
+    if (p && p.x >= 0 && p.y >= 0 && p.x <= innerWidth && p.y <= innerHeight && !this.covered(p)) return { ...p, world: true };
     let el = null;
     if (kind === 'session') el = document.querySelector(`#agents [data-go="session:${CSS.escape(id)}"]`);
     if (kind === 'agent') el = document.querySelector(`#agents [data-go="session:${CSS.escape(sid)}"] [data-agent="${CSS.escape(id)}"]`)
@@ -37,6 +40,17 @@ export class CommFx {
     if (!el || !el.offsetParent) return null;
     const r = el.getBoundingClientRect();
     return { x: r.left + r.width * 0.85, y: r.top + r.height / 2, card: true };
+  }
+
+  // un punto del mundo tapado por el HUD (paneles, barra de arriba, ticker, ficha abierta): ahi no se dibuja
+  covered(p) {
+    const now = performance.now();
+    if (!this.hud || now - this.hudAt > 500) {
+      this.hudAt = now;
+      this.hud = ['top', 'left', 'right', 'ticker', 'drawer'].map(id => document.getElementById(id))
+        .filter(el => el && !el.hidden && el.offsetParent !== null).map(el => el.getBoundingClientRect());
+    }
+    return this.hud.some(r => p.x >= r.left && p.x <= r.right && p.y >= r.top && p.y <= r.bottom);
   }
 
   onEvent(e) {
@@ -98,12 +112,8 @@ export class CommFx {
     }
     const x = f.from.x + (f.to.x - f.from.x) * u, y = f.from.y + (f.to.y - f.from.y) * u;
     cx.globalAlpha = fade;
-    // auto pixel (escala 2): carroceria oscura con borde, parabrisas y sirena roja intermitente
-    const X = Math.round(x), Y = Math.round(y);
-    cx.fillStyle = '#475569'; cx.fillRect(X - 11, Y - 7, 22, 14);
-    cx.fillStyle = '#1e1b2e'; cx.fillRect(X - 9, Y - 5, 18, 10);
-    cx.fillStyle = '#0b0a12'; cx.fillRect(X - 6, Y - 3, 12, 4);
-    cx.fillStyle = Math.floor(f.t * 8) % 2 ? '#ef4444' : '#7f1d1d'; cx.fillRect(X - 3, Y - 11, 6, 4);
+    // auto sospechoso de perfil (escala 2): oscuro, con la sirena roja que parpadea; mira hacia donde va
+    this.car('probe', x, y, f.t, f.to.x < f.from.x);
     if (!f.exposed && f.t > f.dur && f.status) {
       cx.font = "600 11px 'Space Grotesk', system-ui, sans-serif"; cx.textAlign = 'center'; cx.fillStyle = '#94a3b8';
       cx.fillText(String(f.status), f.to.x, f.to.y - 14 - (f.t - f.dur) * 20);
@@ -118,6 +128,58 @@ export class CommFx {
       const tw = cx.measureText('EXPUESTO').width + 12;
       cx.fillStyle = '#ef4444'; cx.fillRect(Math.round(f.to.x - tw / 2), Math.round(f.to.y - 42), Math.round(tw), 18);
       cx.fillStyle = '#fff'; cx.fillText('EXPUESTO', f.to.x, f.to.y - 29);
+    }
+  }
+
+  // auto de perfil centrado en (x, y), escala 2; flip = mira a la izquierda
+  car(kind, x, y, t, flip) {
+    const img = this.cars[kind][Math.floor(t * 6) % 2], w = img.width * 2, h = img.height * 2, { cx } = this;
+    cx.save();
+    cx.translate(Math.round(x), Math.round(y - h / 2));
+    if (flip) cx.scale(-1, 1);
+    cx.drawImage(img, -w / 2, 0, w, h);
+    cx.restore();
+  }
+
+  // vigilancia (del estado): patrullas estacionadas junto al edificio (escaneo o scraping) o reflectores (pico de
+  // visitas), con su cartel. Queda mientras el sitio siga en vigilancia.
+  setWatch(list) {
+    this.watch = list || [];
+    if (this.watch.length) this.run();
+  }
+  drawWatch(now) {
+    const { cx } = this;
+    for (const w of this.watch) {
+      const p = this.pos(w.kind, w.id);
+      if (!p || !p.world) continue;
+      const t = now / 1000;
+      if (w.reason === 'surge') {
+        // dos reflectores que barren el cielo desde el edificio
+        for (const side of [-1, 1]) {
+          const a = -Math.PI / 2 + side * (0.35 + 0.25 * Math.sin(t * 1.3 + side));
+          const L = 120;
+          cx.globalAlpha = 0.22; cx.fillStyle = '#fde68a';
+          cx.beginPath(); cx.moveTo(p.x + side * 10, p.y - 10);
+          cx.lineTo(p.x + side * 10 + Math.cos(a - 0.09) * L, p.y - 10 + Math.sin(a - 0.09) * L);
+          cx.lineTo(p.x + side * 10 + Math.cos(a + 0.09) * L, p.y - 10 + Math.sin(a + 0.09) * L);
+          cx.closePath(); cx.fill();
+        }
+        cx.globalAlpha = 1;
+      } else {
+        // dos patrullas a los lados del edificio, con las luces alternando
+        this.car('police', p.x - 46, p.y + 22, t + 0.3, false);
+        this.car('police', p.x + 46, p.y + 22, t, true);
+        // destello rojo y azul en el suelo
+        cx.globalAlpha = 0.18; cx.fillStyle = Math.floor(t * 6) % 2 ? '#ef4444' : '#3b82f6';
+        cx.fillRect(Math.round(p.x - 70), Math.round(p.y + 14), 140, 14); cx.globalAlpha = 1;
+      }
+      const label = w.reason === 'surge' ? `PICO DE VISITAS · ${w.n}/min` : w.reason === 'scraping' ? `EN VIGILANCIA · UNA IP · ${w.n} pedidos` : `EN VIGILANCIA · ${w.n} sondeos`;
+      const col = w.reason === 'surge' ? '#fbbf24' : '#ef4444';
+      cx.font = "700 11px 'Space Grotesk', system-ui, sans-serif"; cx.textAlign = 'center';
+      const tw = cx.measureText(label).width + 14, ly = Math.round(p.y - 58);
+      cx.fillStyle = 'rgba(5, 9, 18, .88)'; cx.fillRect(Math.round(p.x - tw / 2), ly - 13, Math.round(tw), 19);
+      cx.fillStyle = col; cx.fillRect(Math.round(p.x - tw / 2), ly - 13, 3, 19); cx.fillRect(Math.round(p.x - tw / 2), ly + 5, Math.round(tw), 1);
+      cx.fillStyle = col; cx.fillText(label, p.x + 1, ly + 1);
     }
   }
 
@@ -138,6 +200,13 @@ export class CommFx {
     this.fx.push({ type: 'beam', kind, from, to, t: 0, dur: this.still ? 0.6 : 1.3 });
     this.run();
   }
+  // marca del director: esquinas pixeladas sobre lo que esta mostrando (se recalcula cada cuadro: la camara se mueve)
+  spot(kind, id, secs) {
+    this.fx = this.fx.filter(f => f.type !== 'spot');
+    this.fx.push({ type: 'spot', kind, id, t: 0, dur: secs });
+    this.run();
+  }
+  unspot() { for (const f of this.fx) if (f.type === 'spot') f.t = Math.max(f.t, f.dur); }
   warp(at, dir, reason) {
     const label = dir === 'in' ? 'nueva sesión' : reason === 'timeout' ? 'sin actividad' : 'sesión cerrada';
     this.fx.push({ type: 'warp', dir, at, label, t: 0, dur: this.still ? 0.6 : 1.6, seed: Math.random() * 1000 });
@@ -152,10 +221,11 @@ export class CommFx {
     cx.clearRect(0, 0, this.cv.width, this.cv.height);
     cx.setTransform(dpr, 0, 0, dpr, 0, 0);
     cx.imageSmoothingEnabled = false;
-    for (const f of this.fx) { f.t += dt; (f.type === 'packet' ? this.drawPacket : f.type === 'probe' ? this.drawProbe : f.type === 'warp' ? this.drawWarp : f.type === 'dbslow' ? this.drawDbSlow : this.drawBeam).call(this, f); }
+    if (this.watch.length) this.drawWatch(now);
+    for (const f of this.fx) { f.t += dt; (f.type === 'packet' ? this.drawPacket : f.type === 'probe' ? this.drawProbe : f.type === 'warp' ? this.drawWarp : f.type === 'dbslow' ? this.drawDbSlow : f.type === 'spot' ? this.drawSpot : this.drawBeam).call(this, f); }
     // un archivo expuesto queda marcado 6 s; lo demas se va al terminar
     this.fx = this.fx.filter(f => f.t < f.dur + (f.type === 'probe' && f.exposed ? 6 : 0.35));
-    this.raf = this.fx.length ? requestAnimationFrame(t => this.frame(t)) : 0;
+    this.raf = this.fx.length || this.watch.length ? requestAnimationFrame(t => this.frame(t)) : 0;
     if (!this.raf) cx.clearRect(0, 0, innerWidth, innerHeight);
   }
 
@@ -222,6 +292,22 @@ export class CommFx {
     cx.fillStyle = 'rgba(5, 9, 18, .85)'; cx.fillRect(Math.round(x - tw / 2), ly - 13, Math.round(tw), 18);
     cx.fillStyle = c; cx.fillRect(Math.round(x - tw / 2), ly + 4, Math.round(tw), 2);
     cx.fillText(f.label, x, ly);
+    cx.globalAlpha = 1;
+  }
+
+  drawSpot(f) {
+    const p = this.pos(f.kind, f.id);
+    if (!p || !p.world) return;
+    const { cx } = this, c = '#22d3ee';
+    const fade = f.t > f.dur ? Math.max(0, 1 - (f.t - f.dur) / 0.35) : Math.min(1, f.t / 0.3);
+    const r = 34 + 4 * Math.sin(f.t * 4) + Math.max(0, 1 - f.t * 2) * 40, L = 10;
+    const x = Math.round(p.x), y = Math.round(p.y);
+    cx.globalAlpha = fade; cx.fillStyle = c;
+    for (const [sx, sy] of [[-1, -1], [1, -1], [-1, 1], [1, 1]]) {
+      const cxp = x + sx * r, cyp = y + sy * r;
+      cx.fillRect(Math.round(cxp - (sx > 0 ? L : 0)), Math.round(cyp - (sy > 0 ? 3 : 0)), L, 3);
+      cx.fillRect(Math.round(cxp - (sx > 0 ? 3 : 0)), Math.round(cyp - (sy > 0 ? L : 0)), 3, L);
+    }
     cx.globalAlpha = 1;
   }
 

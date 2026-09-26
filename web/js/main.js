@@ -10,6 +10,7 @@ import { Drawer } from './drawer.js';
 import { withFavicons, clearFavicons } from './favicons.js';
 import { showTip, hideTip, openLegend } from './tips.js';
 import { CommFx } from './commfx.js';
+import { Director } from './director.js';
 
 const $ = id => document.getElementById(id);
 const post = (url, body = {}) => fetch(url, { method: 'POST', headers: { 'Content-Type': 'application/json', 'X-Atalaya': '1' }, body: JSON.stringify(body) })
@@ -50,8 +51,20 @@ document.addEventListener('click', e => {
 document.addEventListener('keydown', e => {
   if (e.key === 'Enter' && e.target.dataset?.go) e.target.click();
 });
+// el director sigue lo que pasa: enfoca y pone un rotulo (ver director.js)
+const director = new Director({
+  getWorld: () => world, getState: () => state,
+  mark: (kind, id, secs) => (kind ? comm.spot(kind, id, secs) : comm.unspot()),
+  caption: html => {
+    const el = $('dirCap');
+    if (!html) { el.classList.remove('show'); return; }
+    el.innerHTML = html; el.hidden = false;
+    requestAnimationFrame(() => el.classList.add('show'));
+  },
+});
 function onNav(st) {
   const el = $('navState');
+  if (world && world.directing) st = { mode: 'director' };
   const html = st.mode === 'manual' ? `${px('move')} Navegación libre · el director vuelve en ${st.left} s` : st.mode === 'director' ? `${px('camera')} Director` : `${px('pin')} Cámara fija`;
   if (el.dataset.html !== html) { el.dataset.html = html; el.innerHTML = html; }
   el.classList.toggle('manual', st.mode === 'manual');
@@ -192,7 +205,7 @@ document.addEventListener('keydown', e => {
   else if (k === 'f') toggleFs();
   else if (k === 't') cycleTheme();
   else if (k === '?' || k === 'h') openLegend(tm.manifest);
-  else if (k === 'd') { world.setDirector(!world.directorOn); world.navChanged(); try { localStorage.setItem('atalaya_director', world.directorOn ? '1' : '0'); } catch { } flash(world.directorOn ? 'Modo director: la cámara recorre los distritos' : 'Cámara fija en la vista general'); }
+  else if (k === 'd') { world.setDirector(!world.directorOn); world.navChanged(); try { localStorage.setItem('atalaya_director', world.directorOn ? '1' : '0'); } catch { } flash(world.directorOn ? 'Modo director: la cámara sigue lo que pasa en el servidor' : 'Cámara fija en la vista general'); }
 });
 
 function flash(msg) {
@@ -500,10 +513,12 @@ function connect() {
     withFavicons(state.apps); withFavicons(state.sites);
     renderState(state);
     tm.update(state);
+    comm.setWatch([...state.sites.filter(x => x.watch).map(x => ({ kind: 'site', id: x.id, ...x.watch })), ...state.apps.filter(x => x.watch).map(x => ({ kind: 'app', id: x.id, ...x.watch }))]);
   });
   es.addEventListener('ev', e => {
     const ev = JSON.parse(e.data);
     comm.onEvent(ev);
+    director.consider(ev);
     if (world) world.onEvent(ev, state?.priv);
     if (state) tickerEvent(ev, state.accounts, state.priv);
   });
