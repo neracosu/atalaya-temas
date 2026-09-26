@@ -10,6 +10,7 @@ import { Application, Container, Graphics, Sprite, Text, Texture, TilingSprite, 
 import { signTexture } from '/js/sprites.js';
 import { esc, fmtBytes } from '/js/hud.js';
 import { accountCaption } from '/js/accounts.js';
+import { healthLine } from '/js/layout.js';
 
 const U = 16; // una casilla = 16 pixeles de arte
 const FONT_T = "'Jacquard 24', 'Pixelify Sans', serif";
@@ -239,6 +240,7 @@ export default class VillaWorld {
     this.scene.addChild(cs);
     this.castle = { gate: { x: 0, y: 4 * U }, cx: 0, cy: -U };
     this.castleLabel = this.label('Castillo', true);
+    this.castleHealth = this.subLabel(''); // salud del servidor, bajo el nombre del castillo
 
     // caminos: busqueda sobre la cuadricula desde el porton del castillo hasta cada puerta, esquivando murallas
     // y prefiriendo caminos ya trazados (asi se juntan como en un mapa de verdad)
@@ -378,6 +380,8 @@ export default class VillaWorld {
   update(state) {
     this.state = state;
     this.layout(state);
+    const hl = healthLine(state);
+    if (hl && this.castleHealth && this.castleHealth.text !== hl.text) { this.castleHealth.text = hl.text; this.castleHealth.style.fill = hl.color; }
     for (const x of [...state.apps, ...(state.sites || [])]) {
       const h = this.houses.get(x.id);
       if (!h) continue;
@@ -601,6 +605,7 @@ export default class VillaWorld {
     // en pantallas chicas los textos se achican con el area del mundo (no se enciman)
     const ts = clamp(Math.min((W - this.insets.left - this.insets.right) / 900, (H - this.insets.top - this.insets.bottom) / 560), 0.5, 1);
     if (this.castleLabel) this.castleLabel.scale.set(ts);
+    if (this.castleHealth && this.castleLabel) { this.castleHealth.scale.set(ts); this.castleHealth.x = this.castleLabel.x; this.castleHealth.y = this.castleLabel.y + 22 * ts; }
     for (const v of this.villages.values()) { const p = toScreen(v.labelPos); v.label.scale.set(ts); v.sub.scale.set(ts); v.label.x = p.x; v.label.y = p.y - 20 * ts; v.sub.x = p.x; v.sub.y = p.y; }
     for (const f of this.fx) if (f.world) { const p = toScreen(f.world); f.obj.x = p.x; f.obj.y = p.y; }
     if (this.manualUntil && this.manualUntil < this.t) { this.manualUntil = 0; this.camTarget = this.overview; this.navChanged(); }

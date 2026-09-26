@@ -37,3 +37,12 @@ export function plaqueList(items, iconOf, isDown = it => it.status === 'down') {
   const e = v => String(v).replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
   return items.map(it => `<span data-go="${it._k === 'site' ? 'site' : 'app'}:${e(it.id)}"${isDown(it) ? ' class="down"' : ''}><img alt="" src="${iconOf(it)}"><em>${e(it.name)}</em></span>`).join('');
 }
+// salud del servidor en una linea, para ponerla junto al servidor del mundo (torre, castillo, base...)
+export function healthLine(state) {
+  const h = (state && state.health) || [];
+  if (!h.length) return null;
+  const bad = h.reduce((n, x) => n + x.bad, 0), warn = h.reduce((n, x) => n + x.warn, 0);
+  const sev = bad ? 'bad' : warn ? 'warn' : 'ok';
+  const text = bad ? `Salud: ${bad} grave${bad === 1 ? '' : 's'}${warn ? ` · ${warn} para revisar` : ''}` : warn ? `Salud: ${warn} para revisar` : 'Salud: en orden';
+  return { text, sev, color: { bad: '#ff5a4a', warn: '#f5b83d', ok: '#4ade80' }[sev] };
+}

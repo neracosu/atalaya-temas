@@ -5,6 +5,7 @@ import { robotTextures, monoTextures, iconTexture, signTexture, INVADER, ENVELOP
 import { STATION_TIPS } from './tips.js';
 import { esc, fmtBytes } from './hud.js';
 import { accountCaption } from './accounts.js';
+import { healthLine } from './layout.js';
 
 const TW = 64, TH = 32; // tile isometrico
 const iso = (gx, gy) => ({ x: (gx - gy) * TW / 2, y: (gx + gy) * TH / 2 });
@@ -312,7 +313,10 @@ export class World {
     name.y = TH * S + 26;
     this.hqTag = label('apache · mariadb · exim', 13, 0x6b7a93);
     this.hqTag.y = TH * S + 50;
-    hq.addChild(shield, plate, tower, radar, name, this.hqTag);
+    // salud del servidor bajo la torre (respaldos, actualizaciones, correo, cron, puertos)
+    this.hqHealth = label('', 14, 0x4ade80, UI_FONT);
+    this.hqHealth.y = TH * S + 72;
+    hq.addChild(shield, plate, tower, radar, name, this.hqTag, this.hqHealth);
     hq.zIndex = 0;
     this.hq = { c: hq, shield, radar, h, rx: 190, ry: 105, flash: 0, heat: 0 };
     this.scene.addChild(hq);
@@ -661,6 +665,8 @@ export class World {
     const act = (state.keys || []).filter(k => k.state === 'active').map(k => k.label.toLowerCase());
     const tag = act.filter(l => !['ssh', 'cron'].includes(l)).slice(0, 4).join(' · ') || 'servidor';
     if (this.hqTag.text !== tag) this.hqTag.text = tag;
+    const hl = healthLine(state);
+    if (hl && this.hqHealth.text !== hl.text) { this.hqHealth.text = hl.text; this.hqHealth.style.fill = hl.color; }
     this.syncRobots(state.sessions, state.accounts);
   }
 

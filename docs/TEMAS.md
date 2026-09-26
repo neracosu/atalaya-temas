@@ -183,6 +183,8 @@ export default class MiTema extends Stage3D {
   `signTexture(icon)` (textura de Pixi) de `/js/sprites.js`: ya saben dibujar ambos, con el mismo
   tamaño que un cartel. Incluyan `icon` en la huella de su distribución (`layoutKeyOf` ya lo hace)
   para rearmar el cartel cuando llega el favicon.
+- `health`: la salud del servidor, `[{ id, title, icon, status, bad, warn }]`. `healthLine(state)` de
+  `/js/layout.js` la resume en una línea con su color para ponerla junto al servidor del mundo.
 - `state` de una sesión: `working`, `thinking` o `idle`. `waitKind` (`permission`, `question`,
   `idle`) si espera al usuario.
 - En **modo público** los nombres ya vienen reemplazados por categorías y alias: el tema no

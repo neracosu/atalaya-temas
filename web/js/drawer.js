@@ -525,18 +525,18 @@ export class Drawer {
 
   renderSystem(d) {
     const s = d.system;
-    this.setHead('system', iconCanvas('terminal', 4), 'Torre de control', d.host ? esc(d.host) : 'El servidor completo', '');
+    this.setHead('system', iconCanvas('terminal', 4), 'Torre de control', d.host ? esc(d.host) : 'El servidor completo', d.health ? this.healthPill(d.health) : '');
     this.frame([{ title: 'CPU y memoria · 10 min', range: [0, 100], fmt: v => v + '%',
       series: [{ stroke: '#22d3ee', width: 2, fill: 'rgba(34,211,238,.1)', points: { show: false } }, { stroke: '#a78bfa', width: 2, points: { show: false } }] }]);
     this.setChart(0, d.hist, [r => r.cpu, r => r.mem]);
     const top = d.top.map(p => `<li><span class="mono grow">${esc(p.comm)} <span class="dmuted">×${p.n}</span></span><span class="mono">${p.cpu.toFixed(1)}%</span><span class="mono dmuted">${fmtBytes(p.mem)}</span></li>`).join('');
-    this.content(`<div class="dstats">
+    const health = d.health ? `<section class="dsec hsec"><h4>${px('shield')} Salud del servidor ${this.healthPill(d.health)}</h4>${this.healthHtml(d.health, true)}</section>` : '';
+    this.content(`${health}<div class="dstats">
         ${stat('CPU', s.cpu.toFixed(0) + '%')}${stat('Núcleos', s.cores)}${stat('Carga 1/5/15', s.load.map(x => x.toFixed(2)).join(' · '))}
         ${stat('Memoria', `${fmtBytes(s.mem.used)} / ${fmtBytes(s.mem.total)}`)}${stat('Swap', fmtBytes(s.swap.used))}${stat('Disco', s.disk ? `${fmtBytes(s.disk.used)} / ${fmtBytes(s.disk.total)}` : '–', s.disk?.pct > 85 ? 'warn' : '')}
         ${stat('Red ↓ / ↑', `${fmtBytes(s.net.rx)}/s · ${fmtBytes(s.net.tx)}/s`)}${stat('Encendido hace', dur(s.uptime))}${stat('Procesos', s.procs)}
         ${stat('Servicios', `${d.apps}${d.appsDown ? ` (${d.appsDown} con problemas)` : ''}`, d.appsDown ? 'bad' : '')}${stat('Agentes Claude', d.sessions)}
       </div>
-      <section class="dsec"><div class="row dmrow"><span class="grow">${px('shield')} <b>Salud del servidor</b>: respaldos, actualizaciones, cola de correo, cron y puertos.</span><button class="btn small" data-go="audit:all">Ver revisiones</button></div></section>
       ${d.connectors && d.connectors.length ? `<section class="dsec"><h4>Conectores de nube</h4><ul class="dlist">${d.connectors.map(c => `<li>
         <span class="pill ${c.ok ? 'ok' : 'bad'}">${c.ok ? 'conectado' : 'error'}</span><span class="grow"><b>${esc(c.label)}</b> · ${c.projects} proyecto${c.projects === 1 ? '' : 's'}${c.error ? `<br><span class="dmuted">${esc(c.error)}</span>` : ''}</span>
         <span class="dmuted">${c.lastOk ? 'leído hace ' + ago(Date.now() - c.lastOk) : 'sin lectura'}${c.type === 'vercel' ? (c.drainAt ? ` · visitas hace ${ago(Date.now() - c.drainAt)}` : ' · sin Drain') : ''}</span></li>`).join('')}</ul></section>` : ''}
@@ -567,28 +567,36 @@ export class Drawer {
       <section class="dsec"><h4>Últimos movimientos</h4><ul class="dlist">${rec}</ul></section>`);
   }
 
-  // salud del servidor: una seccion por revision, con sus cifras y cada hallazgo con su "como arreglarlo"
-  renderAudit(d) {
-    const cv = document.createElement('div'); cv.className = 'dswatch'; cv.innerHTML = px('shield', 'big');
-    const all = d.sections.flatMap(s => s.findings);
-    const bad = all.filter(f => f.sev === 'bad').length, warn = all.filter(f => f.sev === 'warn').length;
-    this.setHead('audit:all', cv, 'Salud del servidor', `Revisado hace ${ago(Date.now() - d.t)} · solo lectura`,
-      `<span class="pill ${bad ? 'bad' : warn ? 'warn' : 'ok'}">${bad ? bad + ' grave' + (bad === 1 ? '' : 's') : warn ? warn + ' para revisar' : 'en orden'}</span>`);
+  // salud del servidor: una seccion por revision, con sus cifras y cada hallazgo con su "como arreglarlo".
+  // compact (en la Torre de control): lo que esta en orden va en una sola linea
+  healthHtml(h, compact) {
+    if (!h) return '';
     const ST = { ok: ['ok', 'En orden'], warn: ['warn', 'Para revisar'], bad: ['bad', 'Grave'], unknown: ['off', 'Sin revisar'] };
-    const sec = s => {
-      const st = ST[s.status] || ST.unknown;
-      const finds = d.priv ? s.findings.map(f => `<div class="afind ${f.sev}"><h5>${esc(f.title)}</h5><p>${esc(f.detail || '')}</p>${f.fix ? `<p class="fix">${esc(f.fix)}</p>` : ''}
+    const sec = x => {
+      const st = ST[x.status] || ST.unknown;
+      const btn = x.canCheck ? `<button class="btn small" data-audit-updates="1" ${h.running ? 'disabled' : ''}>${h.running ? 'Revisando…' : 'Revisar actualizaciones'}</button>` : '';
+      if (compact && x.status === 'ok') return `<div class="hline">${px(x.icon)} <b>${esc(x.title)}</b> <span class="pill ok">En orden</span> <span class="dmuted">${x.items.map(i => `${esc(i.label)}: ${esc(i.value)}`).join(' · ')}</span></div>`;
+      const finds = h.priv ? x.findings.map(f => `<div class="afind ${f.sev}"><h5>${esc(f.title)}</h5><p>${esc(f.detail || '')}</p>${f.fix ? `<p class="fix">${esc(f.fix)}</p>` : ''}
           ${f.rows && f.rows.length ? `<ul>${f.rows.map(r => `<li>${r.port ? `puerto <b>${r.port}</b> ${esc(r.proc || '')}` : `<b>${esc(r.user || '')}</b> <span class="dmuted">${esc(r.schedule || '')}</span> <code>${esc(r.command || '')}</code>`}</li>`).join('')}</ul>` : ''}
           ${f.names && f.names.length ? `<p class="dmuted">${esc(f.names.slice(0, 20).join(', '))}${f.names.length > 20 ? '…' : ''}</p>` : ''}</div>`).join('')
-        : (s.findings.length ? `<p class="dmuted">${s.findings.length} hallazgo${s.findings.length === 1 ? '' : 's'}. Active el modo privado para verlos con su «cómo arreglarlo».</p>` : '');
-      const btn = s.canCheck ? `<button class="btn small" data-audit-updates="1" ${d.running ? 'disabled' : ''}>${d.running ? 'Revisando…' : 'Revisar actualizaciones'}</button>` : '';
-      return `<section class="dsec"><h4>${px(s.icon)} ${esc(s.title)} <span class="pill ${st[0]}">${st[1]}</span></h4>
-        <div class="dstats">${s.items.map(i => stat(i.label, `${esc(i.value)}${i.sub ? `<br><small class="dmuted">${esc(i.sub)}</small>` : ''}`)).join('')}</div>
-        ${finds || (s.status === 'ok' ? '<p class="dmuted">Nada para revisar.</p>' : '')}${btn ? `<div class="row dmrow">${btn}</div>` : ''}</section>`;
+        : (x.findings.length ? `<p class="dmuted">${x.findings.length} hallazgo${x.findings.length === 1 ? '' : 's'}. Active el modo privado para verlos con su «cómo arreglarlo».</p>` : '');
+      return `<section class="dsec"><h4>${px(x.icon)} ${esc(x.title)} <span class="pill ${st[0]}">${st[1]}</span></h4>
+        <div class="dstats">${x.items.map(i => stat(i.label, `${esc(i.value)}${i.sub ? `<br><small class="dmuted">${esc(i.sub)}</small>` : ''}`)).join('')}</div>
+        ${finds || (x.status === 'ok' ? '<p class="dmuted">Nada para revisar.</p>' : '')}${btn ? `<div class="row dmrow">${btn}</div>` : ''}</section>`;
     };
-    // primero lo grave
-    const order = d.sections.slice().sort((a, b) => ({ bad: 0, warn: 1, unknown: 2, ok: 3 }[a.status] - { bad: 0, warn: 1, unknown: 2, ok: 3 }[b.status]));
-    this.content(order.map(sec).join('') + '<p class="hint">Atalaya solo mira: no cambia nada. Estas revisiones se repiten cada 15 minutos; las actualizaciones, solo cuando usted lo pide.</p>');
+    const rank = { bad: 0, warn: 1, unknown: 2, ok: 3 };
+    const order = h.sections.slice().sort((a, b) => rank[a.status] - rank[b.status]);
+    return order.map(sec).join('') + '<p class="hint">Atalaya solo mira: no cambia nada. Estas revisiones se repiten cada 15 minutos; las actualizaciones, solo cuando usted lo pide.</p>';
+  }
+  healthPill(h) {
+    const all = h ? h.sections.flatMap(x => x.findings) : [];
+    const bad = all.filter(f => f.sev === 'bad').length, warn = all.filter(f => f.sev === 'warn').length;
+    return `<span class="pill ${bad ? 'bad' : warn ? 'warn' : 'ok'}">${bad ? bad + ' grave' + (bad === 1 ? '' : 's') : warn ? warn + ' para revisar' : 'en orden'}</span>`;
+  }
+  renderAudit(d) {
+    const cv = document.createElement('div'); cv.className = 'dswatch'; cv.innerHTML = px('shield', 'big');
+    this.setHead('audit:all', cv, 'Salud del servidor', `Revisado hace ${ago(Date.now() - d.t)} · solo lectura`, this.healthPill(d));
+    this.content(this.healthHtml(d, false));
   }
 
   renderProjects(d) {

@@ -156,6 +156,13 @@ export default class TerminalWorld {
     L.push(row('MEMORIA', s.mem.pct / 100, `${lpad(s.mem.pct.toFixed(0), 3)}%  ${fmtBytes(s.mem.used)}`, s.mem.pct > 85));
     L.push(row('DISCO', (s.disk?.pct ?? 0) / 100, `${lpad(Math.round(s.disk?.pct ?? 0), 3)}%`, (s.disk?.pct ?? 0) > 85));
     L.push(row('CARGA', clamp(s.load[0] / Math.max(1, s.cores), 0, 1), `${s.load.map(x => x.toFixed(2)).join(' ')}`, s.load[0] > s.cores));
+    // salud del servidor: una linea por revision, como un chequeo de arranque
+    const H = state.health || [];
+    if (H.length) {
+      L.push('<div class="term-sep"></div>');
+      const TAG = { ok: '[  OK   ]', warn: '[ AVISO ]', bad: '[ GRAVE ]', unknown: '[   ?   ]' };
+      for (const h of H) L.push(`<div class="term-unit ${h.status === 'bad' ? 'down' : h.status === 'warn' ? 'warn' : ''}"><span>${TAG[h.status] || TAG.unknown}</span> ${esc(h.title)}${h.bad + h.warn ? ` <small>${h.bad + h.warn} hallazgo${h.bad + h.warn === 1 ? '' : 's'}</small>` : ''}</div>`);
+    }
     const keys = (state.keys || []).filter(k => k.state !== 'inactive');
     L.push('<div class="term-sep"></div>');
     for (const k of keys) L.push(`<div class="term-unit${k.state === 'failed' ? ' down' : ''}"><span>${k.state === 'failed' ? '[ FALLO ]' : '[  OK   ]'}</span> ${esc(k.label)}${k.unit ? ` <small>${esc(k.unit)}</small>` : ''}</div>`);
