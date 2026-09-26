@@ -15,6 +15,7 @@ import { Stage3D, THREE, color, clamp, billboard, groupsOf, layoutKeyOf, iconURL
 import { signCanvas } from '/js/sprites.js';
 import { esc, fmtBytes } from '/js/hud.js';
 import { accountCaption } from '/js/accounts.js';
+import { healthLine } from '/js/layout.js';
 
 const R = 10;
 const TAU = Math.PI * 2;
@@ -65,7 +66,7 @@ export default class Ops3D extends Stage3D {
     const dome = new THREE.Mesh(new THREE.SphereGeometry(1.9, 24, 12, 0, TAU, 0, Math.PI / 2), new THREE.MeshBasicMaterial({ color: color(this.C.ok), wireframe: true, transparent: true, opacity: 0.18 }));
     S.add(core, dome);
     this.base = { core, dome, flash: 0 };
-    this.baseLabel = this.label('w3-group ops-base', '<b>BASE</b><small></small>', new THREE.Vector3(0, -0.2, 2.4));
+    this.baseLabel = this.label('w3-group ops-base', '<b>BASE</b><small></small><i class="hl"></i>', new THREE.Vector3(0, -0.2, 2.4));
     this.baseLabel.d.dataset.go = 'system:root';
     this.baseLabel.d.style.translate = '-50% 0';
     // barrido
@@ -171,6 +172,9 @@ export default class Ops3D extends Stage3D {
     recard.forEach(s => this.fillCard(s));
     this.failed = (state.keys || []).filter(k => k.state === 'failed').map(k => k.label);
     this.baseLabel.d.querySelector('small').textContent = (state.keys || []).filter(k => k.state === 'active').map(k => k.label).filter(l => !['SSH', 'Cron'].includes(l)).slice(0, 4).join(' · ');
+    // salud del servidor junto a su nombre
+    const hl = healthLine(state), he = this.baseLabel && this.baseLabel.d.querySelector('.hl');
+    if (he && hl) { he.textContent = hl.text; he.style.color = hl.color; }
     this.syncDrones(state.sessions || []);
   }
 

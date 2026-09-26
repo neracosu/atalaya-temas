@@ -14,6 +14,7 @@ import { Stage3D, THREE, color, clamp, billboard, groupsOf, layoutKeyOf, packRow
 import { signCanvas, robotCanvas } from '/js/sprites.js';
 import { esc, fmtBytes } from '/js/hud.js';
 import { accountCaption } from '/js/accounts.js';
+import { healthLine } from '/js/layout.js';
 
 // PICO-8
 const K = { black: '#000000', navy: '#1d2b53', plum: '#7e2553', green: '#008751', brown: '#ab5236', dgray: '#5f574f', lgray: '#c2c3c7', white: '#fff1e8', red: '#ff004d', orange: '#ffa300', yellow: '#ffec27', lime: '#00e436', blue: '#29adff', lav: '#83769c', pink: '#ff77a8', peach: '#ffccaa' };
@@ -129,7 +130,7 @@ export default class Planta3D extends Stage3D {
     [base, roof, chimney].forEach(m => { m.userData = { kind: 'system', id: 'root' }; this.pickables.push(m); });
     this.plant.add(g);
     this.central = { g, x, z, mem, disk, gun, chimneyTop: new THREE.Vector3(x - 2, 5.3, z - 0.8), gunPos: new THREE.Vector3(x + 0.3, 3, z + 0.6), bin: new THREE.Vector3(x - 1.6, 0.9, z + 2.8), fence: { x: x + 0.4, z: z + 0.6 } };
-    this.centralLabel = this.label('w3-plaque w3-central', '<b>Central · servidor</b><small></small>', new THREE.Vector3(x, 0.05, z + 4.2));
+    this.centralLabel = this.label('w3-plaque w3-central', '<b>Central · servidor</b><small></small><i class="hl"></i>', new THREE.Vector3(x, 0.05, z + 4.2));
     this.centralLabel.d.dataset.go = 'system:root';
   }
 
@@ -229,6 +230,9 @@ export default class Planta3D extends Stage3D {
       this.centralLabel.d.querySelector('small').textContent = `CPU ${s.cpu.toFixed(0)}% · memoria ${s.mem.pct.toFixed(0)}% · disco ${Math.round(s.disk?.pct ?? 0)}%`;
     }
     this.failed = (state.keys || []).some(k => k.state === 'failed');
+    // salud del servidor junto a su nombre
+    const hl = healthLine(state), he = this.centralLabel && this.centralLabel.d.querySelector('.hl');
+    if (he && hl) { he.textContent = hl.text; he.style.color = hl.color; }
     this.syncBots(state.sessions || []);
   }
 

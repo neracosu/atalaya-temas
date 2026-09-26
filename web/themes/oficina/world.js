@@ -15,7 +15,7 @@
 // Regla de oro: pixel art nitido para los muebles y la gente; los textos, siempre nitidos.
 import { Application, Container, Graphics, Sprite, Text, Texture, Rectangle } from '/vendor/pixi.csp.mjs';
 import { signCanvas } from '/js/sprites.js';
-import { groupsOf, layoutKeyOf, packRows, iconURL, plaqueList } from '/js/layout.js';
+import { groupsOf, layoutKeyOf, packRows, iconURL, plaqueList, healthLine } from '/js/layout.js';
 import { esc, fmtBytes } from '/js/hud.js';
 import { accountCaption } from '/js/accounts.js';
 
@@ -339,6 +339,8 @@ export default class OficinaWorld {
       }
       this.place(room, coolerTex(), 3, 2.6, 16, 36);
       room.label = this.roomLabel(room, 'Sala de servidores', '', '#4f9dff');
+      // salud del servidor, bajo el titulo de la sala
+      this.srvHealth = text('', 13, 0x4ade80, '700'); this.srvHealth.anchor.set(0.5, 1); this.srvHealth.y = -16 - 28; room.label.addChild(this.srvHealth);
       this.tappable(base, () => this.pick('system', 'root'), () => this.tipFor({ kind: 'system' }));
       this.srv = room;
     } else {
@@ -440,6 +442,8 @@ export default class OficinaWorld {
     replate.forEach(r => this.fillPlaque(r));
     const s = state.system;
     if (s && this.srv) this.srv.label.children[2].text = `CPU ${s.cpu.toFixed(0)}% · memoria ${s.mem.pct.toFixed(0)}% · disco ${Math.round(s.disk?.pct ?? 0)}%`;
+    const hl = healthLine(state);
+    if (hl && this.srvHealth && this.srvHealth.text !== hl.text) { this.srvHealth.text = hl.text; this.srvHealth.style.fill = hl.color; }
     this.failed = (state.keys || []).some(k => k.state === 'failed');
     this.syncMates(state.sessions || []);
   }

@@ -15,7 +15,7 @@
 // ventanas) cuenta lo que pasa.
 import { Application, Container, Graphics, Sprite, Text, Texture } from '/vendor/pixi.csp.mjs';
 import { signTexture, signCanvas } from '/js/sprites.js';
-import { groupsOf, layoutKeyOf, packRows, iconURL, plaqueList } from '/js/layout.js';
+import { groupsOf, layoutKeyOf, packRows, iconURL, plaqueList, healthLine } from '/js/layout.js';
 import { esc, fmtBytes } from '/js/hud.js';
 import { accountCaption } from '/js/accounts.js';
 
@@ -244,7 +244,8 @@ export default class CastilloWorld {
     const t = text('TORRE DEL RELOJ', 18, 0xe8dcb8, FONT_T); t.anchor.set(0.5, 1); t.x = this.clock.x; t.y = top - 160;
     this.towerSub = text('', 12, 0xb8a8c8); this.towerSub.anchor.set(0.5, 0); this.towerSub.x = this.clock.x; this.towerSub.y = this.groundY + 90;
     this.towerTitle = t;
-    this.tags.addChild(t, this.towerSub);
+    this.towerHealth = text('', 14, 0x4ade80, FONT, '700'); this.towerHealth.anchor.set(0.5, 0); this.towerHealth.x = this.clock.x; this.towerHealth.y = this.groundY + 110;
+    this.tags.addChild(t, this.towerSub, this.towerHealth);
     this.towerTop = { x: this.clock.x, y: top - 100 };
   }
 
@@ -352,6 +353,8 @@ export default class CastilloWorld {
     replate.forEach(R => this.fillPlaque(R));
     const s = state.system;
     if (s && this.towerSub) this.towerSub.text = `CPU ${s.cpu.toFixed(0)}% · memoria ${s.mem.pct.toFixed(0)}% · disco ${Math.round(s.disk?.pct ?? 0)}%`;
+    const hl = healthLine(state);
+    if (hl && this.towerHealth && this.towerHealth.text !== hl.text) { this.towerHealth.text = hl.text; this.towerHealth.style.fill = hl.color; }
     this.failed = (state.keys || []).filter(k => k.state === 'failed').map(k => k.label);
     this.syncHunters(state.sessions || []);
   }
@@ -628,6 +631,7 @@ export default class CastilloWorld {
       this.towerTitle.text = bad ? 'ALERTA: ' + this.failed.join(', ') : 'TORRE DEL RELOJ';
       this.towerTitle.style.fill = bad ? 0xff5a5a : 0xe8dcb8;
       this.towerTitle.scale.set(this.textScale); this.towerSub.scale.set(this.textScale);
+      if (this.towerHealth) { this.towerHealth.scale.set(this.textScale); this.towerHealth.y = this.towerSub.y + this.towerSub.height + 4; }
     }
     // sala enfocada (para mostrar los nombres)
     const zoomed = this.overview && s > this.overview.s * 1.45;

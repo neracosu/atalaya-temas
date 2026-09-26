@@ -81,3 +81,4 @@ body[data-theme="terminal"] #navbar { bottom: 4.5rem; }
 .term-proc i { display: inline-block; width: .5em; height: .85em; vertical-align: -.1em; background: currentColor; animation: termBlink 1s steps(1) infinite; }
 .term-proc.wait { color: #ffb000; }
 .term-proc small { color: #3f8a55; }
+.term-unit.warn, .term-unit.warn span { color: #ffb000; }

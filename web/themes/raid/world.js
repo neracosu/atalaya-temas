@@ -11,6 +11,7 @@
 import { Application, Container, Graphics, Sprite, Text, Texture, Rectangle } from '/vendor/pixi.csp.mjs';
 import { esc, fmtBytes } from '/js/hud.js';
 import { accountCaption } from '/js/accounts.js';
+import { healthLine } from '/js/layout.js';
 
 const U = 16;
 const FONT = "'Jersey 10', ui-monospace, monospace";
@@ -177,6 +178,9 @@ export default class RaidWorld {
     gd.on('pointertap', () => { if (!this.dragMoved) this.pick('system', 'root'); });
     this.tipOn(gd, () => ({ title: 'El Guardián', body: 'El <b>servidor</b>: protege a la banda y absorbe los ataques del Intruso.', meta: this.state?.system ? `CPU ${this.state.system.cpu.toFixed(0)}% · RAM ${this.state.system.mem.pct.toFixed(0)}% · carga ${this.state.system.load[0].toFixed(2)}` : '', hint: 'Clic para ver el servidor completo' }));
     this.scene.addChild(gd); this.guard = { s: gd, x: 0, y: 150 - 30 };
+    // nombre y salud del servidor, bajo el guardian
+    this.guardName = this.label('El Guardián', 20, '#e8c55a');
+    this.guardHealth = this.label('', 16, '#3fcf4a');
     // grupos
     groups.forEach((g, gi) => {
       const lbl = this.label(`Grupo ${gi + 1} · ${g.a.label}`, 24, '#e8c55a');
@@ -221,6 +225,8 @@ export default class RaidWorld {
   update(state) {
     this.state = state;
     this.layout(state);
+    const hl = healthLine(state);
+    if (hl && this.guardHealth && this.guardHealth.text !== hl.text) { this.guardHealth.text = hl.text; this.guardHealth.style.fill = hl.color; }
     for (const x of [...state.apps, ...(state.sites || [])]) {
       const h = this.heroes.get(x.id);
       if (!h) continue;
@@ -417,6 +423,8 @@ export default class RaidWorld {
     if (this.bossName) { const p = toS({ x: 0, y: this.arena.y0 + 132 }); this.bossName.x = p.x; this.bossName.y = p.y + 24; }
     // en pantallas chicas los textos se achican con el area del mundo (no se enciman)
     const ts = clamp(Math.min((W - this.insets.left - this.insets.right) / 900, (H - this.insets.top - this.insets.bottom) / 560), 0.5, 1);
+    // encima del guardian (debajo va la fila de grupos)
+    if (this.guardName) { const p = toS({ x: 0, y: 150 - 60 }); this.guardName.x = this.guardHealth.x = p.x; this.guardHealth.y = p.y - 4 * ts; this.guardName.y = p.y - 26 * ts; this.guardName.scale.set(ts); this.guardHealth.scale.set(ts); }
     if (this.bossName) this.bossName.scale.set(ts);
     for (const gr of this.groups.values()) { const p = toS(gr.labelPos); gr.label.scale.set(ts); gr.sub.scale.set(ts); gr.label.x = p.x; gr.label.y = p.y; gr.sub.x = p.x + gr.label.width + 14 * ts; gr.sub.y = p.y - 2 * ts; }
     for (const p of this.players.values()) if (p.castPos) { const q = toS(p.castPos); p.castT.x = q.x; p.castT.y = q.y; p.castT.visible = this.cam.s > 1.2; }

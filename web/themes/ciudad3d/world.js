@@ -10,6 +10,7 @@ import { Stage3D, THREE, color, clamp, billboard, rowsCanvas } from '/js/stage3d
 import { signCanvas, robotCanvas, INVADER, ENVELOPE } from '/js/sprites.js';
 import { esc, fmtBytes } from '/js/hud.js';
 import { accountCaption } from '/js/accounts.js';
+import { healthLine } from '/js/layout.js';
 
 const GAP = 2.1; // distancia entre edificios
 const shade = (hex, f) => color(hex).lerp(color(f < 0 ? '#000000' : '#ffffff'), Math.abs(f));
@@ -79,7 +80,7 @@ export default class Ciudad3D extends Stage3D {
     this.pickables.push(tower, deck, pad);
     [tower, deck, pad].forEach(m => { m.userData = { kind: 'system', id: 'root' }; });
     this.hq = { g, tower, bands, beacon, shield, flash: 0 };
-    this.hqLabel = this.label('w3-group', '<b>TORRE DE CONTROL</b><small></small>', new THREE.Vector3(0, 13.8, 0));
+    this.hqLabel = this.label('w3-group', '<b>TORRE DE CONTROL</b><small></small><i class="hl"></i>', new THREE.Vector3(0, 13.8, 0));
     // portal "Internet"
     this.gatePos = new THREE.Vector3(-20, 4, 22); // detras de la ciudad vista desde la camara inicial
     const gate = new THREE.Mesh(new THREE.TorusGeometry(2.2, 0.18, 12, 48), new THREE.MeshBasicMaterial({ color: color(this.C.accent) }));
@@ -204,6 +205,9 @@ export default class Ciudad3D extends Stage3D {
     this.failed = (state.keys || []).filter(k => k.state === 'failed').map(k => k.label);
     this.hq.cpu = state.system ? state.system.cpu : 0;
     this.hqLabel.d.querySelector('small').textContent = (state.keys || []).filter(k => k.state === 'active').map(k => k.label).filter(l => !['SSH', 'Cron'].includes(l)).slice(0, 4).join(' · ');
+    // salud del servidor junto a su nombre
+    const hl = healthLine(state), he = this.hqLabel && this.hqLabel.d.querySelector('.hl');
+    if (he && hl) { he.textContent = hl.text; he.style.color = hl.color; }
     this.syncRobots(state.sessions || []);
   }
 

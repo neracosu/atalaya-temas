@@ -12,6 +12,7 @@
 import { Stage3D, THREE, color, clamp } from '/js/stage3d.js';
 import { esc, fmtBytes } from '/js/hud.js';
 import { accountCaption } from '/js/accounts.js';
+import { healthLine } from '/js/layout.js';
 
 const FISH_COLORS = ['#ff8a3d', '#ffd23f', '#ff5e8a', '#7be0ff', '#b48cff', '#7be06b', '#ff4d5e', '#f4f1e8', '#3ddbd9', '#ffb3c7'];
 function hash(s) { let h = 2166136261; for (const c of String(s)) { h ^= c.charCodeAt(0); h = Math.imul(h, 16777619); } return h >>> 0; }
@@ -124,7 +125,7 @@ export default class Acuario3D extends Stage3D {
     this.rack.add(g);
     this.pickables.push(body, cap);
     this.filter = { g, water, led, x, y, w };
-    this.filterLabel = this.label('w3-plaque w3-filter', '<b>Servidor</b><small></small>', new THREE.Vector3(x, y - 0.3, TD / 2));
+    this.filterLabel = this.label('w3-plaque w3-filter', '<b>Servidor</b><small></small><i class="hl"></i>', new THREE.Vector3(x, y - 0.3, TD / 2));
     this.filterLabel.d.dataset.go = 'system:root';
   }
 
@@ -241,6 +242,9 @@ export default class Acuario3D extends Stage3D {
       this.filter.led.material.color.set(bad ? this.C.warn : this.C.ok);
       this.filterLabel.d.querySelector('small').textContent = `disco ${Math.round(s.disk?.pct ?? 0)}% · carga ${s.load[0].toFixed(1)}`;
     }
+    // salud del servidor junto a su nombre
+    const hl = healthLine(state), he = this.filterLabel && this.filterLabel.d.querySelector('.hl');
+    if (he && hl) { he.textContent = hl.text; he.style.color = hl.color; }
     this.syncDivers(state.sessions || []);
   }
 
