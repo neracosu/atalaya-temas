@@ -38,6 +38,8 @@
       <button data-act="lock">Pasar a público <kbd>L</kbd></button>
       <button data-act="lockall">Bloquear todas las pantallas</button>
       <button data-act="setup" class="owneronly">Asistente de configuración</button>
+      <button data-act="users" class="owneronly">Usuarios</button>
+      <button data-act="maestro" class="owneronly" id="maestroBtn" hidden>Panel maestro de la nube</button>
       <button data-act="install" class="owneronly nocloud">Instalar en otro servidor</button>
       <button data-act="hosting" class="owneronly noequipo">Conectar un hosting compartido</button>
       <button data-act="logout">Cerrar sesión</button>
@@ -118,6 +120,11 @@
   <header><h3 id="instTitle">Instalar Atalaya</h3><button class="iclose icon-btn" aria-label="Cerrar">✕</button></header>
   <div class="itabs" role="tablist"><button role="tab" data-itab="vps"><span data-px="terminal"></span> Servidor VPS</button><button role="tab" data-itab="hosting"><span data-px="house"></span> Hosting compartido</button></div>
   <div class="lbody" id="instBody"></div>
+</dialog>
+
+<dialog id="usersDlg" class="legend users" aria-labelledby="usersTitle">
+  <header><h3 id="usersTitle">Usuarios</h3><button class="uclose icon-btn" aria-label="Cerrar">✕</button></header>
+  <div class="lbody" id="usersBody"></div>
 </dialog>
 
 <dialog id="themeDlg" class="legend themes" aria-labelledby="themeTitle">
