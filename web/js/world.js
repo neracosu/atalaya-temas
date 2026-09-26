@@ -346,7 +346,8 @@ export class World {
     this.gateG = gate;
     this.labels.addChild(gate, gl);
     this.stations = new Map(); // cuenta -> {name: point}
-    this.stations.set('root', this.makeStations(null, { x: 0, y: TH * S + 110 }));
+    // debajo del nombre, los servicios y la linea de salud (que termina en TH * S + 80)
+    this.stations.set('root', this.makeStations(null, { x: 0, y: TH * S + 150 }));
   }
 
   makeStations(d, origin) {
@@ -433,7 +434,7 @@ export class World {
         }
       }
       for (const it of items) { // no pisar la torre
-        const ox = it.sw / 2 + STATION_ROW / 2 - Math.abs(it.cx), oy = it.sh / 2 + 250 - Math.abs(it.cy);
+        const ox = it.sw / 2 + STATION_ROW / 2 - Math.abs(it.cx), oy = it.sh / 2 + 290 - Math.abs(it.cy);
         if (ox > 0 && oy > 0) { if (ox < oy) it.cx += (Math.sign(it.cx) || 1) * ox; else it.cy += (Math.sign(it.cy) || 1) * oy; }
       }
     }
