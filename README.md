@@ -15,6 +15,7 @@ ataques y los agentes de Claude Code) **y el HUD** (cómo se ven y dónde van lo
 | `villa` | 2D, PixiJS | RPG de casillas: castillo, pueblos amurallados, aldeanos, slimes y magos |
 | `raid` | 2D, PixiJS | Banda de MMO: héroes con vida y maná, números de combate y El Intruso |
 | `oficina` | 2D, PixiJS | Piso de oficina isométrico estilo hotel virtual, con globos de diálogo |
+| `castillo` | 2D, PixiJS | Castillo gótico de costado: candelabros, vitrales, murciélagos y espectros |
 | `ciudad3d` | 3D, three.js | La ciudad de noche: torres que crecen con la memoria |
 | `acuario` | 3D, three.js | Una pared de peceras: una por cuenta, con la placa de sus peces |
 | `ops` | 3D, three.js | Mesa táctica holográfica con fichas de sector |

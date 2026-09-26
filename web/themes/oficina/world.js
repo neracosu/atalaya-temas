@@ -771,7 +771,7 @@ export default class OficinaWorld {
       if (!r.plaque) continue;
       const x = this.camBase.x + (r.x + (r.box.x0 + r.box.x1) / 2) * s, y = this.camBase.y + (r.y + r.box.y1 + 6) * s;
       r.plaque.style.transform = `translate(${x | 0}px, ${y | 0}px)`;
-      r.plaque.style.width = Math.round(Math.max(r.box.w * s, 120)) + 'px';
+      r.plaque.style.minWidth = '0'; r.plaque.style.width = Math.round(r.box.w * s) + 'px'; // del ancho de su sala: nunca pisa a la vecina
       r.plaque.style.fontSize = fs.toFixed(1) + 'px';
       r.plaque.classList.toggle('compact', !!this.compact && s < (this.overview?.s || 1) * 1.45);
       // medida real: si el directorio no cabe en lo reservado, se rearma la distribucion

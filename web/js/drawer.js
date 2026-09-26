@@ -319,7 +319,9 @@ export class Drawer {
   trafficHtml(d) {
     const st = d.stats;
     const priv = !!(st && st.paths);
-    const hour = st ? `<div class="dstats">${stat('Visitas · última hora', fmtNum(st.total))}${stat('Robots', st.total ? Math.round(st.bots / st.total * 100) + '%' : '–')}${stat('Errores 5xx', st.errors, st.errors ? 'bad' : '')}</div>` : '';
+    // personas (sin robots) en los ultimos 5 minutos y hoy, contadas en vivo
+    const live = d.visitorsNow != null ? `<div class="dstats">${stat('Visitantes ahora', fmtNum(d.visitorsNow), d.visitorsNow ? 'ok' : '')}${stat('Visitas de hoy', fmtNum(d.today ? d.today.visits : 0))}${stat('Visitantes de hoy', fmtNum(d.today ? d.today.visitors : 0))}</div>` : '';
+    const hour = live + (st ? `<div class="dstats">${stat('Visitas · última hora', fmtNum(st.total))}${stat('Robots', st.total ? Math.round(st.bots / st.total * 100) + '%' : '–')}${stat('Errores 5xx', st.errors, st.errors ? 'bad' : '')}</div>` : '');
     const rank = st ? `
       <section class="dsec"><h4>Países · última hora</h4><ul class="dlist">${bars(st.countries, k => `${flag(k)} ${esc(countryName(k))}`, st.total)}</ul></section>
       <section class="dsec"><h4>Navegadores y robots</h4><ul class="dlist">${bars(st.agents, k => esc(k), st.total)}</ul></section>

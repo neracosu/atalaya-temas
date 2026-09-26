@@ -4,7 +4,7 @@ Un tema cambia **el mundo** (cómo se dibujan el servidor, las cuentas, los serv
 los ataques y los agentes) **y el HUD** (cómo se ven y dónde van los paneles). No es una paleta de
 colores: es otra forma de mirar el mismo servidor.
 
-Atalaya trae nueve temas que sirven de ejemplo:
+Atalaya trae diez temas que sirven de ejemplo:
 
 | Tema | Técnica | Mundo | HUD |
 |---|---|---|---|
@@ -12,6 +12,7 @@ Atalaya trae nueve temas que sirven de ejemplo:
 | `villa` | 2D, PixiJS | RPG de casillas: castillo, pueblos, aldeanos, slimes, magos | Marcos de madera, barras de estado, registro tipo chat |
 | `raid` | 2D, PixiJS | Arena de MMO: héroes con vida y maná, jefe, números de combate | Barra de acción abajo, registro de combate, medidor |
 | `oficina` | 2D, PixiJS | Piso de oficina isométrico estilo hotel virtual: salas, escritorios, globos de diálogo | Intranet corporativa, directorio bajo cada sala |
+| `castillo` | 2D, PixiJS | Castillo gótico de costado: torre del reloj, salas, candelabros, vitrales, murciélagos | Marcos heredados de Villa, en noche gótica |
 | `ciudad3d` | 3D, three.js | La ciudad de noche: torres, calles, portal «Internet» | El de la Ciudad clásica |
 | `acuario` | 3D, three.js | Pared de peceras: una por cuenta, con su placa | Franja inferior con tres placas |
 | `ops` | 3D, three.js | Mesa táctica holográfica: sectores, columnas, misiles, drones | Lecturas arriba, fichas de sector con línea guía |
