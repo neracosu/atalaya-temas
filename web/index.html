@@ -99,6 +99,14 @@
   <button id="tall" class="tall" data-tip="Historial|Todas las novedades recientes, con filtros.">Ver todo <b id="tcount">0</b></button>
 </footer>
 
+<!-- telefonos y tablets: pestanas que abren cada panel como hoja deslizable -->
+<nav id="tabs" aria-label="Paneles">
+  <button data-sheet="" aria-pressed="true"><span data-px="city"></span><b>Mundo</b></button>
+  <button data-sheet="left" aria-pressed="false"><span data-px="bot"></span><b>Agentes</b><i id="tabAgents"></i></button>
+  <button data-sheet="right" aria-pressed="false"><span data-px="chart"></span><b>Métricas</b></button>
+  <button data-sheet="ticker" aria-pressed="false"><span data-px="antenna"></span><b>Novedades</b><i id="tabEvents"></i></button>
+</nav>
+<div id="sheetBack" aria-hidden="true"></div>
 <div id="conn" class="conn" hidden>Reconectando…</div>
 <div id="tip" class="tip" hidden role="tooltip"></div>
 

@@ -415,7 +415,10 @@ export default class RaidWorld {
     this.world.x = Math.round(W / 2 + this.cam.x); this.world.y = Math.round(H / 2 + this.cam.y);
     const toS = p => ({ x: this.world.x + p.x * this.cam.s, y: this.world.y + p.y * this.cam.s });
     if (this.bossName) { const p = toS({ x: 0, y: this.arena.y0 + 132 }); this.bossName.x = p.x; this.bossName.y = p.y + 24; }
-    for (const gr of this.groups.values()) { const p = toS(gr.labelPos); gr.label.x = p.x; gr.label.y = p.y; gr.sub.x = p.x + gr.label.width + 14; gr.sub.y = p.y - 2; }
+    // en pantallas chicas los textos se achican con el area del mundo (no se enciman)
+    const ts = clamp(Math.min((W - this.insets.left - this.insets.right) / 900, (H - this.insets.top - this.insets.bottom) / 560), 0.5, 1);
+    if (this.bossName) this.bossName.scale.set(ts);
+    for (const gr of this.groups.values()) { const p = toS(gr.labelPos); gr.label.scale.set(ts); gr.sub.scale.set(ts); gr.label.x = p.x; gr.label.y = p.y; gr.sub.x = p.x + gr.label.width + 14 * ts; gr.sub.y = p.y - 2 * ts; }
     for (const p of this.players.values()) if (p.castPos) { const q = toS(p.castPos); p.castT.x = q.x; p.castT.y = q.y; p.castT.visible = this.cam.s > 1.2; }
     for (const f of this.fx) if (f.world) { const p = toS(f.world); f.obj.x = p.x; f.obj.y = p.y; }
     if (this.manualUntil && this.manualUntil < this.t) { this.manualUntil = 0; this.camTarget = this.overview; this.navChanged(); }

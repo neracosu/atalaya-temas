@@ -598,7 +598,10 @@ export default class VillaWorld {
     // textos en pantalla: siguen su punto del mundo
     const toScreen = p => ({ x: this.world.x + p.x * this.cam.s, y: this.world.y + p.y * this.cam.s });
     if (this.castleLabel) { const p = toScreen({ x: 0, y: -4.4 * U }); this.castleLabel.x = p.x; this.castleLabel.y = p.y; }
-    for (const v of this.villages.values()) { const p = toScreen(v.labelPos); v.label.x = p.x; v.label.y = p.y - 20; v.sub.x = p.x; v.sub.y = p.y; }
+    // en pantallas chicas los textos se achican con el area del mundo (no se enciman)
+    const ts = clamp(Math.min((W - this.insets.left - this.insets.right) / 900, (H - this.insets.top - this.insets.bottom) / 560), 0.5, 1);
+    if (this.castleLabel) this.castleLabel.scale.set(ts);
+    for (const v of this.villages.values()) { const p = toScreen(v.labelPos); v.label.scale.set(ts); v.sub.scale.set(ts); v.label.x = p.x; v.label.y = p.y - 20 * ts; v.sub.x = p.x; v.sub.y = p.y; }
     for (const f of this.fx) if (f.world) { const p = toScreen(f.world); f.obj.x = p.x; f.obj.y = p.y; }
     if (this.manualUntil && this.manualUntil < this.t) { this.manualUntil = 0; this.camTarget = this.overview; this.navChanged(); }
     else if (this.manualUntil && Math.floor(this.t) !== this.lastNav) { this.lastNav = Math.floor(this.t); this.navChanged(); }

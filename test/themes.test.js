@@ -32,3 +32,15 @@ for (const id of ids) {
   for (const c of m.credits || []) assert.ok(c.what && c.license, `${id}: cada credito con su licencia`);
 }
 console.log(`ok   temas: ${ids.join(', ')} con manifiesto, interfaz del mundo, sin emojis ni red externa`);
+
+// telefonos y tablets: la disposicion compacta existe y cubre las piezas del HUD en todos los temas
+{
+  const html = fs.readFileSync(path.join(__dirname, '../web/index.html'), 'utf8');
+  const css = fs.readFileSync(path.join(__dirname, '../web/css/app.css'), 'utf8');
+  const main = fs.readFileSync(path.join(__dirname, '../web/js/main.js'), 'utf8');
+  for (const s of ['left', 'right', 'ticker']) assert.ok(html.includes(`data-sheet="${s}"`), `pestana ${s}`);
+  assert.ok(/matchMedia\([^)]*max-width: 1100px/.test(main), 'main.js activa body.compact en pantallas chicas');
+  for (const sel of ['#top', '.kpis', '#worldArea', '#navbar', '#ticker', '#left', '#right', '.drawer', '#tabs']) assert.ok(css.includes(`html body.compact ${sel}`), `compacto: ${sel}`);
+  assert.ok(/orientation: landscape/.test(css), 'telefono acostado: barra vertical');
+  console.log('ok   telefonos y tablets: pestanas, hojas y disposicion compacta para todos los temas');
+}
