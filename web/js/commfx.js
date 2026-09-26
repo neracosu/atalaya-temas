@@ -20,7 +20,9 @@ export class CommFx {
     for (const [k, c] of Object.entries(COLORS)) this.env[k] = paintCanvas(ENVELOPE, { x: c }, 1);
     this.still = matchMedia('(prefers-reduced-motion: reduce)').matches;
     // autos de perfil (2 cuadros: las luces alternan); se dibujan al doble, sin suavizar
-    this.cars = { police: POLICE_CAR.map(f => paintCanvas(f, CAR_COLORS, 1)), fly: FLY_POLICE.map(f => paintCanvas(f, CAR_COLORS, 1)), probe: PROBE_CAR.map(f => paintCanvas(f, CAR_COLORS, 1)) };
+    this.cars = { police: POLICE_CAR.map(f => paintCanvas(f, CAR_COLORS, 1)), fly: FLY_POLICE.map(f => paintCanvas(f, CAR_COLORS, 1)), probe: PROBE_CAR.map(f => paintCanvas(f, CAR_COLORS, 1)),
+      queue: PROBE_CAR.map(f => paintCanvas(f.map(r => r.replace(/[Rr]/g, '.')), { ...CAR_COLORS, g: '#64748b', d: '#334155' }, 1)) };
+    this.sat = null; // servidor al limite (del estado)
     this.patrols = new Map(); // sitio vigilado -> { w, phase: out | on | back, t0, park }
     this.resize = () => { const d = Math.min(2, devicePixelRatio || 1); this.dpr = d; this.cv.width = innerWidth * d; this.cv.height = innerHeight * d; };
     this.resize(); addEventListener('resize', this.resize);
@@ -153,11 +155,11 @@ export class CommFx {
     for (const w of list || []) {
       const k = w.kind + ':' + w.id; keys.add(k);
       const P = this.patrols.get(k);
-      if (!P) this.patrols.set(k, { w, phase: w.reason === 'surge' ? 'on' : 'out', t0: now, park: [] });
+      if (!P) this.patrols.set(k, { w, phase: w.reason === 'surge' || w.reason === 'php' ? 'on' : 'out', t0: now, park: [] });
       else { P.w = w; if (P.phase === 'back' && !P.escort) { P.phase = 'out'; P.t0 = now; } } // una escolta en curso no se interrumpe
     }
     for (const [k, P] of this.patrols) if (!keys.has(k) && P.phase !== 'back' && P.phase !== 'home') {
-      if (P.w.reason === 'surge') this.patrols.delete(k); else { P.phase = 'back'; P.t0 = now; }
+      if (P.w.reason === 'surge' || P.w.reason === 'php') this.patrols.delete(k); else { P.phase = 'back'; P.t0 = now; }
     }
     if (this.patrols.size) this.run();
   }
@@ -207,6 +209,13 @@ export class CommFx {
     const ease = u => (u < 0.5 ? 2 * u * u : 1 - (-2 * u + 2) ** 2 / 2);
     for (const [k, P] of this.patrols) {
       const w = P.w, b = this.pos(w.kind, w.id);
+      if (w.reason === 'php') {
+        // sin procesos PHP: tres autos grises esperando en fila junto al edificio
+        if (!b) continue;
+        for (let i = 0; i < 3; i++) this.car('queue', b.x + 52 + i * 44, b.y + 26 + Math.sin(t * 3 + i) * 0.5, 0, true);
+        this.watchLabel(b, `PHP AL LÍMITE · tope ${w.max || '?'} procesos`, '#fbbf24');
+        continue;
+      }
       if (w.reason === 'surge') {
         if (!b) continue;
         // dos reflectores que barren el cielo desde el edificio
@@ -277,6 +286,27 @@ export class CommFx {
       if (b && P.phase !== 'back' && LBL[w.reason]) this.watchLabel(b, LBL[w.reason], '#ef4444');
     }
   }
+  setSaturation(s) {
+    this.sat = s && s.level === 'bad' ? s : null;
+    if (this.sat) this.run();
+  }
+  drawSaturation(nowMs) {
+    const w = this.getWorld();
+    let p = null; try { p = w && w.screenOf ? w.screenOf('tower') : null; } catch { p = null; }
+    if (!p || this.covered(p)) p = { x: innerWidth / 2, y: 150 };
+    const { cx } = this, t = nowMs / 1000;
+    // anillo rojo que late y ondas de calor que suben
+    for (let i = 0; i < 2; i++) { const u = (t * 0.7 + i * 0.5) % 1; this.burst({ x: p.x, y: p.y }, '#ef4444', u, 0.85); }
+    cx.strokeStyle = '#fb923c'; cx.lineWidth = 2;
+    for (let i = -1; i <= 1; i++) {
+      const u = (t * 0.6 + (i + 1) * 0.33) % 1;
+      cx.globalAlpha = (1 - u) * 0.6; cx.beginPath();
+      for (let k = 0; k <= 10; k++) { const yy = p.y - 30 - u * 70 - k * 3, xx = p.x + i * 16 + Math.sin(k * 0.9 + t * 5) * 3; k ? cx.lineTo(xx, yy) : cx.moveTo(xx, yy); }
+      cx.stroke();
+    }
+    cx.globalAlpha = 1;
+    this.watchLabel({ x: p.x, y: p.y - 60 }, `SERVIDOR AL LÍMITE · ${(this.sat.causes[0] || {}).label || ''}`.toUpperCase(), '#ef4444');
+  }
   watchLabel(p, label, col) {
     const { cx } = this;
     cx.font = "700 11px 'Space Grotesk', system-ui, sans-serif"; cx.textAlign = 'center';
@@ -324,11 +354,12 @@ export class CommFx {
     cx.clearRect(0, 0, this.cv.width, this.cv.height);
     cx.setTransform(dpr, 0, 0, dpr, 0, 0);
     cx.imageSmoothingEnabled = false;
+    if (this.sat) this.drawSaturation(now);
     if (this.patrols.size) this.drawWatch(now);
     for (const f of this.fx) { f.t += dt; (f.type === 'packet' ? this.drawPacket : f.type === 'probe' ? this.drawProbe : f.type === 'warp' ? this.drawWarp : f.type === 'dbslow' ? this.drawDbSlow : f.type === 'spot' ? this.drawSpot : f.type === 'release' ? this.drawRelease : this.drawBeam).call(this, f); }
     // un archivo expuesto queda marcado 6 s; lo demas se va al terminar
     this.fx = this.fx.filter(f => f.t < f.dur + (f.type === 'probe' && f.exposed ? 6 : 0.35));
-    this.raf = this.fx.length || this.patrols.size ? requestAnimationFrame(t => this.frame(t)) : 0;
+    this.raf = this.fx.length || this.patrols.size || this.sat ? requestAnimationFrame(t => this.frame(t)) : 0;
     if (!this.raf) cx.clearRect(0, 0, innerWidth, innerHeight);
   }
 

@@ -776,6 +776,10 @@ export class World {
     this.hq.heat = clamp((state.system?.cpu || 0) / 100, 0, 1);
     this.hq.alarm = (state.keys || []).filter(k => k.state === 'failed').map(k => k.label);
     if (state.jail) this.drawJail(state.jail.n);
+    // servidor al limite: los autos hacen fila en el peaje y avanzan lento (atasco)
+    const jam = !!(state.saturation && state.saturation.level === 'bad');
+    if (!jam && this.jam) this.jamNext = 0;
+    this.jam = jam;
     // bajo la torre: los servicios clave que realmente corren en este servidor
     const act = (state.keys || []).filter(k => k.state === 'active').map(k => k.label.toLowerCase());
     const tag = act.filter(l => !['ssh', 'cron'].includes(l)).slice(0, 4).join(' · ') || 'servidor';
@@ -908,8 +912,17 @@ export class World {
     const g = new Sprite(carTexture('#' + color.toString(16).padStart(6, '0')));
     g.anchor.set(0.5); g.scale.set(e.bot ? 1.1 : 1.4);
     g.x = pts[0].x; g.y = pts[0].y;
-    let seg = 0; const speed = 520 + Math.random() * 200;
+    let seg = 0, wait = 0, queued = false; const speed = 520 + Math.random() * 200;
+    // en un atasco, cada auto espera su turno en el peaje: toma el ultimo lugar de la fila (uno detras del otro)
+    if (this.jam) {
+      if ((this.jamQ || 0) >= 18) return; // la fila ya muestra el atasco: no crece sin fin
+      const now = this.t; this.jamNext = Math.min(now + 8, Math.max(this.jamNext || 0, now) + 0.45); wait = this.jamNext - now;
+      this.jamQ = (this.jamQ || 0) + 1; queued = true;
+      pts[1] = { x: lane, y: hw.toll - 30 - Math.min(20, this.jamQ - 1) * 17 };
+    }
     this.addFx(g, (f, dt) => {
+      if (seg === 1 && wait > 0) { wait -= dt; return true; } // espera en su lugar de la fila
+      if (seg === 1 && queued) { queued = false; this.jamQ = Math.max(0, this.jamQ - 1); }
       if (seg === 1) hw.bar = 1; // llega al peaje: sube la barrera
       const a = pts[seg + 1];
       if (!a) {
@@ -918,7 +931,7 @@ export class World {
         return false;
       }
       const dx = a.x - g.x, dy = a.y - g.y, dd = Math.hypot(dx, dy);
-      const st = speed * dt;
+      const st = speed * (this.jam ? 0.35 : 1) * dt;
       if (dd > 0.5) g.rotation = Math.atan2(dy, dx) - Math.PI / 2;
       if (dd <= st) { g.x = a.x; g.y = a.y; seg++; } else { g.x += dx / dd * st; g.y += dy / dd * st; }
       return true;
