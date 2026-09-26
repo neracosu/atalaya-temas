@@ -1,6 +1,7 @@
 // Panel de detalle: se abre al tocar un servicio, agente, distrito, la torre o un evento.
 // Los datos vienen de /api/detail y ya llegan filtrados por el modo publico/privado.
 import { animate } from '/vendor/anime.esm.min.js';
+import { withFavicons } from './favicons.js';
 import { px } from './pixicons.js';
 import uPlot from '/vendor/uPlot.esm.js';
 import { signCanvas, robotCanvas, iconCanvas } from './sprites.js';
@@ -112,6 +113,7 @@ export class Drawer {
       const r = await fetch(`/api/detail?kind=${encodeURIComponent(kind)}&id=${encodeURIComponent(id)}${extra}`);
       if (r.status === 401) { location.href = '/login'; return; }
       d = r.ok ? await r.json() : null;
+      if (d) { withFavicons([d]); withFavicons(d.apps); withFavicons(d.sites); } // favicons reales (solo llegan en privado)
     } catch { return; }
     if (kind !== this.kind || id !== this.id) return; // ya se abrio otra cosa
     if (!d) {

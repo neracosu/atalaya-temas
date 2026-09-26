@@ -94,7 +94,7 @@ export default class Ciudad3D extends Stage3D {
     const by = {};
     for (const a of state.apps) (by[a.account] = by[a.account] || []).push({ ...a, _k: 'app' });
     for (const x of state.sites || []) (by[x.account] = by[x.account] || []).push({ ...x, _k: 'site' });
-    const key = accounts.map(a => a.id + ':' + (a.cpanel || '') + ':' + (by[a.id] || []).map(x => x.id).join(',')).join('|');
+    const key = accounts.map(a => a.id + ':' + (a.cpanel || '') + ':' + (by[a.id] || []).map(x => x.id + (x.icon || '')).join(',')).join('|');
     if (key === this.layoutKey) return;
     this.layoutKey = key;
     // limpiar

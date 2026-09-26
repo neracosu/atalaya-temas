@@ -11,7 +11,7 @@ export function groupsOf(state) {
 }
 // huella de la distribucion: si no cambia, no hace falta rearmar el mundo
 export function layoutKeyOf(state) {
-  return groupsOf(state).map(g => g.a.id + ':' + g.a.label + ':' + (g.a.cpanel || '') + ':' + g.items.map(x => x.id + x.name).join(',')).join('|');
+  return groupsOf(state).map(g => g.a.id + ':' + g.a.label + ':' + (g.a.cpanel || '') + ':' + g.items.map(x => x.id + x.name + (x.icon || '')).join(',')).join('|');
 }
 // reparte grupos en 1 a 4 filas y se queda con la que deja todo mas grande en pantalla.
 // w(g) y h(g) en unidades del mundo; gap entre grupos; aspect = ancho/alto del area libre;

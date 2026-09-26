@@ -1,6 +1,7 @@
 // Pixel art definido como codigo: cada sprite es una matriz de caracteres
 // que se pinta en un canvas y se convierte en textura de PixiJS (escalado nearest).
-import { Texture } from '/vendor/pixi.csp.mjs';
+import { Texture, CanvasSource } from '/vendor/pixi.csp.mjs';
+import { favImage } from './favicons.js';
 
 // ---- robot 14x17: cuerpo, cabeza con visor, antena ----
 const HEAD = [
@@ -136,7 +137,23 @@ function paintCanvas(rows, colors, scale) {
   }
   return cv;
 }
-export function signCanvas(name, scale = 4) { return paintCanvas(SIGNS[name] || SIGNS.web, ICON_COLORS, scale); }
+// favicon de un proyecto en el marco de un cartel: se achica a una grilla de 20x20 y se agranda sin suavizar
+// (queda con aspecto pixel, como el resto de los carteles). Cartel de 10 px de lado = favicon de 20 px a resolucion 2.
+function favCanvas(img, size) {
+  const g = document.createElement('canvas'); g.width = g.height = 20;
+  const gx = g.getContext('2d'); gx.imageSmoothingEnabled = true; gx.imageSmoothingQuality = 'high';
+  gx.drawImage(img, 0, 0, 20, 20);
+  if (size === 20) return g;
+  const cv = document.createElement('canvas'); cv.width = cv.height = size;
+  const cx = cv.getContext('2d'); cx.imageSmoothingEnabled = false; cx.drawImage(g, 0, 0, size, size);
+  return cv;
+}
+const favOf = name => typeof name === 'string' && name.startsWith('fav:') ? favImage(name.slice(4)) : null;
+export function signCanvas(name, scale = 4) {
+  const img = favOf(name);
+  if (img) return favCanvas(img, Math.max(20, 10 * scale));
+  return paintCanvas(SIGNS[name] || SIGNS.web, ICON_COLORS, scale);
+}
 export function robotCanvas(color, scale = 4) {
   const colors = { o: '#050814', B: color, b: shade(color, -0.35), h: shade(color, 0.45), v: '#0b1020', e: '#e0f7ff', g: '#94a3b8', a: '#fbbf24' };
   return paintCanvas(ROBOT_FRAMES.idle[0], colors, scale);
@@ -182,6 +199,8 @@ export function iconTexture(name) {
 
 export function signTexture(name) {
   const key = 's' + name;
+  const img = !cache.has(key) && favOf(name);
+  if (img) cache.set(key, new Texture({ source: new CanvasSource({ resource: favCanvas(img, 20), resolution: 2, scaleMode: 'nearest' }) }));
   if (!cache.has(key)) cache.set(key, paint(SIGNS[name] || SIGNS.web, ICON_COLORS));
   return cache.get(key);
 }
