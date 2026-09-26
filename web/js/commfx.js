@@ -54,6 +54,12 @@ export class CommFx {
     } else if (e.action === 'message') {
       const to = e.to == null ? null : e.to === '' ? this.pos('session', e.sid) : this.pos('agent', e.sid + '/' + e.to, e.sid);
       if (me) this.packet(me, to || nudge(me, -1), 'message');
+    } else if (e.action === 'start') {
+      // sesion nueva: el bot aparece un instante despues; baja un haz donde se pare
+      this.later(() => this.pos('session', e.sid), to => { if (to) this.warp(to, 'in'); }, 12);
+    } else if (e.action === 'end') {
+      // sesion cerrada: el bot sigue en su lugar hasta el proximo estado; sube un haz y se va
+      if (me) this.warp(me, 'out', e.reason);
     } else if (e.action === 'touch') {
       const to = e.app ? this.pos('app', e.app) : e.site ? this.pos('site', e.site) : null;
       if (me && to && to.world) this.beam(me, to, e.mode === 'edit' ? 'edit' : 'read');
@@ -126,6 +132,11 @@ export class CommFx {
     this.fx.push({ type: 'beam', kind, from, to, t: 0, dur: this.still ? 0.6 : 1.3 });
     this.run();
   }
+  warp(at, dir, reason) {
+    const label = dir === 'in' ? 'nueva sesión' : reason === 'timeout' ? 'sin actividad' : 'sesión cerrada';
+    this.fx.push({ type: 'warp', dir, at, label, t: 0, dur: this.still ? 0.6 : 1.6, seed: Math.random() * 1000 });
+    this.run();
+  }
   run() { if (!this.raf) { this.last = performance.now(); this.raf = requestAnimationFrame(t => this.frame(t)); } }
 
   frame(now) {
@@ -135,7 +146,7 @@ export class CommFx {
     cx.clearRect(0, 0, this.cv.width, this.cv.height);
     cx.setTransform(dpr, 0, 0, dpr, 0, 0);
     cx.imageSmoothingEnabled = false;
-    for (const f of this.fx) { f.t += dt; (f.type === 'packet' ? this.drawPacket : f.type === 'probe' ? this.drawProbe : this.drawBeam).call(this, f); }
+    for (const f of this.fx) { f.t += dt; (f.type === 'packet' ? this.drawPacket : f.type === 'probe' ? this.drawProbe : f.type === 'warp' ? this.drawWarp : this.drawBeam).call(this, f); }
     // un archivo expuesto queda marcado 6 s; lo demas se va al terminar
     this.fx = this.fx.filter(f => f.t < f.dur + (f.type === 'probe' && f.exposed ? 6 : 0.35));
     this.raf = this.fx.length ? requestAnimationFrame(t => this.frame(t)) : 0;
@@ -169,6 +180,43 @@ export class CommFx {
     for (let i = 0; i < n; i++) { const u = i / n; cx.globalAlpha = fade * (0.25 + 0.65 * u); cx.fillRect(Math.round(f.from.x + (x - f.from.x) * u) - 1.5, Math.round(f.from.y + (y - f.from.y) * u) - 1.5, 3, 3); }
     cx.globalAlpha = 1;
     if (k >= 1) this.burst(f.to, c, ((f.t - f.dur * 0.45) / (f.dur * 0.55 + 0.35)) % 1, fade);
+  }
+
+  // haz de sesion: columna de luz pixelada. Salida: crece, los pixeles del bot suben y se apaga hacia arriba.
+  // Entrada: baja desde arriba y se abre en el piso. El cartel dice que paso, sin nombres (sirve en publico).
+  drawWarp(f) {
+    const { cx } = this, out = f.dir === 'out', c = out ? '#a5b4fc' : '#4ade80';
+    const k = Math.min(1, f.t / f.dur), fade = f.t > f.dur ? Math.max(0, 1 - (f.t - f.dur) / 0.35) : 1;
+    const x = Math.round(f.at.x), foot = Math.round(f.at.y + 16), top = foot - 120;
+    // la columna: aparece rapido, se sostiene y se angosta hasta una linea
+    const grow = Math.min(1, k / 0.18), shrink = k > 0.6 ? 1 - (k - 0.6) / 0.4 : 1;
+    const w = Math.max(2, Math.round(26 * grow * shrink)), h = foot - top;
+    const y0 = out ? foot - Math.round(h * grow) : top, y1 = out ? foot : top + Math.round(h * grow);
+    for (let y = y0; y < y1; y += 4) {
+      const u = (y - top) / h;
+      cx.globalAlpha = fade * (out ? 0.15 + 0.45 * u : 0.6 - 0.45 * u) * (0.75 + 0.25 * Math.sin(f.seed + y * 0.3 + f.t * 18));
+      cx.fillStyle = c; cx.fillRect(x - w / 2, y, w, 3);
+    }
+    cx.globalAlpha = fade * 0.9; cx.fillStyle = '#fff'; cx.fillRect(x - 1, y0, 2, y1 - y0);
+    // pixeles que suben (salida) o caen (entrada)
+    for (let i = 0; i < 14; i++) {
+      const r = (Math.sin(f.seed + i * 12.9898) * 43758.5453) % 1, ph = ((k * 1.4 + Math.abs(r)) % 1);
+      const py = out ? foot - ph * (h + 20) : top + ph * (h + 10), px = x + (Math.abs(r) - 0.5) * 30;
+      cx.globalAlpha = fade * (1 - ph) * 0.9; cx.fillStyle = i % 3 ? c : '#fff';
+      cx.fillRect(Math.round(px) - 2, Math.round(py) - 2, 4, 4);
+    }
+    // piso: anillo pixelado
+    const ring = out ? 1 - k : k;
+    cx.globalAlpha = fade * 0.7; cx.fillStyle = c;
+    for (let a = 0; a < 16; a++) { const t = a / 16 * Math.PI * 2; cx.fillRect(Math.round(x + Math.cos(t) * (10 + 12 * ring)) - 1.5, Math.round(foot + Math.sin(t) * (3 + 3 * ring)) - 1.5, 3, 3); }
+    // cartel
+    cx.globalAlpha = fade * Math.min(1, f.t / 0.2);
+    cx.font = "600 11px 'Space Grotesk', system-ui, sans-serif"; cx.textAlign = 'center';
+    const tw = cx.measureText(f.label).width + 12, ly = top - 6;
+    cx.fillStyle = 'rgba(5, 9, 18, .85)'; cx.fillRect(Math.round(x - tw / 2), ly - 13, Math.round(tw), 18);
+    cx.fillStyle = c; cx.fillRect(Math.round(x - tw / 2), ly + 4, Math.round(tw), 2);
+    cx.fillText(f.label, x, ly);
+    cx.globalAlpha = 1;
   }
 
   burst(p, c, u, fade = 1) {
