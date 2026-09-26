@@ -18,6 +18,7 @@ import { signTexture, signCanvas } from '../../js/sprites.js';
 import { groupsOf, layoutKeyOf, packRows, iconURL, plaqueList, healthLine } from '../../js/layout.js';
 import { esc, fmtBytes } from '../../js/hud.js';
 import { accountCaption } from '../../js/accounts.js';
+import { pixiScreen } from '../../js/commfx.js';
 
 const PX = 2;                       // escala del pixel art
 const SLOT_W = 80, SLOT_H = 108;    // lugar de cada candelabro o vitral dentro de una sala
@@ -139,6 +140,12 @@ export default class CastilloWorld {
     this.app.ticker.add(tk => this.tick(tk.deltaMS / 1000));
     window.addEventListener('resize', () => this.fit(), sig);
   }
+  // donde esta cada cosa en la pantalla (comunicacion entre agentes); los subagentes van junto a su sesion
+  screenOf(kind, id) {
+    if (kind === 'session' || kind === 'agent') return pixiScreen(this.app, this.hunters.get(String(id).split('/')[0]));
+    return pixiScreen(this.app, this.items.get(id));
+  }
+
   destroy() { this.ac.abort(); this.plaques.remove(); this.app.destroy({ removeView: true }, { children: true }); }
   setInsets(ins) { this.insets = ins; this.fit(); }
 

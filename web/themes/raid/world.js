@@ -12,6 +12,7 @@ import { Application, Container, Graphics, Sprite, Text, Texture, Rectangle } fr
 import { esc, fmtBytes } from '../../js/hud.js';
 import { accountCaption } from '../../js/accounts.js';
 import { healthLine } from '../../js/layout.js';
+import { pixiScreen } from '../../js/commfx.js';
 
 const U = 16;
 const FONT = "'Jersey 10', ui-monospace, monospace";
@@ -125,6 +126,12 @@ export default class RaidWorld {
     this.app.ticker.add(tk => this.tick(Math.min(tk.deltaMS / 1000, 0.1)));
     window.addEventListener('resize', () => this.fit(true), sig);
   }
+  // donde esta cada cosa en la pantalla (comunicacion entre agentes); los subagentes van junto a su sesion
+  screenOf(kind, id) {
+    if (kind === 'session' || kind === 'agent') return pixiScreen(this.app, this.players.get(String(id).split('/')[0]));
+    return pixiScreen(this.app, this.heroes.get(id));
+  }
+
   destroy() { this.ac.abort(); this.app.destroy({ removeView: true }, { children: true }); }
 
   // ------------------------------------------------------------------ la arena

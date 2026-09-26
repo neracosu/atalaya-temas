@@ -144,7 +144,7 @@ function agentHtml(s, acc, priv) {
     : s.state === 'idle' ? `Sin actividad hace ${ago(Date.now() - s.lastActivity)}`
     : priv && s.detail ? s.detail : s.activity || '';
   const tool = priv && s.tool && s.state !== 'idle' ? `<span class="tool">${esc(s.tool)}</span>` : '';
-  const subs = (s.subagents || []).map(x => `<div class="subag"><span class="st">↳ ${esc(STATE_LABEL[x.state] || x.state)}</span><span>${esc(priv ? (x.title || x.detail || x.activity) : x.activity)}</span></div>`).join('');
+  const subs = (s.subagents || []).map(x => `<div class="subag" data-agent="${esc(x.id)}"><span class="st">↳ ${esc(STATE_LABEL[x.state] || x.state)}</span><span>${esc(priv ? (x.title || x.detail || x.activity) : x.activity)}</span></div>`).join('');
   return `<div class="row1"><div class="ttl">${esc(title)}</div><span class="badge ${s.state}" data-tip="${STATE_LABEL[s.state]}|${{ working: 'Está usando una herramienta ahora mismo.', thinking: 'Está razonando su próximo paso.', waiting: 'Necesita que usted responda o dé permiso.', idle: 'Terminó su turno y espera una nueva instrucción.' }[s.state] || ''}">${STATE_LABEL[s.state] || s.state}</span></div>
     <div class="where">${esc(where)}</div>
     <div class="act">${tool}<span class="det">${esc(act)}</span></div>
@@ -292,6 +292,9 @@ function addTicker(ic, tag, text, color, go) {
 // ---------------------------------------------------------------- estado completo
 export function renderState(st) {
   const sys = st.system;
+  // Atalaya Equipo en macOS o Windows: sin red por interfaz ni procesos (y en Windows, sin carga)
+  document.body.classList.toggle('sys-lite', !!(sys && sys.lite));
+  document.body.classList.toggle('sys-noload', !!(sys && sys.lite && !sys.load.some(Boolean)));
   if (sys) {
     setKpi('cpu', sys.cpu); setKpi('mem', sys.mem.pct); setKpi('disk', sys.disk?.pct); setKpi('load', sys.load[0]);
     setKpi('rx', sys.net.rx); setKpi('tx', sys.net.tx);
