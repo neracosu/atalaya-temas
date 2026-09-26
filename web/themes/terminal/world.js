@@ -136,8 +136,9 @@ export default class TerminalWorld {
     const a = r.data, site = a._k === 'site';
     r.n.textContent = pad(a.name, 22);
     r.b.textContent = site ? pad(a.type || a.kind || 'sitio', 12) : bar((a.cpu || 0) / 100, 10);
-    const h = this.hist.get(a.id) || [], max = Math.max(1, ...h);
-    r.s.textContent = h.map(v => v ? SPARK[Math.min(7, Math.round(v / max * 7))] : ' ').join('').padStart(12, ' ') + lpad(a.reqMin || 0, 4) + '/m';
+    // escala logaritmica: 1 visita/min se ve bajo, 100 o mas se ve lleno
+    const h = this.hist.get(a.id) || [];
+    r.s.textContent = h.map(v => v ? SPARK[Math.min(7, Math.floor(Math.log2(v + 1)))] : ' ').join('').padStart(12, ' ') + lpad(a.reqMin || 0, 4) + '/m';
     const st = a.status;
     r.st.textContent = st === 'down' ? '[ FALLO ]' : st === 'degraded' ? '[ LENTO ]' : '[  OK   ]';
     r.line.classList.toggle('down', st === 'down');
@@ -169,7 +170,7 @@ export default class TerminalWorld {
       p.agents.innerHTML = list.map(({ s, n }) => {
         const wait = !!s.waitKind;
         const act = s.activity ? esc(s.activity.slice(0, 44)) : { working: 'trabajando', thinking: 'pensando', idle: 'en pausa' }[s.state] || '';
-        return `<div class="term-proc${wait ? ' wait' : ''}" data-go="session:${esc(s.id)}" data-tip="session:${esc(s.id)}">&gt; claude[ESC-${String(n).padStart(2, '0')}] ${wait ? '¿Permitir? [s/N] <i>█</i>' : `${act} <i>█</i>`}${(s.subagents || []).length ? ` <small>+${s.subagents.length} sub</small>` : ''}</div>`;
+        return `<div class="term-proc${wait ? ' wait' : ''}" data-go="session:${esc(s.id)}" data-tip="session:${esc(s.id)}">&gt; claude[ESC-${String(n).padStart(2, '0')}] ${wait ? '¿Permitir? [s/N] <i></i>' : `${act} <i></i>`}${(s.subagents || []).length ? ` <small>+${s.subagents.length} sub</small>` : ''}</div>`;
       }).join('');
     }
   }
@@ -210,7 +211,7 @@ export default class TerminalWorld {
     setTimeout(() => d.classList.remove('new'), 600);
   }
   flash(r, text, tone) {
-    const t = document.createElement('span'); t.className = 'term-note ' + tone; t.textContent = ' ← ' + text;
+    const t = document.createElement('span'); t.className = 'term-note ' + tone; t.textContent = ' <- ' + text;
     r.line.appendChild(t);
     setTimeout(() => t.remove(), 5000);
   }
