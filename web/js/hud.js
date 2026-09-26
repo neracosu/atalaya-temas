@@ -55,6 +55,7 @@ const cpuData = [[], [], []], reqData = [[], [], []];
 function chartOpts(el, series, yRange) {
   return {
     width: el.clientWidth, height: el.clientHeight, pxAlign: false,
+    padding: [8, 20, 0, 0], // margen a la derecha: la ultima hora del eje no se corta en el borde
     cursor: { points: { size: 8 }, drag: { x: false, y: false } },
     legend: { show: false },
     scales: { x: { time: true }, y: yRange ? { range: yRange } : { range: (u, mn, mx) => [0, Math.max(5, mx * 1.2)] } },
