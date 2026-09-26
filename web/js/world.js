@@ -53,6 +53,26 @@ function isoBox(g, hw, hh, h, color, opts = {}) {
   }
   if (opts.bars) g.stroke({ width: 2, color: 0xcbd5e1, alpha: 0.9 });
 }
+// silo de datos (cilindro isometrico): cuerpo con luz y sombra, bandas, tapa. opts: active (0-1, anillo que late),
+// hot (rojo: conexiones al limite), sleep (anillos tenues: conexiones dormidas), paused (gris, tapa cerrada),
+// fill (0-1, linea de llenado: disco usado)
+function drawSilo(g, r, h, color, opts = {}, t = 0) {
+  const ry = r * 0.5;
+  const body = opts.paused ? 0x4b5563 : opts.hot ? mix(color, 0xef4444, 0.55) : color;
+  const left = mix(body, 0x000000, 0.35), right = mix(body, 0x000000, 0.1), top = opts.paused ? 0x6b7280 : mix(body, 0xffffff, 0.25);
+  g.ellipse(0, 4, r + 6, ry + 4).fill({ color: 0x000000, alpha: 0.35 });
+  if (opts.sleep) for (let k = 1; k <= Math.min(3, opts.sleep); k++) g.ellipse(0, 0, r + 6 + k * 7, ry + 3 + k * 3.5).stroke({ width: 1, color: 0x94a3b8, alpha: 0.18 });
+  g.rect(-r, -h, r, h).fill(left); g.rect(0, -h, r, h).fill(right);
+  g.ellipse(0, 0, r, ry).fill(right);
+  g.rect(-r, -h, r, 1).fill(left);
+  for (let y = -h + 12; y < -4; y += 12) g.moveTo(-r, y).bezierCurveTo(-r * 0.5, y + ry * 0.9, r * 0.5, y + ry * 0.9, r, y);
+  g.stroke({ width: 1.5, color: mix(body, 0x000000, 0.5), alpha: 0.7 });
+  if (opts.fill != null) { const y = -h * Math.min(1, opts.fill); g.moveTo(-r, y).bezierCurveTo(-r * 0.5, y + ry * 0.9, r * 0.5, y + ry * 0.9, r, y).stroke({ width: 2.5, color: opts.fill > 0.85 ? 0xef4444 : 0xfde68a, alpha: 0.9 }); }
+  g.ellipse(0, -h, r, ry).fill(top).stroke({ width: 1, color: mix(top, 0xffffff, 0.3), alpha: 0.7 });
+  if (opts.paused) g.rect(-r * 0.6, -h - 2, r * 1.2, 3).fill(0x374151); // tapa cerrada
+  else if (opts.active) { const p = 0.5 + 0.5 * Math.sin(t * 6); g.ellipse(0, -h, r * (0.55 + 0.25 * p), ry * (0.55 + 0.25 * p)).fill({ color: 0xa5f3fc, alpha: 0.35 + 0.4 * opts.active }); }
+}
+
 // parcela chica (mini distrito) bajo un edificio especial
 function isoPlate(g, hw, hh, color) {
   g.poly([0, -hh, hw, 0, 0, hh, -hw, 0]).fill({ color: mix(color, 0x060a14, 0.86) }).stroke({ width: 2, color, alpha: 0.55 });
@@ -84,7 +104,8 @@ class Building extends Container {
   update(app) {
     this.app = app;
     const mb = (app.mem || 0) / 1048576;
-    this.targetH = this.isSite ? 14 + clamp(Math.log2(1 + (app.reqMin || 0)) * 7, 0, 36)
+    this.targetH = app.source === 'supabase' ? 28 + clamp(Math.log2(1 + ((app.sb && app.sb.size) || 0) / 1048576) * 7, 0, 70)
+      : this.isSite ? 14 + clamp(Math.log2(1 + (app.reqMin || 0)) * 7, 0, 36)
       : 26 + clamp(Math.log2(Math.max(mb, 16) / 16) * 13, 0, 90);
     this.targetHeat = clamp((app.cpu || 0) / 80, 0, 1);
     this.status = app.status;
@@ -123,7 +144,19 @@ class Building extends Container {
     this.sign.scale.set(full ? 1 : clamp(0.62 / camScale, 1, 2.2));
   }
   pulse() { this.flash = 1; }
+  // proyecto de Supabase: silo verde; altura = tamano de la base, luces de la tapa = conexiones activas, linea de
+  // llenado = disco usado, gris con la tapa cerrada si esta pausado o no responde
+  redrawSilo() {
+    const g = this.g; g.clear(); this.glow.clear(); this.beacon.visible = false; // el silo no lleva la antena de los edificios
+    const sb = this.app.sb || {};
+    drawSilo(g, 22, this.h, 0x3ecf8e, { paused: this.status === 'down', fill: sb.disk != null ? sb.disk / 100 : null });
+    const n = Math.min(12, sb.conns || 0);
+    for (let i = 0; i < 12; i++) { const a = i / 12 * Math.PI * 2; g.rect(Math.cos(a) * 15 - 1.5, -this.h + Math.sin(a) * 7 - 1.5, 3, 3).fill({ color: i < n ? 0xa7f3d0 : 0x14532d, alpha: i < n ? 1 : 0.8 }); }
+    this.hitArea = new Polygon([-26, 8, 26, 8, 26, -this.h - 16, -26, -this.h - 16]);
+    this.windows = 1;
+  }
   redraw() {
+    if (this.app && this.app.source === 'supabase') return this.redrawSilo();
     const g = this.g; g.clear();
     const hw = TW * this.fp, hh = TH * this.fp, h = this.h; // huella 2x2 tiles (sitios: menor)
     const down = this.status === 'down';
@@ -289,7 +322,9 @@ export class World {
     this.fxLayer = new Container();
     this.labels = new Container();
     this.signs = new Container(); // letreros encima de todos los edificios
-    this.cam.addChild(this.ground, this.roads, this.scene, this.signs, this.fxLayer, this.labels);
+    this.pipes = new Graphics(); // tuberias de datos (silo -> sitio), se redibujan cada cuadro con sus pulsos
+    this.silos = new Map(); // cuenta -> silo de sus bases
+    this.cam.addChild(this.ground, this.roads, this.pipes, this.scene, this.signs, this.fxLayer, this.labels);
     this.app.stage.addChild(this.stars, this.cam);
     this.makeStars();
     this.buildHQ();
@@ -530,6 +565,61 @@ export class World {
     J.count.style.fill = n ? 0xfca5a5 : 0x64748b;
   }
 
+  // silos de datos: uno por cuenta en la esquina de su distrito (bases MySQL); altura por tamano
+  updateSilos(S) {
+    this.siloData = S || null;
+    const seen = new Set();
+    for (const x of (S && S.list) || []) {
+      const d = this.districts.get(x.account); if (!d) continue;
+      seen.add(x.account);
+      let o = this.silos.get(x.account);
+      if (!o) {
+        const c = new Container(); c.x = d.siloAt.x; c.y = d.siloAt.y; c.zIndex = c.y;
+        const g = new Graphics(), lab = label('', 10, 0x94a3b8, UI_FONT); lab.y = 20;
+        c.addChild(g, lab); this.scene.addChild(c);
+        o = { c, g, lab, d };
+        this.silos.set(x.account, o);
+        this.tappable(c, new Rectangle(-34, -120, 68, 150), () => this.onSelect && this.onSelect('databases', o.x.account));
+        this.hoverTip(c, () => this.siloTip(o));
+      }
+      o.x = x; o.h = 22 + clamp(Math.log2(1 + x.size / 1048576) * 5, 0, 60);
+      o.lab.text = `${x.n} base${x.n === 1 ? '' : 's'}`;
+    }
+    for (const [k, o] of this.silos) if (!seen.has(k)) { o.c.destroy({ children: true }); this.silos.delete(k); }
+  }
+  siloTip(o) {
+    const x = o.x, mb = v => v > 1073741824 ? (v / 1073741824).toFixed(1) + ' GB' : Math.round(v / 1048576) + ' MB';
+    return { title: 'Bases de datos', body: `${x.n} base${x.n === 1 ? '' : 's'} MySQL de esta cuenta, ${mb(x.size)}. ${x.conns ? `<b>${x.conns}</b> conexión(es) abierta(s)${x.active ? `, <b>${x.active}</b> con consultas en curso` : ''}${x.sleep >= 10 ? `, <b>${x.sleep} dormidas</b> (anillos tenues)` : ''}.` : 'Sin conexiones ahora.'} Las tuberías van a los sitios que las usan; los pulsos son consultas en curso.`,
+      meta: x.busy ? `ocupada el ${x.busy}% de los últimos 15 min` : '', hint: 'Clic para ver sus bases' };
+  }
+  // cada cuadro: silos (el anillo de la tapa late si hay consultas) y tuberias con pulsos que viajan
+  drawSilosAndPipes(t) {
+    const S = this.siloData, g = this.pipes; g.clear();
+    if (!S) return;
+    const hot = S.hot >= 0.85;
+    const pulse = (a, b, color, n, speed) => {
+      for (let i = 0; i < n; i++) { const u = (t * speed + i / n) % 1; g.rect(lerp(a.x, b.x, u) - 2.5, lerp(a.y, b.y, u) - 2.5, 5, 5).fill({ color, alpha: 0.95 }); }
+    };
+    for (const o of this.silos.values()) {
+      const x = o.x;
+      o.g.clear();
+      drawSilo(o.g, 18, o.h, hex(o.d.color), { active: x.active ? clamp(0.3 + x.busy / 60, 0, 1) : 0, hot, sleep: x.sleep >= 10 ? Math.ceil(x.sleep / 12) : 0 }, t);
+      for (const l of x.links) {
+        const b = this.buildings.get(l.id); if (!b) continue;
+        const a = { x: o.c.x, y: o.c.y - 4 }, bb = { x: b.x, y: b.y };
+        g.moveTo(a.x, a.y).lineTo(bb.x, bb.y).stroke({ width: 3, color: hex(o.d.color), alpha: 0.3 });
+        if (l.active) pulse(a, bb, 0xa5f3fc, Math.min(4, 1 + l.active), 0.5 + l.busy / 100);
+      }
+    }
+    // Supabase unido a su app: tuberia verde, con pulsos si la base tiene conexiones
+    for (const l of S.sb || []) {
+      const a = this.buildings.get(l.from), b = this.buildings.get(l.to); if (!a || !b) continue;
+      g.moveTo(a.x, a.y).lineTo(b.x, b.y).stroke({ width: 3, color: 0x3ecf8e, alpha: 0.35 });
+      const sb = a.app && a.app.sb;
+      if (sb && sb.conns) pulse(a, b, 0xa7f3d0, Math.min(4, 1 + Math.round(sb.conns / 5)), 0.45);
+    }
+  }
+
   drawBar(dt) {
     const hw = this.hw; if (!hw) return;
     hw.bar = Math.max(0, hw.bar - dt * 1.8); hw.barHit = Math.max(0, hw.barHit - dt * 1.5);
@@ -554,6 +644,8 @@ export class World {
     for (const d of this.districts.values()) { d.plate.destroy({ children: true }); d.st.cont.destroy({ children: true }); d.name.destroy(); d.sub.destroy(); }
     for (const b of this.buildings.values()) { b.sign.destroy({ children: true }); b.destroy({ children: true }); }
     this.districts.clear(); this.buildings.clear();
+    for (const o of this.silos.values()) o.c.destroy({ children: true });
+    this.silos.clear();
 
     const items = accounts.map(a => {
       const n = Math.max(1, (appsBy[a.id] || []).length);
@@ -622,7 +714,7 @@ export class World {
     const sub = label(accountCaption(a, nApps, nSites), 14, 0x8a9ab3, UI_FONT);
     sub.x = name.x; sub.y = name.y + 26;
     this.labels.addChild(sub);
-    const d = { id: a.id, color: a.color, plate, name, sub, center: { x: it.cx, y: it.cy }, entry: P(W / 2, H / 2), apps: [] };
+    const d = { id: a.id, color: a.color, plate, name, sub, center: { x: it.cx, y: it.cy }, entry: P(W / 2, H / 2), apps: [], siloAt: { x: q[1].x + 26, y: q[1].y + 14 } };
     // edificios
     apps.forEach((app, i) => {
       const gx = 1 + (i % cols) * 4 + 1.5, gy = 1 + Math.floor(i / cols) * 4 + 1.5;
@@ -852,6 +944,7 @@ export class World {
     this.hq.alarm = (state.keys || []).filter(k => k.state === 'failed').map(k => k.label);
     if (state.jail) this.drawJail(state.jail.n);
     this.lastQueue = state.mailQueue; this.drawPost(state.mailQueue);
+    this.updateSilos(state.silos);
     // servidor al limite: los autos hacen fila en el peaje y avanzan lento (atasco)
     const jam = !!(state.saturation && state.saturation.level === 'bad');
     if (!jam && this.jam) this.jamNext = 0;
@@ -1183,6 +1276,7 @@ export class World {
       .ellipse(0, -60, hq.rx, hq.ry).fill({ color: 0x22d3ee, alpha: 0.02 + hq.flash * 0.05 });
     this.drawBar(dt);
     for (const b of this.buildings.values()) b.tick(dt, t);
+    this.drawSilosAndPipes(t);
     for (const r of this.robots.values()) r.tick(dt, t);
     this.drawSelection(t);
     this.navT = (this.navT || 0) + dt;
