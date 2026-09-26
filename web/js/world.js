@@ -336,15 +336,7 @@ export class World {
       meta: (this.state?.system ? `CPU ${this.state.system.cpu.toFixed(0)}% · RAM ${this.state.system.mem.pct.toFixed(0)}% · carga ${this.state.system.load[0].toFixed(2)}` : '')
         + (this.state?.keys?.length ? `<br>${this.state.keys.map(k => px(k.state === 'active' ? 'dotG' : k.state === 'failed' ? 'dotR' : 'dotS') + ' ' + esc(k.label)).join(' · ')}` : ''),
       hint: 'Clic para ver el servidor completo' }));
-    this.gate = { x: 0, y: -h - 260 }; // "Internet"
-    const gate = new Graphics();
-    gate.circle(0, 0, 24).stroke({ width: 2, color: 0x22d3ee, alpha: 0.6 }).circle(0, 0, 14).stroke({ width: 2, color: 0xa78bfa, alpha: 0.6 });
-    gate.x = this.gate.x; gate.y = this.gate.y;
-    this.tappable(gate, new Rectangle(-40, -40, 80, 80), () => this.pick('security', 'all'));
-    this.hoverTip(gate, () => ({ title: 'Internet', body: 'De aquí entran las visitas: <b>cian</b> personas, <b>gris</b> robots, <b>ámbar</b> errores del visitante y <b>rojo</b> errores del servidor.', hint: 'Clic para ver la defensa' }));
-    const gl = label('INTERNET', 16, 0x6b7a93); gl.x = this.gate.x; gl.y = this.gate.y - 38;
-    this.gateG = gate;
-    this.labels.addChild(gate, gl);
+    this.buildHighway(h);
     this.stations = new Map(); // cuenta -> {name: point}
     // debajo del nombre, los servicios y la linea de salud (que termina en TH * S + 80)
     this.stations.set('root', this.makeStations(null, { x: 0, y: TH * S + 150 }));
@@ -391,6 +383,50 @@ export class World {
     }
   }
 
+  // Autopista desde Internet: baja desde fuera del mapa hasta la torre. En el peaje (el firewall) la barrera
+  // se levanta para las visitas y los ataques revientan contra ella. Pixel en autos, caseta e invasores;
+  // carteles con texto nitido.
+  buildHighway(h) {
+    const top = -h - 3000, toll = -h - 190; // la autopista sale siempre por arriba de la pantalla
+    this.gate = { x: 0, y: toll - 40 }; // entrada de las visitas (justo antes del peaje)
+    this.hw = { top, toll, laneIn: 9, laneAtk: -9, bar: 0, barHit: 0 };
+    const g = new Graphics();
+    // asfalto, bordes y linea central discontinua
+    g.rect(-26, top, 52, toll - top + 30).fill(0x0b1222);
+    g.rect(-28, top, 3, toll - top + 30).fill({ color: 0x334155, alpha: 0.9 }).rect(25, top, 3, toll - top + 30).fill({ color: 0x334155, alpha: 0.9 });
+    for (let y = top; y < toll - 10; y += 28) g.rect(-1.5, y, 3, 14).fill({ color: 0xfbbf24, alpha: 0.55 });
+    // tramo final hasta la torre
+    g.rect(-12, toll + 30, 24, -h - 20 - (toll + 30) + 20).fill(0x0b1222);
+    // caseta de peaje: techo, cabina con ventanilla y luz
+    const booth = new Graphics();
+    booth.rect(-52, -30, 20, 26).fill(0x1e293b).stroke({ width: 1, color: 0x475569 });
+    booth.rect(-49, -24, 14, 8).fill(0x67e8f9);
+    booth.rect(-58, -36, 32, 6).fill(0x334155);
+    booth.rect(-60, -40, 120, 4).fill({ color: 0x22d3ee, alpha: 0.35 }); // marquesina
+    booth.rect(32, -30, 20, 26).fill(0x1e293b).stroke({ width: 1, color: 0x475569 });
+    booth.rect(35, -24, 14, 8).fill(0x67e8f9);
+    booth.rect(26, -36, 32, 6).fill(0x334155);
+    booth.x = 0; booth.y = toll;
+    // barrera (brazo a rayas): se dibuja en cada cuadro segun este arriba o abajo
+    this.hwBar = new Graphics(); this.hwBar.x = -32; this.hwBar.y = toll - 8;
+    const sign = label('AUTOPISTA · INTERNET', 15, 0x8a9ab3, UI_FONT); sign.x = 0; sign.y = toll - 250;
+    const tollName = label('PEAJE · FIREWALL', 13, 0x67e8f9, UI_FONT); tollName.x = 0; tollName.y = toll + 18;
+    this.ground.addChild(g);
+    this.labels.addChild(booth, this.hwBar, sign, tollName);
+    this.tappable(booth, new Rectangle(-64, -44, 128, 60), () => this.pick('security', 'all'));
+    this.hoverTip(booth, () => ({ title: 'Peaje · firewall', body: 'Por la autopista llegan las visitas desde Internet: autos <b>cian</b> (personas), <b>grises</b> (robots), <b>ámbar</b> (error del visitante) y <b>rojos</b> (error del servidor). Los <b>invasores</b> son intentos de acceso: revientan contra la barrera.', hint: 'Clic para ver la defensa' }));
+  }
+
+  drawBar(dt) {
+    const hw = this.hw; if (!hw) return;
+    hw.bar = Math.max(0, hw.bar - dt * 1.8); hw.barHit = Math.max(0, hw.barHit - dt * 1.5);
+    const up = Math.min(1, hw.bar * 3), hit = hw.barHit > 0.05;
+    const b = this.hwBar.clear();
+    b.rect(-4, -6, 8, 12).fill(0x475569);
+    for (let i = 0; i < 8; i++) b.rect(i * 8, -2, 8, 4).fill(hit ? (i % 2 ? 0xef4444 : 0x7f1d1d) : (i % 2 ? 0xf8fafc : 0xef4444));
+    b.rotation = -up * 1.25;
+  }
+
   // --- distribucion de distritos alrededor de la torre
   layout(state) {
     const accounts = state.accounts.filter(a => a.id !== 'root');
@@ -432,6 +468,9 @@ export class World {
           if (ox < oy) { const d = Math.sign(B.cx - A.cx) || 1; B.cx += d * ox / 2; A.cx -= d * ox / 2; }
           else { const d = Math.sign(B.cy - A.cy) || 1; B.cy += d * oy / 2; A.cy -= d * oy / 2; }
         }
+      }
+      for (const it of items) { // no pisar la autopista (baja por x = 0 sobre la torre)
+        if (it.cy < 0) { const need = it.sw / 2 + 150 - Math.abs(it.cx); if (need > 0) it.cx += (Math.sign(it.cx) || 1) * need; }
       }
       for (const it of items) { // no pisar la torre
         const ox = it.sw / 2 + STATION_ROW / 2 - Math.abs(it.cx), oy = it.sh / 2 + 290 - Math.abs(it.cy);
@@ -503,12 +542,11 @@ export class World {
       g.moveTo(a.x, a.y).lineTo(b.x, b.y).stroke({ width: 14, color: 0x0f172a, alpha: 0.9 });
       g.moveTo(a.x, a.y).lineTo(b.x, b.y).stroke({ width: 1.5, color: hex(d.color), alpha: 0.35 });
     }
-    // haz desde Internet a la torre
-    g.moveTo(this.gate.x, this.gate.y + 24).lineTo(0, -this.hq.h - 20).stroke({ width: 2, color: 0x22d3ee, alpha: 0.18 });
   }
 
   bounds() {
-    let x0 = -300, x1 = 300, y0 = this.gate.y - 60, y1 = 300;
+    // la autopista sigue hacia arriba fuera de cuadro: se encuadra desde un poco antes del peaje
+    let x0 = -300, x1 = 300, y0 = this.gate.y - 240, y1 = 300;
     for (const d of this.districts.values()) {
       const b = d.plate.getLocalBounds();
       x0 = Math.min(x0, b.minX); x1 = Math.max(x1, b.maxX); y0 = Math.min(y0, b.minY - 150); y1 = Math.max(y1, b.maxY + 150);
@@ -821,13 +859,18 @@ export class World {
     const d = this.districts.get(e.account);
     const b = e.app ? this.buildings.get(e.app) : e.site ? this.buildings.get(e.site) : null;
     const color = e.status >= 500 ? 0xef4444 : e.status >= 400 ? 0xf59e0b : e.bot ? 0x64748b : 0x67e8f9;
-    const pts = [{ ...this.gate }, { x: 0, y: -this.hq.h + 10 }, { x: 0, y: 30 }];
+    const hw = this.hw, lane = hw.laneIn;
+    const pts = [{ x: lane, y: hw.toll - 520 }, { x: lane, y: hw.toll - 30 }, { x: lane, y: hw.toll + 20 }, { x: 0, y: -this.hq.h + 10 }, { x: 0, y: 30 }];
     if (d) pts.push({ ...d.center });
     if (b) pts.push({ x: b.x, y: b.y - b.h - TH / 2 });
-    const g = new Graphics().circle(0, 0, e.bot ? 2 : 3).fill(color).circle(0, 0, 7).fill({ color, alpha: 0.2 });
+    // auto pixel visto desde arriba: carroceria del color de la visita, parabrisas y luces
+    const g = new Graphics();
+    g.rect(-4, -6, 8, 12).fill(color).rect(-3, -3, 6, 3).fill({ color: 0x0b1020, alpha: 0.85 }).rect(-3, 4, 2, 1).fill(0xfef3c7).rect(1, 4, 2, 1).fill(0xfef3c7);
+    if (e.bot) g.scale.set(0.8);
     g.x = pts[0].x; g.y = pts[0].y;
     let seg = 0; const speed = 520 + Math.random() * 200;
     this.addFx(g, (f, dt) => {
+      if (seg === 1) hw.bar = 1; // llega al peaje: sube la barrera
       const a = pts[seg + 1];
       if (!a) {
         if (b) b.flash = Math.max(b.flash, e.status >= 500 ? 1 : 0.25);
@@ -844,18 +887,16 @@ export class World {
   invader(blocked, ip) {
     const tex = monoTextures(INVADER, blocked ? '#fb7185' : '#f87171');
     const s = new Sprite(tex[0]); s.anchor.set(0.5); s.scale.set(2.2);
-    const ang = Math.random() * Math.PI * 2;
-    const R = 900;
-    s.x = Math.cos(ang) * R; s.y = Math.sin(ang) * R * 0.6 - 60;
-    const hq = this.hq;
-    const hit = { x: Math.cos(ang) * hq.rx, y: Math.sin(ang) * hq.ry - 60 };
+    const hw = this.hw, hq = this.hq;
+    s.x = hw.laneAtk + (Math.random() - 0.5) * 10; s.y = hw.toll - 560 - Math.random() * 120;
+    const hit = { x: hw.laneAtk, y: hw.toll - 16 };
     this.addFx(s, (f, dt) => {
       s.texture = tex[Math.floor(f.age * 4) % 2];
       const dx = hit.x - s.x, dy = hit.y - s.y, dd = Math.hypot(dx, dy);
-      const st = 260 * dt;
+      const st = 300 * dt;
       if (dd <= st) {
         this.explode(hit.x, hit.y, blocked ? 0xfb7185 : 0xf87171);
-        hq.flash = 1;
+        hw.barHit = 1; hq.flash = Math.max(hq.flash, 0.4);
         if (blocked) this.floatText(hit.x, hit.y - 30, ip ? 'BLOQUEADA ' + ip : 'IP BLOQUEADA', 0xfb7185);
         return false;
       }
@@ -980,7 +1021,7 @@ export class World {
     const sa = 0.12 + 0.06 * Math.sin(t * 1.3) + hq.flash * 0.6;
     hq.shield.clear().ellipse(0, -60, hq.rx, hq.ry).stroke({ width: 2 + hq.flash * 3, color: hq.flash > 0.1 ? 0xfb7185 : 0x22d3ee, alpha: sa })
       .ellipse(0, -60, hq.rx, hq.ry).fill({ color: 0x22d3ee, alpha: 0.02 + hq.flash * 0.05 });
-    this.gateG.rotation = t * 0.5;
+    this.drawBar(dt);
     for (const b of this.buildings.values()) b.tick(dt, t);
     for (const r of this.robots.values()) r.tick(dt, t);
     this.drawSelection(t);

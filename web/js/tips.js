@@ -99,10 +99,11 @@ export function openLegend(manifest) {
         ${Object.entries(STATION_TIPS).map(([k, [t, x]]) => row(`<i data-i="${k}"></i>`, t, x)).join('')}
       </section>
       <section><h4>Lo que se mueve</h4>
-        ${row(dot('#67e8f9'), 'Punto cian', 'Una visita real que entra desde Internet, pasa por la torre y llega al edificio que la atiende.')}
-        ${row(dot('#64748b', false), 'Punto gris', 'Un robot o rastreador (Google, bots de IA, monitores).')}
-        ${row(`${dot('#f59e0b')}${dot('#ef4444')}`, 'Punto ámbar / rojo', 'Ámbar: error del visitante (4xx, p. ej. página no encontrada). Rojo: <b>error del servidor</b> (5xx) y chispa en el edificio.')}
-        ${row(`<span class="linv">${px('invader', 'big')}</span>`, 'Invasor', 'Un intento de entrar por SSH con clave equivocada. Choca contra el escudo de la torre. Si cPHulk bloquea la IP, aparece el aviso “IP bloqueada”.')}
+        ${row('<i data-c="tower"></i>', 'Autopista y peaje', 'Por la autopista llegan las visitas desde Internet. El <b>peaje</b> es el firewall: la barrera se levanta para las visitas y los ataques revientan contra ella. Clic en la caseta: la defensa.')}
+        ${row(dot('#67e8f9'), 'Auto cian', 'Una visita real: baja por la autopista, pasa el peaje y la torre, y sigue la calle hasta el edificio que la atiende.')}
+        ${row(dot('#64748b', false), 'Auto gris', 'Un robot o rastreador (Google, bots de IA, monitores).')}
+        ${row(`${dot('#f59e0b')}${dot('#ef4444')}`, 'Auto ámbar / rojo', 'Ámbar: error del visitante (4xx, p. ej. página no encontrada). Rojo: <b>error del servidor</b> (5xx) y chispa en el edificio.')}
+        ${row(`<span class="linv">${px('invader', 'big')}</span>`, 'Invasor', 'Un intento de entrar por SSH con clave equivocada. Baja por la autopista y revienta contra la barrera del peaje. Si cPHulk bloquea la IP, aparece el aviso “IP bloqueada”.')}
         ${row(dot('#4ade80'), 'Cometa verde', 'Un acceso SSH correcto.')}
         ${row(`<span class="linv">${px('mail', 'big')}</span>`, 'Sobre', 'Correo: amarillo sale, violeta entra, rojo rebotó.')}
       </section>
