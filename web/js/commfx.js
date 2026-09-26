@@ -154,7 +154,7 @@ export class CommFx {
       const k = w.kind + ':' + w.id; keys.add(k);
       const P = this.patrols.get(k);
       if (!P) this.patrols.set(k, { w, phase: w.reason === 'surge' ? 'on' : 'out', t0: now, park: [] });
-      else { P.w = w; if (P.phase === 'back') { P.phase = 'out'; P.t0 = now; } }
+      else { P.w = w; if (P.phase === 'back' && !P.escort) { P.phase = 'out'; P.t0 = now; } } // una escolta en curso no se interrumpe
     }
     for (const [k, P] of this.patrols) if (!keys.has(k) && P.phase !== 'back' && P.phase !== 'home') {
       if (P.w.reason === 'surge') this.patrols.delete(k); else { P.phase = 'back'; P.t0 = now; }
@@ -173,7 +173,7 @@ export class CommFx {
     const w = this.getWorld();
     let p = null;
     try { p = w && w.screenOf ? w.screenOf('jail') : null; } catch { p = null; }
-    return p && p.x > -100 && p.x < innerWidth + 100 && p.y > -100 && p.y < innerHeight + 100 ? p : null;
+    return p && Number.isFinite(p.x) && Number.isFinite(p.y) ? p : null; // aunque este fuera de pantalla: vuelan hacia alla
   }
   release() {
     const from = this.jailPos(); if (!from || this.still) return;
@@ -232,7 +232,8 @@ export class CommFx {
         const hover = Math.sin(t * 2.2 + i * 1.7) * 3;
         if (!park || !home) continue;
         // escolta: del edificio a la carcel (si la hay) y de ahi, sin el preso, a la torre
-        const jail = P.jail || (P.escort ? (P.jail = this.jailPos()) : null);
+        const jail = P.escort || P.phase === 'home' ? this.jailPos() || P.jailLast : null; // en vivo: la camara se mueve
+        if (jail) P.jailLast = jail;
         const from = P.phase === 'home' ? jail : P.phase === 'back' ? park : home;
         const to = P.phase === 'home' ? home : P.phase === 'back' ? (jail ? { x: jail.x + (i ? 26 : -26), y: jail.y - 36 } : home) : park;
         if (!from || !to) continue;
@@ -263,7 +264,7 @@ export class CommFx {
       }
       if (P.phase === 'out' && !moving && e > 0.5) P.phase = 'on';
       if (P.phase === 'back' && !moving && e > 0.5) {
-        if (P.escort && P.jail) { P.phase = 'home'; P.t0 = t; P.escort = false; P.escorted = true; continue; } // dejaron al preso
+        if (P.escort && P.jailLast) { P.phase = 'home'; P.t0 = t; P.escort = false; P.escorted = true; continue; } // dejaron al preso
         this.patrols.delete(k); continue;
       }
       if (P.phase === 'home' && !moving && e > 0.5) { this.patrols.delete(k); continue; }
