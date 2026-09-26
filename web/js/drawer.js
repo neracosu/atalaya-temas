@@ -7,6 +7,14 @@ import uPlot from '../vendor/uPlot.esm.js';
 import { signCanvas, robotCanvas, iconCanvas } from './sprites.js';
 import { esc, fmtBytes, fmtNum, ago } from './hud.js';
 
+// version de las definiciones (que se detecta y como resolverlo), que se actualizan solas como un antivirus
+function defsLine(st) {
+  const d = st && st.defs;
+  if (!d) return '';
+  const when = d.checkedAt ? `revisadas a las ${new Date(d.checkedAt).toLocaleTimeString('es-VE', { hour: '2-digit', minute: '2-digit', hour12: false })}` : 'se revisan una vez al día';
+  return `<p class="dmuted small defsline">${px('shield')} Definiciones <b>${esc(d.version)}</b> · ${d.source === 'actualizadas' ? 'actualizadas' : 'integradas'} · ${d.auto ? when : 'actualización automática apagada'}${d.error ? ' · <span class="warn">no se pudo revisar</span>' : ''}</p>`;
+}
+
 const STATE_LABEL = { working: 'Trabajando', thinking: 'Pensando', waiting: 'Lo espera', idle: 'En pausa' };
 const STATUS_LABEL = { online: 'En línea', degraded: 'Parcial', down: 'Caído' };
 const WAIT_LABEL = { permission: 'Espera su permiso', question: 'Le hizo una pregunta', idle: 'Espera su respuesta' };
@@ -571,6 +579,7 @@ export class Drawer {
     this.content(`<div class="dstats">${stat('Última hora', fmtNum(d.hour))}${stat('Últimas 24 h', fmtNum(d.day))}${stat('Expuestos', fmtNum(d.exposed.filter(x => x.sev === 'bad').length), d.exposed.some(x => x.sev === 'bad') ? 'bad' : '')}</div>
       ${exp}${fams}${sites}${paths}${ips}${cc}
       ${d.priv ? '' : '<p class="dmuted small">En modo privado se ven las rutas, las IPs y qué archivo quedó expuesto.</p>'}
+      ${defsLine(window.atalaya && window.atalaya.state)}
       <p class="dmuted small">Atalaya solo mira: no bloquea. Cuando una ruta de secretos o de webshell responde, la vuelve a pedir una vez para confirmar si de verdad expone algo; nunca guarda su contenido.</p>`);
   }
 
@@ -604,7 +613,7 @@ export class Drawer {
         ${d.byAccount.map(a => `<tr><td>${esc(a.account)}</td><td>${fmtNum(a.out)}</td><td>${fmtNum(a.in)}</td><td class="${a.bounce ? 'warn' : ''}">${fmtNum(a.bounce)}</td></tr>`).join('')}</tbody></table></section>` : '';
     this.content(`<div class="dstats">${stat('Enviados', fmtNum(d.counts.out))}${stat('Recibidos', fmtNum(d.counts.in))}${stat('Rebotes', fmtNum(d.counts.bounce), d.counts.bounce ? 'warn' : '')}</div>
       ${reasons}${accs}
-      <section class="dsec"><h4>Últimos movimientos</h4><ul class="dlist">${rec}</ul>${d.priv ? '' : '<p class="dmuted small">En modo privado se ven remitente, destinatario y el mensaje del servidor que lo rechazó.</p>'}</section>`);
+      <section class="dsec"><h4>Últimos movimientos</h4><ul class="dlist">${rec}</ul>${d.priv ? '' : '<p class="dmuted small">En modo privado se ven remitente, destinatario y el mensaje del servidor que lo rechazó.</p>'}</section>${defsLine(window.atalaya && window.atalaya.state)}`);
   }
 
   // salud del servidor: una seccion por revision, con sus cifras y cada hallazgo con su "como arreglarlo".
