@@ -1,7 +1,7 @@
 // Mundo isometrico de Atalaya (PixiJS v8)
 import { Application, Container, Graphics, Text, Sprite, Rectangle, Polygon } from '../vendor/pixi.csp.mjs';
 import { px } from './pixicons.js';
-import { robotTextures, monoTextures, iconTexture, signTexture, carTexture, INVADER, ENVELOPE } from './sprites.js';
+import { robotTextures, monoTextures, iconTexture, signTexture, carTexture, suspectTexture, INVADER, ENVELOPE } from './sprites.js';
 import { STATION_TIPS } from './tips.js';
 import { esc, fmtBytes } from './hud.js';
 import { accountCaption } from './accounts.js';
@@ -281,6 +281,7 @@ export class World {
   screenOf(kind, id) {
     if (kind === 'gate') return pixiScreen(this.app, this.hwBar); // el peaje: de ahi salen los sondeos
     if (kind === 'tower') return this.hq ? pixiScreen(this.app, this.hq.c) : null; // de aqui salen las patrullas
+    if (kind === 'jail') return this.jail ? pixiScreen(this.app, this.jail.c) : null; // aqui dejan a los bloqueados
     if (kind === 'session' || kind === 'agent') return pixiScreen(this.app, this.robots.get(id));
     return pixiScreen(this.app, this.buildings.get(id));
   }
@@ -416,7 +417,42 @@ export class World {
     this.ground.addChild(g);
     this.labels.addChild(booth, this.hwBar, sign, tollName);
     this.tappable(booth, new Rectangle(-64, -44, 128, 60), () => this.pick('security', 'all'));
+    this.buildJail(toll);
     this.hoverTip(booth, () => ({ title: 'Peaje · firewall', body: 'Por la autopista llegan las visitas desde Internet: autos <b>cian</b> (personas), <b>grises</b> (robots), <b>ámbar</b> (error del visitante) y <b>rojos</b> (error del servidor). Los <b>invasores</b> son intentos de acceso: revientan contra la barrera.', hint: 'Clic para ver la defensa' }));
+  }
+
+  // Carcel, junto a la autopista antes del peaje: las IPs bloqueadas (a mano en el firewall y por la defensa de
+  // Atalaya). Rejas y un auto oscuro por preso; hasta 6 a la vista y el total en el cartel.
+  buildJail(toll) {
+    const c = new Container(); c.x = 118; c.y = toll - 150;
+    const g = new Graphics();
+    g.rect(-46, -8, 92, 58).fill(0x1e293b).stroke({ width: 1.5, color: 0x475569 });      // muros
+    g.rect(-52, -16, 104, 9).fill(0x334155);                                             // techo
+    g.rect(-38, 2, 76, 40).fill(0x070b14);                                               // patio interior
+    const cars = new Container();
+    const bars = new Graphics();
+    for (let x = -36; x <= 36; x += 8) bars.rect(x - 1, 2, 2, 40).fill(0x94a3b8);           // rejas
+    bars.rect(-38, 1, 76, 3).fill(0x94a3b8).rect(-38, 40, 76, 3).fill(0x94a3b8);
+    const sign = label('CÁRCEL', 12, 0xfca5a5, UI_FONT); sign.y = -30;
+    const count = label('0', 11, 0x94a3b8, UI_FONT); count.y = 58;
+    c.addChild(g, cars, bars, sign, count);
+    this.labels.addChild(c);
+    this.jail = { c, cars, sign, count, n: -1 };
+    this.drawJail(0);
+    this.tappable(c, new Rectangle(-56, -44, 112, 112), () => this.pick('jail', 'all'));
+    this.hoverTip(c, () => ({ title: 'Cárcel', body: 'Las IPs <b>bloqueadas</b>: las que se bloquearon a mano en el firewall y las que bloqueó la defensa de Atalaya. Las patrullas traen aquí a cada una.', meta: `${Math.max(0, this.jail.n)} preso(s)`, hint: 'Clic para ver cada una' }));
+  }
+  drawJail(n) {
+    const J = this.jail; if (!J || J.n === n) return;
+    J.n = n;
+    J.cars.removeChildren().forEach(x => x.destroy());
+    for (let i = 0; i < Math.min(6, n); i++) {
+      const sp = new Sprite(suspectTexture()); sp.anchor.set(0.5); sp.scale.set(1.1);
+      sp.x = -22 + (i % 3) * 22; sp.y = 14 + Math.floor(i / 3) * 16;
+      J.cars.addChild(sp);
+    }
+    J.count.text = n ? `${n} preso${n === 1 ? '' : 's'}` : 'vacía';
+    J.count.style.fill = n ? 0xfca5a5 : 0x64748b;
   }
 
   drawBar(dt) {
@@ -657,6 +693,7 @@ export class World {
     else if (kind === 'district') f = this.districtFrame(id);
     else if (kind === 'system') f = this.districtFrame('root');
     else if (kind === 'security') f = this.frame(-420, 420, this.gate.y - 80, 260, 1.1);
+    else if (kind === 'jail' && this.jail) f = this.frame(this.jail.c.x - 200, this.jail.c.x + 200, this.jail.c.y - 140, this.jail.c.y + 140, 1.6);
     if (!f) return;
     this.manualUntil = this.t + 90;
     this.camTarget = f;
@@ -738,6 +775,7 @@ export class World {
     }
     this.hq.heat = clamp((state.system?.cpu || 0) / 100, 0, 1);
     this.hq.alarm = (state.keys || []).filter(k => k.state === 'failed').map(k => k.label);
+    if (state.jail) this.drawJail(state.jail.n);
     // bajo la torre: los servicios clave que realmente corren en este servidor
     const act = (state.keys || []).filter(k => k.state === 'active').map(k => k.label.toLowerCase());
     const tag = act.filter(l => !['ssh', 'cron'].includes(l)).slice(0, 4).join(' · ') || 'servidor';

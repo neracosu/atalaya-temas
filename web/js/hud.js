@@ -211,7 +211,8 @@ function renderMini(state) {
   const w = state.webdef;
   $('sec').innerHTML = `<div><span>Intentos SSH</span><b>${fmtNum(s.failed)}</b></div><div><span>IPs bloqueadas</span><b>${fmtNum(s.blocked)}</b></div><div><span>Accesos OK</span><b>${fmtNum(s.logins)}</b></div>`
     + (w ? `<div class="link" data-go="webdef:all" data-tip="Defensa web|Robots que buscan rutas vulnerables en sus sitios (/.env, wp-login.php, phpmyadmin, webshells) en la última hora."><span>Sondeos web / h</span><b>${fmtNum(w.hour)}</b></div>`
-      + `<div class="link ${w.exposed ? 'bad' : w.suspect ? 'warn' : ''}" data-go="webdef:all"><span>Archivos expuestos</span><b>${w.exposed || (w.suspect ? '?' : 0)}</b></div>` : '');
+      + `<div class="link ${w.exposed ? 'bad' : w.suspect ? 'warn' : ''}" data-go="webdef:all"><span>Archivos expuestos</span><b>${w.exposed || (w.suspect ? '?' : 0)}</b></div>` : '')
+    + (state.jail ? `<div class="link" data-go="jail:all" data-tip="Cárcel|IPs bloqueadas a mano en el firewall y por la defensa de Atalaya. Clic para ver cada una."><span>En la cárcel</span><b>${fmtNum(state.jail.n)}</b></div>` : '');
   $('mail').innerHTML = `<div><span>Enviados</span><b>${fmtNum(m.out)}</b></div><div><span>Recibidos</span><b>${fmtNum(m.in)}</b></div><div><span>Rebotes</span><b>${fmtNum(m.bounce)}</b></div>`;
 }
 

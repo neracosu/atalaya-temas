@@ -57,6 +57,8 @@ export class CommFx {
     if (e.kind === 'probe') return this.probe(e);
     // bloqueo: las patrullas se llevan al auto sospechoso a la torre
     if (e.kind === 'defense' && e.action === 'block' && (e.app || e.site)) return this.escort(e.app ? 'app' : 'site', e.app || e.site);
+    // un preso sale de la carcel (vencio su bloqueo o lo liberaron) y se va por la autopista
+    if (e.kind === 'defense' && (e.action === 'unblock' || e.action === 'expire')) return this.release();
     // consulta lenta: un solo pulso ambar sobre el edificio que usa la base (si no se sabe cual, solo el ticker)
     if (e.kind === 'db' && e.action === 'slow') {
       const at = e.app ? this.pos('app', e.app) : e.site ? this.pos('site', e.site) : null;
@@ -154,7 +156,7 @@ export class CommFx {
       if (!P) this.patrols.set(k, { w, phase: w.reason === 'surge' ? 'on' : 'out', t0: now, park: [] });
       else { P.w = w; if (P.phase === 'back') { P.phase = 'out'; P.t0 = now; } }
     }
-    for (const [k, P] of this.patrols) if (!keys.has(k) && P.phase !== 'back') {
+    for (const [k, P] of this.patrols) if (!keys.has(k) && P.phase !== 'back' && P.phase !== 'home') {
       if (P.w.reason === 'surge') this.patrols.delete(k); else { P.phase = 'back'; P.t0 = now; }
     }
     if (this.patrols.size) this.run();
@@ -165,6 +167,32 @@ export class CommFx {
     if (P && P.w.reason !== 'surge') { P.phase = 'back'; P.t0 = now; P.escort = true; }
     else this.patrols.set(k, { w: { kind, id, reason: 'block' }, phase: 'back', t0: now, park: [], escort: true });
     this.run();
+  }
+  // donde queda la carcel (si el tema la dibuja)
+  jailPos() {
+    const w = this.getWorld();
+    let p = null;
+    try { p = w && w.screenOf ? w.screenOf('jail') : null; } catch { p = null; }
+    return p && p.x > -100 && p.x < innerWidth + 100 && p.y > -100 && p.y < innerHeight + 100 ? p : null;
+  }
+  release() {
+    const from = this.jailPos(); if (!from || this.still) return;
+    const w = this.getWorld();
+    let to = null; try { to = w && w.screenOf ? w.screenOf('gate') : null; } catch { to = null; }
+    this.fx.push({ type: 'release', from, to: to || { x: from.x, y: -40 }, t: 0, dur: 6 });
+    this.run();
+  }
+  drawRelease(f) {
+    const k = Math.min(1, f.t / f.dur), e = k < 0.5 ? 2 * k * k : 1 - (-2 * k + 2) ** 2 / 2;
+    const x = f.from.x + (f.to.x - f.from.x) * e, y = f.from.y + (f.to.y - f.from.y) * e;
+    const { cx } = this;
+    cx.globalAlpha = k > 0.8 ? (1 - k) / 0.2 : 1;
+    this.car('probe', x, y, f.t, f.to.x < f.from.x);
+    cx.font = "700 10px 'Space Grotesk', system-ui, sans-serif"; cx.textAlign = 'center';
+    const tw = cx.measureText('LIBERADA').width + 10;
+    cx.fillStyle = 'rgba(5, 9, 18, .85)'; cx.fillRect(Math.round(x - tw / 2), Math.round(y - 30), Math.round(tw), 15);
+    cx.fillStyle = '#94a3b8'; cx.fillText('LIBERADA', x, y - 19);
+    cx.globalAlpha = 1;
   }
   // de donde salen: la torre de control del tema; si no la hay, el borde de la pantalla mas cercano
   home(b) {
@@ -203,13 +231,18 @@ export class CommFx {
         const park = P.park[i];
         const hover = Math.sin(t * 2.2 + i * 1.7) * 3;
         if (!park || !home) continue;
-        const from = P.phase === 'back' ? park : home, to = P.phase === 'back' ? home : park;
+        // escolta: del edificio a la carcel (si la hay) y de ahi, sin el preso, a la torre
+        const jail = P.jail || (P.escort ? (P.jail = this.jailPos()) : null);
+        const from = P.phase === 'home' ? jail : P.phase === 'back' ? park : home;
+        const to = P.phase === 'home' ? home : P.phase === 'back' ? (jail ? { x: jail.x + (i ? 26 : -26), y: jail.y - 36 } : home) : park;
+        if (!from || !to) continue;
         // vuelo pausado, para disfrutarlo en pantalla: 4 a 9 s segun la distancia; la escolta, mas lenta todavia
         const d = Math.hypot(to.x - from.x, to.y - from.y), dur = this.still ? 0.6 : P.escort && P.phase === 'back' ? Math.min(11, Math.max(5, d / 80)) : Math.min(9, Math.max(4, d / 110));
         let u = P.phase === 'on' ? 1 : Math.min(1, Math.max(0, (e - i * 0.6) / dur));
         if (P.phase !== 'on' && u < 1) moving = true;
+        if (P.phase === 'home' && u <= 0) { this.car('fly', from.x, from.y, t, false); moving = true; continue; } // espera su turno junto a la carcel
         if (P.phase === 'out' && u <= 0) continue; // todavia no despego
-        if (P.phase === 'back' && u >= 1) continue; // ya llego a la torre
+        if ((P.phase === 'back' || P.phase === 'home') && u >= 1) continue; // ya llego
         const k2 = ease(u), lift = Math.min(200, 60 + d * 0.35);
         const mx = (from.x + to.x) / 2, my = Math.min(from.y, to.y) - lift;
         const x = (1 - k2) ** 2 * from.x + 2 * (1 - k2) * k2 * mx + k2 * k2 * to.x;
@@ -229,7 +262,11 @@ export class CommFx {
         cx.fillStyle = '#4ade80'; cx.fillText('IP BLOQUEADA', sx, sy - 25);
       }
       if (P.phase === 'out' && !moving && e > 0.5) P.phase = 'on';
-      if (P.phase === 'back' && !moving && e > 0.5) { this.patrols.delete(k); continue; }
+      if (P.phase === 'back' && !moving && e > 0.5) {
+        if (P.escort && P.jail) { P.phase = 'home'; P.t0 = t; P.escort = false; P.escorted = true; continue; } // dejaron al preso
+        this.patrols.delete(k); continue;
+      }
+      if (P.phase === 'home' && !moving && e > 0.5) { this.patrols.delete(k); continue; }
       if (b && P.phase === 'on') {
         cx.globalAlpha = 0.16; cx.fillStyle = Math.floor(t * 6) % 2 ? '#ef4444' : '#3b82f6';
         cx.fillRect(Math.round(b.x - 72), Math.round(b.y + 14), 144, 12); cx.globalAlpha = 1;
@@ -287,7 +324,7 @@ export class CommFx {
     cx.setTransform(dpr, 0, 0, dpr, 0, 0);
     cx.imageSmoothingEnabled = false;
     if (this.patrols.size) this.drawWatch(now);
-    for (const f of this.fx) { f.t += dt; (f.type === 'packet' ? this.drawPacket : f.type === 'probe' ? this.drawProbe : f.type === 'warp' ? this.drawWarp : f.type === 'dbslow' ? this.drawDbSlow : f.type === 'spot' ? this.drawSpot : this.drawBeam).call(this, f); }
+    for (const f of this.fx) { f.t += dt; (f.type === 'packet' ? this.drawPacket : f.type === 'probe' ? this.drawProbe : f.type === 'warp' ? this.drawWarp : f.type === 'dbslow' ? this.drawDbSlow : f.type === 'spot' ? this.drawSpot : f.type === 'release' ? this.drawRelease : this.drawBeam).call(this, f); }
     // un archivo expuesto queda marcado 6 s; lo demas se va al terminar
     this.fx = this.fx.filter(f => f.t < f.dur + (f.type === 'probe' && f.exposed ? 6 : 0.35));
     this.raf = this.fx.length || this.patrols.size ? requestAnimationFrame(t => this.frame(t)) : 0;

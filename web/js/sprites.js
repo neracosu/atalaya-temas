@@ -3,7 +3,7 @@
 import { Texture, CanvasSource } from '../vendor/pixi.csp.mjs';
 import { favImage } from './favicons.js';
 
-import { ROBOT_FRAMES, INVADER, ENVELOPE, ICONS, SIGNS, ICON_COLORS, CAR_TOP, CAR_COLORS, shade } from './pixeldata.js';
+import { ROBOT_FRAMES, INVADER, ENVELOPE, ICONS, SIGNS, ICON_COLORS, CAR_TOP, CAR_COLORS, PROBE_CAR, shade } from './pixeldata.js';
 export { ROBOT_FRAMES, INVADER, ENVELOPE, ICONS, SIGNS };
 
 // Version DOM (para el panel de detalle): canvas escalado sin suavizado
@@ -77,6 +77,12 @@ export function carTexture(color) {
   const key = 'car' + color;
   if (!cache.has(key)) cache.set(key, paint(CAR_TOP, { ...CAR_COLORS, C: color, h: shade(color, 0.45), d: '#0b1020', r: '#ef4444' }));
   return cache.get(key);
+}
+
+// auto sospechoso de perfil (el preso de la carcel)
+export function suspectTexture() {
+  if (!cache.has('suspect')) cache.set('suspect', paint(PROBE_CAR[1], CAR_COLORS));
+  return cache.get('suspect');
 }
 
 export function iconTexture(name) {

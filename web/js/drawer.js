@@ -84,6 +84,16 @@ export class Drawer {
       }
       // activar o apagar la actividad de bases: el ayudante crea o borra el usuario de solo PROCESS
       // defensa: bloquear, desbloquear y ajustes
+      const rel = e.target.closest('[data-release-ip]');
+      if (rel) {
+        const perm = rel.dataset.perm === '1';
+        if (!confirm(perm ? `¿Liberar ${rel.dataset.releaseIp}? Se quita su bloqueo permanente del firewall y podrá volver a entrar a todos los sitios.` : `¿Liberar ${rel.dataset.releaseIp} antes de tiempo?`)) return;
+        rel.disabled = true; rel.textContent = 'Liberando…';
+        const r = await fetch('api/defense/release', { method: 'POST', headers: { 'Content-Type': 'application/json', 'X-Atalaya': '1' }, body: JSON.stringify({ ip: rel.dataset.releaseIp }) }).then(x => x.json()).catch(() => ({ error: 'Sin conexión' }));
+        if (r.error) { rel.insertAdjacentHTML('afterend', `<span class="dmuted"> ${esc(r.error)}</span>`); rel.disabled = false; rel.textContent = 'Liberar'; return; }
+        this.load();
+        return;
+      }
       const bl = e.target.closest('[data-block-ip], [data-unblock-ip], [data-def-save]');
       if (bl) {
         e.preventDefault();
@@ -361,6 +371,7 @@ export class Drawer {
       case 'system': return this.renderSystem(d);
       case 'security': return this.renderSecurity(d);
       case 'webdef': return this.renderWebdef(d);
+      case 'jail': return this.renderJail(d);
       case 'mail': return this.renderMail(d);
       case 'databases': return this.renderDatabases(d);
       case 'database': return this.renderDatabase(d);
@@ -637,6 +648,24 @@ export class Drawer {
       <p class="dmuted small">Atalaya solo bloquea cuando usted lo pide o enciende la defensa automática, y siempre por un tiempo. Cuando una ruta de secretos o de webshell responde, la vuelve a pedir una vez para confirmar si de verdad expone algo; nunca guarda su contenido.</p>`);
   }
 
+  // la carcel: bloqueos manuales del firewall (permanentes) y de la defensa de Atalaya (con vencimiento)
+  renderJail(d) {
+    this.setHead('jail:all', iconCanvas('jail', 4), 'Cárcel', 'IPs bloqueadas a mano y por la defensa de Atalaya', '');
+    if (!d.available) return this.content('<p class="dmuted">La cárcel necesita la edición VPS con el ayudante de Atalaya.</p>');
+    const now = Date.now();
+    const perm = d.items.filter(x => x.permanent), temp = d.items.filter(x => !x.permanent);
+    const row = x => `<li><span class="cell">${px(x.permanent ? 'lock' : 'shield')}</span><span class="grow">${x.ip ? `<span class="mono">${esc(x.ip)}</span><br>` : ''}
+        <span class="${x.ip ? 'dmuted' : ''}">${esc(x.why)}${x.site ? ` · ${esc(x.site)}` : ''}</span><br>
+        <span class="dmuted">${x.permanent ? 'permanente · firewall' : `${x.by === 'auto' ? 'defensa automática' : 'por ' + esc(x.by)} · sale en ${ago(x.until - now + 60000).replace(/^hace /, '')}`}</span></span>
+        ${d.priv && x.ip ? `<button class="btn small ghost" data-release-ip="${esc(x.ip)}" data-perm="${x.permanent ? 1 : 0}">Liberar</button>` : ''}</li>`;
+    this.content(`<div class="dstats">${stat('Presos', fmtNum(d.items.length))}${stat('Del firewall (permanentes)', fmtNum(perm.length))}${stat('De Atalaya (temporales)', fmtNum(temp.length))}</div>
+      ${temp.length ? `<section class="dsec"><h4>Defensa de Atalaya</h4><ul class="dlist jail">${temp.map(row).join('')}</ul></section>` : ''}
+      ${perm.length ? `<section class="dsec"><h4>Bloqueos manuales del firewall</h4><ul class="dlist jail">${perm.map(row).join('')}</ul></section>` : ''}
+      ${d.items.length ? '' : '<p class="dmuted">La cárcel está vacía.</p>'}
+      <p class="hint">Aquí no entran los miles de intentos de SSH que frenan fail2ban y cPHulk: esos se ven en Defensa. Defensa automática: <b>${d.auto ? 'encendida' : 'apagada'}</b> · <a data-go="webdef:all">ajustes</a>.</p>
+      ${d.priv ? '' : '<p class="dmuted">Active el modo privado para ver las IPs y liberarlas.</p>'}`);
+  }
+
   renderSecurity(d) {
     this.setHead('security', iconCanvas('portal', 4), 'Defensa del servidor', 'SSH, cPHulk y accesos', '');
     const c = d.counts;
@@ -831,7 +860,7 @@ function defenseSection(D, priv) {
       <label class="stack">IPs que nunca se bloquean (una por línea)<textarea name="allow" rows="2" spellcheck="false">${esc((D.allow || []).join('\n'))}</textarea></label>
       <p class="row"><button class="btn small" data-def-save>Guardar</button></p></div>` : `<p class="dmuted">Defensa automática: <b>${D.auto ? 'encendida' : 'apagada'}</b>.</p>`;
   return `<section class="dsec"><h4>${px('shield')} Defensa de Atalaya ${D.active ? `<span class="pill bad">${D.active} bloqueo(s) activo(s)</span>` : ''}</h4>
-    ${conf}${rows ? `<ul class="dlist">${rows}</ul>` : '<p class="dmuted">Todavía no hay bloqueos.</p>'}</section>`;
+    ${conf}${rows ? `<ul class="dlist">${rows}</ul>` : '<p class="dmuted">Todavía no hay bloqueos.</p>'}<p class="dlinks"><a data-go="jail:all">${px('jail')} Ver la cárcel</a></p></section>`;
 }
 
 // actividad de las bases: lo que importa (conexiones contra el maximo, consultas por segundo) y las bases mas

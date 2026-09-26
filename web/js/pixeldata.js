@@ -109,6 +109,9 @@ export const ICONS = {
   antenna: [ // globo terraqueo con meridianos (Web: busca o lee en internet)
     '....kkkk....', '..kkbbbbkk..', '.kbgwbbwbbk.', '.kggwgbbwbk.', 'kbggwgbbwgbk', 'kwwwwwwwwwwk',
     'kbbwbbggwbbk', 'kbbwbgggwbbk', '.kbbwbggwbk.', '.kbbbwbwbbk.', '..kkbbbbkk..', '....kkkk....'],
+  jail: [ // carcel: techo, rejas y dos ojos rojos detras (IPs bloqueadas por la defensa)
+    '............', '.kkkkkkkkkk.', 'kkkkkkkkkkkk', 'ks.s.s.s.s.k', 'ks.s.s.s.s.k', 'ks.sr.rs.s.k',
+    'ks.s.s.s.s.k', 'ks.s.s.s.s.k', 'kssssssssssk', 'kkkkkkkkkkkk', '............', '............'],
   portal: [ // portal de subagentes
     '....pppp....', '..pp....pp..', '.p..wwww..p.', '.p.w....w.p.', 'p.w......w.p', 'p.w......w.p',
     'p.w......w.p', 'p.w......w.p', '.p.w....w.p.', '.p..wwww..p.', '..pp....pp..', '....pppp....'],
