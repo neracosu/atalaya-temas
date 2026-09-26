@@ -418,6 +418,7 @@ export class World {
     this.labels.addChild(booth, this.hwBar, sign, tollName);
     this.tappable(booth, new Rectangle(-64, -44, 128, 60), () => this.pick('security', 'all'));
     this.buildJail(toll);
+    this.buildPost(toll);
     this.hoverTip(booth, () => ({ title: 'Peaje · firewall', body: 'Por la autopista llegan las visitas desde Internet: autos <b>cian</b> (personas), <b>grises</b> (robots), <b>ámbar</b> (error del visitante) y <b>rojos</b> (error del servidor). Los <b>invasores</b> son intentos de acceso: revientan contra la barrera.', hint: 'Clic para ver la defensa' }));
   }
 
@@ -442,6 +443,50 @@ export class World {
     this.tappable(c, new Rectangle(-56, -44, 112, 112), () => this.pick('jail', 'all'));
     this.hoverTip(c, () => ({ title: 'Cárcel', body: 'Las IPs <b>bloqueadas</b>: las que se bloquearon a mano en el firewall y las que bloqueó la defensa de Atalaya. Las patrullas traen aquí a cada una.', meta: `${Math.max(0, this.jail.n)} preso(s)`, hint: 'Clic para ver cada una' }));
   }
+  // Oficina de correos, frente a la carcel: por aqui pasa todo el correo. Buzon, contador del ultimo minuto y
+  // una pila de sobres si la cola de correo se atasca.
+  buildPost(toll) {
+    const c = new Container(); c.x = -118; c.y = toll - 150;
+    const g = new Graphics();
+    g.rect(-44, -6, 88, 54).fill(0x1e293b).stroke({ width: 1.5, color: 0x475569 });     // edificio
+    g.poly([-50, -6, 0, -30, 50, -6]).fill(0x334155);                                   // techo a dos aguas
+    g.rect(-10, 22, 20, 26).fill(0x0b1020);                                             // puerta
+    g.rect(-34, 8, 16, 12).fill(0x67e8f9).rect(18, 8, 16, 12).fill(0x67e8f9);           // ventanas
+    // buzon rojo al costado
+    g.rect(50, 18, 14, 18).fill(0xdc2626).rect(52, 22, 10, 2).fill(0x111827).rect(55, 36, 4, 12).fill(0x475569);
+    const env = new Sprite(monoTextures([ENVELOPE], '#fbbf24')[0]); env.anchor.set(0.5); env.scale.set(1.6); env.y = -40;
+    const pile = new Container();
+    const sign = label('CORREO', 12, 0xfde68a, UI_FONT); sign.y = -58;
+    const count = label('', 10, 0x94a3b8, UI_FONT); count.y = 58;
+    c.addChild(g, pile, env, sign, count);
+    this.labels.addChild(c);
+    this.post = { c, pile, count, env, log: [], queue: -1 };
+    this.tappable(c, new Rectangle(-56, -70, 128, 140), () => this.onSelect && this.onSelect('mail', 'all'));
+    this.hoverTip(c, () => ({ title: 'Oficina de correos', body: 'Por aquí pasa el correo del servidor: <b>ámbar</b> sale de una cuenta hacia internet, <b>violeta</b> entra y va a su cuenta, <b>rojo</b> rebotó y vuelve roto a quien lo envió. La pila de sobres es la cola de correo esperando salir.', meta: this.postLine(), hint: 'Clic para ver el correo' }));
+  }
+  postLine() {
+    const P = this.post; if (!P) return '';
+    const now = this.t; P.log = P.log.filter(x => now - x.t < 60);
+    const n = d => P.log.filter(x => x.dir === d).length;
+    const parts = [[n('out'), 'salen'], [n('in'), 'entran'], [n('bounce'), 'rebotan']].filter(x => x[0]).map(x => `${x[0]} ${x[1]}`);
+    return parts.length ? parts.join(' · ') + ' en 1 min' : 'sin movimiento en el último minuto';
+  }
+  drawPost(queue) {
+    const P = this.post; if (!P) return;
+    P.count.text = this.postLine();
+    P.count.style.fill = P.log.some(x => x.dir === 'bounce') ? 0xfca5a5 : 0x94a3b8;
+    const q = queue == null ? 0 : queue;
+    const want = q > 1000 ? 9 : q > 100 ? 6 : q > 20 ? 3 : 0; // la pila crece con la cola
+    if (want === P.pileN) return;
+    P.pileN = want;
+    P.pile.removeChildren().forEach(x => x.destroy());
+    for (let i = 0; i < want; i++) {
+      const e = new Sprite(monoTextures([ENVELOPE], q > 1000 ? '#f87171' : '#fbbf24')[0]); e.anchor.set(0.5); e.scale.set(1.3);
+      e.x = -64 - (i % 3) * 3; e.y = 40 - i * 7 - (i % 2) * 2; e.rotation = (i % 2 ? 0.12 : -0.1);
+      P.pile.addChild(e);
+    }
+  }
+
   drawJail(n) {
     const J = this.jail; if (!J || J.n === n) return;
     J.n = n;
@@ -776,6 +821,7 @@ export class World {
     this.hq.heat = clamp((state.system?.cpu || 0) / 100, 0, 1);
     this.hq.alarm = (state.keys || []).filter(k => k.state === 'failed').map(k => k.label);
     if (state.jail) this.drawJail(state.jail.n);
+    this.lastQueue = state.mailQueue; this.drawPost(state.mailQueue);
     // servidor al limite: los autos hacen fila en el peaje y avanzan lento (atasco)
     const jam = !!(state.saturation && state.saturation.level === 'bad');
     if (!jam && this.jam) this.jamNext = 0;
@@ -854,7 +900,7 @@ export class World {
       case 'attack': return this.invader(false);
       case 'block': return this.invader(true, priv ? e.ip : null);
       case 'login': return this.comet(priv ? `SSH ✓ ${e.user}` : 'SSH ✓');
-      case 'mail': return this.mail(e.dir);
+      case 'mail': return this.mail(e.dir, e);
       case 'deploy': {
         const b = this.buildings.get(e.app);
         if (!b) return;
@@ -970,20 +1016,50 @@ export class World {
     });
   }
 
-  mail(dir) {
+  // Correo: sale del distrito de la cuenta, pasa por la oficina y se va por la autopista (ambar); entra por la
+  // autopista, pasa por la oficina y llega a su cuenta (violeta); rebota: sale, choca antes del peaje y vuelve
+  // roto a quien lo envio (rojo), con el motivo. Llega en rafagas: un sobre cada 0,35 s por tipo, el resto suma
+  // al contador de la oficina.
+  mail(dir, e = {}) {
+    const P = this.post;
+    if (P) { P.log.push({ t: this.t, dir }); if (P.log.length > 3000) P.log.shift(); }
+    this.mailLast = this.mailLast || {};
+    if (this.t - (this.mailLast[dir] || -9) < 0.35 || this.fx.length > 240) { this.drawPost(this.lastQueue); return; }
+    this.mailLast[dir] = this.t;
+    const d = e.account && this.districts.get(e.account);
+    const home = d ? { ...d.center } : { x: 0, y: -this.hq.h + 10 };
+    const post = P ? { x: P.c.x, y: P.c.y - 10 } : { x: 0, y: -this.hq.h };
+    const lane = this.hw ? this.hw.laneIn : 0;
+    const sky = { x: lane - 20, y: (this.hw ? this.hw.toll : -300) - 560 };
     const color = dir === 'bounce' ? '#f87171' : dir === 'in' ? '#a78bfa' : '#fbbf24';
     const s = new Sprite(monoTextures([ENVELOPE], color)[0]); s.anchor.set(0.5); s.scale.set(2);
-    const hqP = { x: 20, y: -80 };
-    const far = { x: (Math.random() > 0.5 ? 1 : -1) * 800, y: -600 };
-    const [from, to] = dir === 'in' ? [far, hqP] : [hqP, far];
-    s.x = from.x; s.y = from.y;
+    const crash = { x: lane - 20, y: (this.hw ? this.hw.toll : -300) - 240 };
+    const legs = dir === 'in' ? [sky, post, home] : dir === 'bounce' ? [home, post, crash, post, home] : [home, post, sky];
+    const SHORT = { auth: 'SIN AUTENTICAR', nouser: 'NO EXISTE', full: 'BUZÓN LLENO', spam: 'SPAM', domain: 'DOMINIO', rate: 'DEMASIADOS' };
+    let leg = 0, u = 0, torn = false, tag = null;
+    s.x = legs[0].x; s.y = legs[0].y; s.alpha = 0;
     this.addFx(s, (f, dt) => {
-      const t = f.age / 2.2;
-      if (t >= 1) return false;
-      s.x = lerp(from.x, to.x, t); s.y = lerp(from.y, to.y, t) - Math.sin(t * Math.PI) * 60;
-      s.alpha = t < 0.1 ? t * 10 : t > 0.85 ? (1 - t) / 0.15 : 1;
+      const a = legs[leg], b = legs[leg + 1];
+      if (!b) { if (tag) tag.destroy(); return false; }
+      const dist = Math.max(40, Math.hypot(b.x - a.x, b.y - a.y));
+      u += dt * 420 / dist;
+      const k = Math.min(1, u);
+      s.x = lerp(a.x, b.x, k); s.y = lerp(a.y, b.y, k) - Math.sin(k * Math.PI) * Math.min(80, dist * 0.2);
+      s.alpha = leg === 0 ? Math.min(1, u * 4) : leg === legs.length - 2 && k > 0.85 ? (1 - k) / 0.15 : 1;
+      if (tag) { tag.x = s.x; tag.y = s.y - 22; }
+      if (k >= 1) {
+        leg++; u = 0;
+        // rebote: al chocar se rompe (chispas y una X) y vuelve con el motivo
+        if (dir === 'bounce' && leg === 3 && !torn) {
+          torn = true; this.spark(s.x, s.y, 0xef4444); s.rotation = 0.5; s.tint = 0xfca5a5;
+          tag = label(SHORT[e.cat] || 'REBOTADO', 10, 0xfca5a5, UI_FONT); tag.x = s.x; tag.y = s.y - 22; this.labels.addChild(tag);
+        }
+        if (leg === 1 && this.post) this.post.env.scale.set(2.1); // la oficina «recibe» el sobre
+      }
+      if (this.post && this.post.env.scale.x > 1.6) this.post.env.scale.set(Math.max(1.6, this.post.env.scale.x - dt * 2));
       return true;
     });
+    this.drawPost(this.lastQueue);
   }
 
   spark(x, y, color) {
