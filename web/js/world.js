@@ -641,7 +641,7 @@ export class World {
     if (key === this.layoutKey) return;
     this.layoutKey = key;
     // limpiar distritos anteriores
-    for (const d of this.districts.values()) { d.plate.destroy({ children: true }); d.st.cont.destroy({ children: true }); d.name.destroy(); d.sub.destroy(); }
+    for (const d of this.districts.values()) { d.plate.destroy({ children: true }); d.st.cont.destroy({ children: true }); d.name.destroy(); d.sub.destroy(); if (d.quotaLabel) d.quotaLabel.destroy(); }
     for (const b of this.buildings.values()) { b.sign.destroy({ children: true }); b.destroy({ children: true }); }
     this.districts.clear(); this.buildings.clear();
     for (const o of this.silos.values()) o.c.destroy({ children: true });
@@ -934,6 +934,13 @@ export class World {
   update(state) {
     this.state = state;
     this.layout(state);
+    // cuota al limite (disco, inodos o ancho de banda): una linea ambar/roja bajo el nombre del distrito
+    for (const a of state.accounts) {
+      const d = this.districts.get(a.id); if (!d) continue;
+      const txt = a.quota ? `${a.quota.what.toUpperCase()} AL ${a.quota.pct} %` : '';
+      if (!d.quotaLabel && txt) { d.quotaLabel = label('', 13, 0xfbbf24, UI_FONT); d.quotaLabel.x = d.sub.x; d.quotaLabel.y = d.sub.y + 22; this.labels.addChild(d.quotaLabel); }
+      if (d.quotaLabel) { d.quotaLabel.text = txt; d.quotaLabel.style.fill = a.quota && a.quota.level === 'bad' ? 0xf87171 : 0xfbbf24; }
+    }
     for (const app of state.apps) { const b = this.buildings.get(app.id); if (b) b.update(app); }
     for (const x of state.sites || []) { const b = this.buildings.get(x.id); if (b) b.update(x); }
     for (const d of this.districts.values()) {

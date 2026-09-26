@@ -549,7 +549,10 @@ export class Drawer {
         <span class="mono dmuted">${fmtNum(x.reqMin)}/min</span></li>`).join('') : '<li class="dmuted">Sin sitios propios.</li>';
     const CH = { added: [px('wip'), 'Nuevo dominio'], removed: [px('trash'), 'Dominio eliminado'], changed: [px('refresh'), 'Cambió'] };
     const changes = d.changes && d.changes.length ? `<section class="dsec"><h4>Cambios recientes</h4><ul class="dlist">${d.changes.map(c => `<li><time>${hhmm(c.t)}</time><span>${CH[c.action][0]}</span><span class="grow">${CH[c.action][1]}${c.domain ? `: <b class="mono">${esc(c.domain)}</b> <span class="dmuted">${esc(c.what || '')}</span>` : ''}</span></li>`).join('')}</ul></section>` : '';
-    this.content(`<div class="dstats">${stat('Servicios PM2', d.apps.length)}${stat('Sitios', d.sites.length)}${stat('Visitas / min', fmtNum(d.reqMin))}</div>
+    // cuota de la cuenta: disco, inodos y ancho de banda del mes (con barra si tiene limite)
+    const Q = d.quotas, qrow = (label, x, fmt) => x ? `<li class="${x.limit ? 'bar' : ''}"><span class="grow">${label}</span>${x.limit ? `<span class="bw"><i style="width:${Math.min(100, x.pct * 100).toFixed(1)}%;${x.pct >= 0.85 ? 'background:#f87171' : ''}"></i></span>` : ''}<span class="mono">${fmt(x.used)}${x.limit ? ` / ${fmt(x.limit)}` : ' <span class="dmuted">sin límite</span>'}</span></li>` : '';
+    const quotaSec = Q ? `<section class="dsec"><h4>${px('folder')} Cuota de la cuenta</h4><ul class="dlist">${qrow('Disco', Q.disk, fmtBytes)}${qrow('Archivos (inodos)', Q.inodes, n => fmtNum(n))}${qrow('Ancho de banda este mes', Q.bw, fmtBytes)}</ul></section>` : '';
+    this.content(`<div class="dstats">${stat('Servicios PM2', d.apps.length)}${stat('Sitios', d.sites.length)}${stat('Visitas / min', fmtNum(d.reqMin))}</div>${quotaSec}
       ${changes}
       <section class="dsec"><h4>Servicios (PM2)</h4><ul class="dlist">${apps}</ul></section>
       <section class="dsec"><h4>Sitios web</h4><ul class="dlist">${sites}</ul></section>
