@@ -205,12 +205,16 @@ function renderHealth(list) {
 function renderMini(state) {
   renderHealth(state.health);
   const s = state.security, m = state.mail;
-  $('sec').innerHTML = `<div><span>Intentos SSH</span><b>${fmtNum(s.failed)}</b></div><div><span>IPs bloqueadas</span><b>${fmtNum(s.blocked)}</b></div><div><span>Accesos OK</span><b>${fmtNum(s.logins)}</b></div>`;
+  const w = state.webdef;
+  $('sec').innerHTML = `<div><span>Intentos SSH</span><b>${fmtNum(s.failed)}</b></div><div><span>IPs bloqueadas</span><b>${fmtNum(s.blocked)}</b></div><div><span>Accesos OK</span><b>${fmtNum(s.logins)}</b></div>`
+    + (w ? `<div class="link" data-go="webdef:all" data-tip="Defensa web|Robots que buscan rutas vulnerables en sus sitios (/.env, wp-login.php, phpmyadmin, webshells) en la última hora."><span>Sondeos web / h</span><b>${fmtNum(w.hour)}</b></div>`
+      + `<div class="link ${w.exposed ? 'bad' : w.suspect ? 'warn' : ''}" data-go="webdef:all"><span>Archivos expuestos</span><b>${w.exposed || (w.suspect ? '?' : 0)}</b></div>` : '');
   $('mail').innerHTML = `<div><span>Enviados</span><b>${fmtNum(m.out)}</b></div><div><span>Recibidos</span><b>${fmtNum(m.in)}</b></div><div><span>Rebotes</span><b>${fmtNum(m.bounce)}</b></div>`;
 }
 
 // ---------------------------------------------------------------- ticker
-const pending = { attack: 0, http5: 0 };
+const pending = { attack: 0, http5: 0, probe: 0, probeFam: {} };
+const FAM_TXT = { secrets: 'secretos (.env, .git, respaldos)', shells: 'webshells', panels: 'paneles de administración', exploits: 'exploits', wordpress: 'el login de WordPress' };
 export function tickerEvent(e, accounts, priv) {
   const acc = accounts.find(a => a.id === e.account);
   const tag = acc ? acc.label : '';
@@ -231,6 +235,13 @@ export function tickerEvent(e, accounts, priv) {
     case 'pm2': ic = e.action === 'down' ? 'fire' : 'refresh'; text = `${e.appName} ${e.action === 'down' ? 'se detuvo' : 'se reinició'}`; break;
     case 'http': if (e.status < 500) return; pending.http5++; pending.http5App = e.app; return;
     case 'attack': pending.attack++; return;
+    // sondeos web: se agrupan cada 10 s; un archivo expuesto sale solo y en rojo
+    case 'probe':
+      if (!e.exposed) { pending.probe++; pending.probeFam[e.fam] = (pending.probeFam[e.fam] || 0) + 1; return; }
+      ic = 'bad'; color = '#ef4444';
+      text = `${e.confirmed ? 'ARCHIVO EXPUESTO confirmado' : 'Una ruta sensible respondió'}${priv && e.path ? `: ${e.path}` : ` (${FAM_TXT[e.fam] || e.fam})`} · verificando`;
+      if (e.confirmed) text = text.replace(' · verificando', '');
+      break;
     case 'block': ic = 'shield'; text = 'IP bloqueada por cPHulk' + (priv && e.ip ? ` · ${e.ip}` : ''); color = '#fb7185'; break;
     case 'login': ic = 'key'; text = 'Acceso SSH correcto' + (priv && e.user ? ` · ${e.user} desde ${e.ip}` : ''); color = '#4ade80'; break;
     case 'mail': if (e.dir !== 'bounce') return; ic = 'mailBad'; text = 'Correo rebotado'; color = '#f87171'; break;
@@ -254,11 +265,18 @@ export function tickerEvent(e, accounts, priv) {
     default: return;
   }
   const go = e.kind === 'claude' ? (e.action === 'end' ? null : 'session:' + e.sid) : e.kind === 'pm2' ? 'app:' + e.app
-    : e.kind === 'block' || e.kind === 'login' ? 'security:all' : e.kind === 'mail' ? 'mail:all' : null;
+    : e.kind === 'block' || e.kind === 'login' ? 'security:all' : e.kind === 'mail' ? 'mail:all' : e.kind === 'probe' ? 'webdef:all' : null;
   addTicker(ic, tag, text, color, go);
 }
 setInterval(() => {
   if (pending.attack) { addTicker('invader', '', `${pending.attack} intento${pending.attack > 1 ? 's' : ''} de intrusión SSH repelido${pending.attack > 1 ? 's' : ''}`, '#f87171', 'security:all'); pending.attack = 0; }
+  // los sondeos se avisan como mucho una vez por minuto (llegan de a miles por hora)
+  if (pending.probe && Date.now() - (pending.probeAt || 0) > 60000) {
+    pending.probeAt = Date.now();
+    const top = Object.entries(pending.probeFam).sort((a, b) => b[1] - a[1])[0];
+    addTicker('invader', '', `${pending.probe} sondeo${pending.probe > 1 ? 's' : ''} de robots buscando rutas vulnerables${top ? ` (sobre todo ${FAM_TXT[top[0]] || top[0]})` : ''}`, '#fb923c', 'webdef:all');
+    pending.probe = 0; pending.probeFam = {};
+  }
   if (pending.http5) { addTicker('boom', '', `${pending.http5} error${pending.http5 > 1 ? 'es' : ''} 5xx en los sitios`, '#ef4444', pending.http5App ? 'app:' + pending.http5App : 'system:root'); pending.http5 = 0; pending.http5App = null; }
 }, 10000);
 // historial de la cinta (se vacia al cambiar de modo: puede contener texto privado)

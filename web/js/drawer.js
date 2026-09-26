@@ -308,12 +308,13 @@ export class Drawer {
   render(d) {
     switch (d.kind) {
       case 'metric': return this.renderMetric(d);
-      case 'app': return this.renderApp(d);
-      case 'site': return this.renderSite(d);
+      case 'app': this.renderApp(d); return this.probesLine(d);
+      case 'site': this.renderSite(d); return this.probesLine(d);
       case 'session': return this.renderSession(d);
       case 'district': return this.renderDistrict(d);
       case 'system': return this.renderSystem(d);
       case 'security': return this.renderSecurity(d);
+      case 'webdef': return this.renderWebdef(d);
       case 'mail': return this.renderMail(d);
       case 'databases': return this.renderDatabases(d);
       case 'database': return this.renderDatabase(d);
@@ -542,7 +543,35 @@ export class Drawer {
         <span class="dmuted">${c.lastOk ? 'leído hace ' + ago(Date.now() - c.lastOk) : 'sin lectura'}${c.type === 'vercel' ? (c.drainAt ? ` · visitas hace ${ago(Date.now() - c.drainAt)}` : ' · sin Drain') : ''}</span></li>`).join('')}</ul></section>` : ''}
       ${d.keys && d.keys.length ? `<section class="dsec"><h4>Servicios clave</h4><div class="keys">${d.keys.map(k => `<span class="keysvc ${k.state === 'active' ? 'ok' : k.state === 'failed' ? 'bad' : 'off'}" title="${esc(k.unit)} · ${esc(k.substate || k.state)}">${esc(k.label)}<b>${k.state === 'active' ? 'activo' : k.state === 'failed' ? 'FALLÓ' : k.state === 'inactive' ? 'detenido' : esc(k.state)}</b></span>`).join('')}</div></section>` : ''}`, `<section class="dsec"><h4>Visitantes por país · última hora</h4><ul class="dlist">${bars(d.countries, k => `${flag(k)} ${esc(countryName(k))}`, d.countries.reduce((n, x) => n + x.n, 0))}</ul></section>
       <section class="dsec"><h4>Procesos que más consumen</h4><ul class="dlist">${top}</ul></section>
-      <p class="dlinks"><a data-go="security:all">${px('shield')} Ver defensa</a> · <a data-go="mail:all">${px('mail')} Ver correo</a> · <a data-go="databases:all">${px('db')} Bases de datos</a></p>`);
+      <p class="dlinks"><a data-go="security:all">${px('shield')} Ver defensa</a> · <a data-go="webdef:all">${px('invader')} Defensa web</a> · <a data-go="mail:all">${px('mail')} Ver correo</a> · <a data-go="databases:all">${px('db')} Bases de datos</a></p>`);
+  }
+
+  // al final de la ficha de un sitio o app: cuantos robots lo sondearon y si quedo algo expuesto
+  probesLine(d) {
+    if (!d.probes || !d.probes.n) return;
+    const body = this.body.querySelector('.dcontent') || this.body; // se reemplaza en cada refresco: no se duplica
+    body.insertAdjacentHTML('beforeend', `<section class="dsec"><h4>Defensa web</h4><p class="${d.probes.exposed ? 'afind bad' : 'dmuted'}">${px(d.probes.exposed ? 'bad' : 'invader')}
+      ${fmtNum(d.probes.n)} sondeo(s) de robots en 24 h${d.probes.exposed ? ` · <b>${d.probes.exposed} archivo(s) expuesto(s)</b>` : ''} · <a data-go="webdef:${esc(d.id)}">Ver qué buscan</a></p></section>`);
+  }
+
+  // defensa web: robots que buscan rutas vulnerables; lo grave arriba (archivos expuestos) con su arreglo
+  renderWebdef(d) {
+    this.setHead('webdef', iconCanvas('portal', 4), 'Defensa web', d.id === 'all' ? 'Robots buscando rutas vulnerables en sus sitios' : 'Rutas vulnerables buscadas en este sitio', '');
+    const FAMPX = { secrets: 'key', shells: 'bad', panels: 'gear', exploits: 'invader', wordpress: 'wp' };
+    const exp = d.exposed.length ? `<section class="dsec"><h4>Para atender</h4>${d.exposed.map(x => `<div class="afind ${x.sev}">
+        <h5>${px(FAMPX[x.fam] || 'warn')} ${esc(x.why)}</h5>
+        <p>${esc(x.site)} <span class="dmuted">· ${esc(x.account)}</span>${x.path ? ` · <code>${esc(x.path)}</code>` : ''} <span class="dmuted">· ${fmtNum(x.n)} vez(ces), la última a las ${hhmm(x.last)}</span></p>
+        ${x.fix ? `<p class="fix">${esc(x.fix)}</p>` : ''}</div>`).join('')}</section>`
+      : `<section class="dsec"><p class="dmuted">${px('ok')} Ningún archivo sensible respondió: los sondeos no encontraron nada.</p></section>`;
+    const fams = d.families.length ? `<section class="dsec"><h4>Qué buscan</h4><ul class="dlist">${d.families.map(f => `<li>${px(FAMPX[f.fam] || 'warn')}<span class="grow">${esc(f.label)}</span><b>${fmtNum(f.n)}</b></li>`).join('')}</ul></section>` : '';
+    const sites = d.sites.length ? `<section class="dsec"><h4>Sitios más buscados</h4><ul class="dlist">${d.sites.map(s => `<li class="${s.go ? 'link' : ''}" ${s.go ? `data-go="${esc(s.go)}"` : ''}><span class="grow">${esc(s.name)} <span class="dmuted">· ${esc(s.account)}</span></span><b>${fmtNum(s.n)}</b></li>`).join('')}</ul></section>` : '';
+    const cc = d.countries.length ? `<section class="dsec"><h4>Desde dónde</h4><div class="chips">${d.countries.map(c => `<span class="chip">${esc(c.cc)} <b>${fmtNum(c.n)}</b></span>`).join('')}</div></section>` : '';
+    const paths = d.paths && d.paths.length ? `<section class="dsec"><h4>Rutas más pedidas</h4><ul class="dlist">${d.paths.map(p => `<li><code class="grow">${esc(p.path)}</code><span class="dmuted">${p.status || ''}</span><b>${fmtNum(p.n)}</b></li>`).join('')}</ul></section>` : '';
+    const ips = d.ips && d.ips.length ? `<section class="dsec"><h4>Quién más insiste</h4><ul class="dlist">${d.ips.map(i => `<li><span class="grow mono">${esc(i.ip)}</span><span class="dmuted">${esc(i.country || i.cc || '')}</span><b>${fmtNum(i.n)}</b></li>`).join('')}</ul></section>` : '';
+    this.content(`<div class="dstats">${stat('Última hora', fmtNum(d.hour))}${stat('Últimas 24 h', fmtNum(d.day))}${stat('Expuestos', fmtNum(d.exposed.filter(x => x.sev === 'bad').length), d.exposed.some(x => x.sev === 'bad') ? 'bad' : '')}</div>
+      ${exp}${fams}${sites}${paths}${ips}${cc}
+      ${d.priv ? '' : '<p class="dmuted small">En modo privado se ven las rutas, las IPs y qué archivo quedó expuesto.</p>'}
+      <p class="dmuted small">Atalaya solo mira: no bloquea. Cuando una ruta de secretos o de webshell responde, la vuelve a pedir una vez para confirmar si de verdad expone algo; nunca guarda su contenido.</p>`);
   }
 
   renderSecurity(d) {
@@ -561,10 +590,21 @@ export class Drawer {
   renderMail(d) {
     const cv = document.createElement('div'); cv.className = 'dswatch'; cv.innerHTML = px('mail', 'big');
     this.setHead('mail', cv, 'Correo', 'Exim · entregas y rebotes', '');
-    const DIR = { out: px('mailOut') + ' Enviado', in: px('mailIn') + ' Recibido', bounce: px('mailBad') + ' Rebotado' };
-    const rec = d.recent.length ? d.recent.map(e => `<li><time>${hhmm(e.t)}</time><span class="grow">${DIR[e.dir]}</span></li>`).join('') : '<li class="dmuted">Sin movimiento de correo desde que Atalaya arrancó.</li>';
+    const DIR = { out: px('mailOut') + ' Enviado', in: px('mailIn') + ' Recibido', bounce: px('mailBad') + ' Rebotó' };
+    const WHY = { auth: 'Sin SPF/DKIM/DMARC', nouser: 'No existe el destinatario', full: 'Buzón lleno', spam: 'Spam o reputación', domain: 'Dominio inexistente', rate: 'Demasiados envíos', other: 'Otro motivo' };
+    // cada movimiento: hora, que paso, de que cuenta y, si reboto, por que (en privado: de quien, a quien y el codigo)
+    const rec = d.recent.length ? d.recent.map(e => `<li class="mailrow"><time>${hhmm(e.t)}</time><div class="grow">
+        <div>${DIR[e.dir]} <span class="dmuted">· ${esc(e.account)}</span>${e.dir === 'bounce' && e.cat ? ` <span class="pill ${e.cat === 'full' || e.cat === 'nouser' ? 'warn' : 'bad'}">${esc(WHY[e.cat] || e.why || '')}</span>` : ''}</div>
+        ${d.priv && (e.from || e.to) ? `<div class="mfield"><span>De</span><b class="mono">${esc(e.from || '(sin remitente: aviso del sistema)')}</b></div><div class="mfield"><span>Para</span><b class="mono">${esc(e.to || '')}</b></div>` : ''}
+        ${d.priv && e.reason && e.dir === 'bounce' ? `<div class="mwhy">${e.code ? `<b class="mono">${esc(e.code)}</b> ` : ''}${esc(e.reason)}</div>` : ''}</div></li>`).join('')
+      : '<li class="dmuted">Sin movimiento de correo desde que Atalaya arrancó.</li>';
+    const reasons = (d.reasons || []).length ? `<section class="dsec"><h4>Por qué rebota</h4>${d.reasons.map(r => `<div class="afind ${r.cat === 'full' || r.cat === 'nouser' ? 'warn' : 'bad'}">
+        <h5>${esc(WHY[r.cat] || r.cat)} <span class="dmuted">· ${fmtNum(r.n)}</span></h5>${r.fix ? `<p class="fix">${esc(r.fix)}</p>` : ''}</div>`).join('')}</section>` : '';
+    const accs = (d.byAccount || []).length ? `<section class="dsec"><h4>Por cuenta</h4><table class="dtable"><thead><tr><th>Cuenta</th><th>Enviados</th><th>Recibidos</th><th>Rebotes</th></tr></thead><tbody>
+        ${d.byAccount.map(a => `<tr><td>${esc(a.account)}</td><td>${fmtNum(a.out)}</td><td>${fmtNum(a.in)}</td><td class="${a.bounce ? 'warn' : ''}">${fmtNum(a.bounce)}</td></tr>`).join('')}</tbody></table></section>` : '';
     this.content(`<div class="dstats">${stat('Enviados', fmtNum(d.counts.out))}${stat('Recibidos', fmtNum(d.counts.in))}${stat('Rebotes', fmtNum(d.counts.bounce), d.counts.bounce ? 'warn' : '')}</div>
-      <section class="dsec"><h4>Últimos movimientos</h4><ul class="dlist">${rec}</ul></section>`);
+      ${reasons}${accs}
+      <section class="dsec"><h4>Últimos movimientos</h4><ul class="dlist">${rec}</ul>${d.priv ? '' : '<p class="dmuted small">En modo privado se ven remitente, destinatario y el mensaje del servidor que lo rechazó.</p>'}</section>`);
   }
 
   // salud del servidor: una seccion por revision, con sus cifras y cada hallazgo con su "como arreglarlo".

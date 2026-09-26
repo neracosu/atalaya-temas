@@ -40,6 +40,7 @@ export class CommFx {
   }
 
   onEvent(e) {
+    if (e.kind === 'probe') return this.probe(e);
     if (e.kind !== 'claude' || this.fx.length >= MAX) return;
     const me = e.agent ? this.pos('agent', e.sid + '/' + e.agent, e.sid) : this.pos('session', e.sid);
     if (e.action === 'spawn') {
@@ -56,6 +57,55 @@ export class CommFx {
     } else if (e.action === 'touch') {
       const to = e.app ? this.pos('app', e.app) : e.site ? this.pos('site', e.site) : null;
       if (me && to && to.world) this.beam(me, to, e.mode === 'edit' ? 'edit' : 'read');
+    }
+  }
+
+  // un robot que busca una ruta vulnerable: auto oscuro con luz roja que va al edificio y rebota; si la
+  // ruta respondio (archivo expuesto), el edificio queda marcado en rojo con el cartel EXPUESTO
+  probe(e) {
+    if (this.fx.filter(f => f.type === 'probe').length >= 4 && !e.exposed) return;
+    const to = e.app ? this.pos('app', e.app) : e.site ? this.pos('site', e.site) : null;
+    if (!to || !to.world) return;
+    const w = this.getWorld();
+    let from = null;
+    try { from = w && w.screenOf ? w.screenOf('gate') : null; } catch { from = null; }
+    if (!from) from = { x: Math.max(20, Math.min(innerWidth - 20, to.x + (Math.random() - 0.5) * 400)), y: 70 };
+    this.fx.push({ type: 'probe', from, to, t: 0, dur: this.still ? 0.5 : 1.1 + Math.random() * 0.4, exposed: !!e.exposed, status: e.status });
+    this.run();
+  }
+
+  drawProbe(f) {
+    const { cx } = this;
+    const go = Math.min(1, f.t / f.dur);
+    let u, fade = 1;
+    if (f.exposed) u = go;
+    else {
+      // ida hasta la puerta y vuelta corta: rebota
+      const back = f.t > f.dur ? Math.min(1, (f.t - f.dur) / 0.35) : 0;
+      u = go - back * 0.35; fade = 1 - back;
+    }
+    const x = f.from.x + (f.to.x - f.from.x) * u, y = f.from.y + (f.to.y - f.from.y) * u;
+    cx.globalAlpha = fade;
+    // auto pixel (escala 2): carroceria oscura con borde, parabrisas y sirena roja intermitente
+    const X = Math.round(x), Y = Math.round(y);
+    cx.fillStyle = '#475569'; cx.fillRect(X - 11, Y - 7, 22, 14);
+    cx.fillStyle = '#1e1b2e'; cx.fillRect(X - 9, Y - 5, 18, 10);
+    cx.fillStyle = '#0b0a12'; cx.fillRect(X - 6, Y - 3, 12, 4);
+    cx.fillStyle = Math.floor(f.t * 8) % 2 ? '#ef4444' : '#7f1d1d'; cx.fillRect(X - 3, Y - 11, 6, 4);
+    if (!f.exposed && f.t > f.dur && f.status) {
+      cx.font = "600 11px 'Space Grotesk', system-ui, sans-serif"; cx.textAlign = 'center'; cx.fillStyle = '#94a3b8';
+      cx.fillText(String(f.status), f.to.x, f.to.y - 14 - (f.t - f.dur) * 20);
+    }
+    cx.globalAlpha = 1;
+    if (f.exposed && go >= 1) {
+      const k = (f.t - f.dur) % 0.8 / 0.8, r = 10 + k * 26;
+      cx.globalAlpha = 1 - k; cx.strokeStyle = '#ef4444'; cx.lineWidth = 3;
+      cx.strokeRect(Math.round(f.to.x - r), Math.round(f.to.y - r), Math.round(r * 2), Math.round(r * 2));
+      cx.globalAlpha = 1;
+      cx.font = "700 12px 'Space Grotesk', system-ui, sans-serif"; cx.textAlign = 'center';
+      const tw = cx.measureText('EXPUESTO').width + 12;
+      cx.fillStyle = '#ef4444'; cx.fillRect(Math.round(f.to.x - tw / 2), Math.round(f.to.y - 42), Math.round(tw), 18);
+      cx.fillStyle = '#fff'; cx.fillText('EXPUESTO', f.to.x, f.to.y - 29);
     }
   }
 
@@ -85,8 +135,9 @@ export class CommFx {
     cx.clearRect(0, 0, this.cv.width, this.cv.height);
     cx.setTransform(dpr, 0, 0, dpr, 0, 0);
     cx.imageSmoothingEnabled = false;
-    for (const f of this.fx) { f.t += dt; (f.type === 'packet' ? this.drawPacket : this.drawBeam).call(this, f); }
-    this.fx = this.fx.filter(f => f.t < f.dur + 0.35);
+    for (const f of this.fx) { f.t += dt; (f.type === 'packet' ? this.drawPacket : f.type === 'probe' ? this.drawProbe : this.drawBeam).call(this, f); }
+    // un archivo expuesto queda marcado 6 s; lo demas se va al terminar
+    this.fx = this.fx.filter(f => f.t < f.dur + (f.type === 'probe' && f.exposed ? 6 : 0.35));
     this.raf = this.fx.length ? requestAnimationFrame(t => this.frame(t)) : 0;
     if (!this.raf) cx.clearRect(0, 0, innerWidth, innerHeight);
   }

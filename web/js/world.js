@@ -279,6 +279,7 @@ export class World {
   // al cambiar de tema: quita escuchas, canvas y objetos (las texturas compartidas quedan en cache)
   // donde esta cada cosa en la pantalla (para la comunicacion entre agentes, web/js/commfx.js)
   screenOf(kind, id) {
+    if (kind === 'gate') return pixiScreen(this.app, this.hwBar); // el peaje: de ahi salen los sondeos
     if (kind === 'session' || kind === 'agent') return pixiScreen(this.app, this.robots.get(id));
     return pixiScreen(this.app, this.buildings.get(id));
   }
