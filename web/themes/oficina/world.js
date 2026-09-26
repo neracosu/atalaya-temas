@@ -406,8 +406,8 @@ export default class OficinaWorld {
     d.sprite = this.place(room, site ? laptopTex(SCREEN.online) : deskTex(SCREEN.online), gx, gy, 20, site ? 16 : 24);
     // cartel pixel sobre el puesto
     const p = iso(gx + 0.5, gy + 0.5);
-    const sign = new Sprite(tex('sign' + (it.icon || 'web'), () => { const t = Texture.from(signCanvas(it.icon || 'web', 1)); t.source.scaleMode = 'nearest'; return t; }));
-    sign.anchor.set(0.5, 1); sign.scale.set(PX); sign.x = p.x; sign.y = p.y - 64; sign.zIndex = (gx + gy) * 10 + 5;
+    const sign = new Sprite(tex('sign' + (it.icon || 'web'), () => { const t = Texture.from(signCanvas(it.icon || 'web', 2)); t.source.scaleMode = 'nearest'; return t; }));
+    sign.anchor.set(0.5, 1); sign.scale.set(PX / 2); sign.x = p.x; sign.y = p.y - 64; sign.zIndex = (gx + gy) * 10 + 5;
     room.items.addChild(sign); d.sign = sign;
     this.tappable(d.sprite, () => this.pick(site ? 'site' : 'app', it.id), () => this.tipFor({ kind: site ? 'site' : 'app', id: it.id }));
     if (d.worker) this.tappable(d.worker, () => this.pick('app', it.id), () => this.tipFor({ kind: 'app', id: it.id }));

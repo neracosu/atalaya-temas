@@ -7,6 +7,7 @@ import { ThemeManager } from './themes.js';
 import { initKpis, initCharts, rethemeCharts, renderState, tickerEvent, resetAgents, getEvents, clearTicker } from './hud.js';
 import { buildPin } from './pin.js';
 import { Drawer } from './drawer.js';
+import { withFavicons, clearFavicons } from './favicons.js';
 import { showTip, hideTip, openLegend } from './tips.js';
 
 const $ = id => document.getElementById(id);
@@ -393,11 +394,12 @@ function connect() {
     const h = JSON.parse(e.data);
     const changed = !hello || h.priv !== hello.priv;
     applyMode(h);
-    if (changed) { drawer.close(); clearTicker(); } // la cinta puede tener texto privado
+    if (changed) { drawer.close(); clearTicker(); if (!h.priv) clearFavicons(); } // la cinta puede tener texto privado
     if (changed) flash(h.priv ? 'Modo privado activado' : 'Modo público: los detalles quedaron ocultos');
   });
   es.addEventListener('state', e => {
     state = JSON.parse(e.data);
+    withFavicons(state.apps); withFavicons(state.sites);
     renderState(state);
     tm.update(state);
   });
