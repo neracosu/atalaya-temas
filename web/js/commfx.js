@@ -41,6 +41,12 @@ export class CommFx {
 
   onEvent(e) {
     if (e.kind === 'probe') return this.probe(e);
+    // consulta lenta: un solo pulso ambar sobre el edificio que usa la base (si no se sabe cual, solo el ticker)
+    if (e.kind === 'db' && e.action === 'slow') {
+      const at = e.app ? this.pos('app', e.app) : e.site ? this.pos('site', e.site) : null;
+      if (at && at.world && this.fx.length < MAX) { this.fx.push({ type: 'dbslow', at, secs: e.secs, t: 0, dur: this.still ? 0.8 : 2.2 }); this.run(); }
+      return;
+    }
     if (e.kind !== 'claude' || this.fx.length >= MAX) return;
     const me = e.agent ? this.pos('agent', e.sid + '/' + e.agent, e.sid) : this.pos('session', e.sid);
     if (e.action === 'spawn') {
@@ -146,7 +152,7 @@ export class CommFx {
     cx.clearRect(0, 0, this.cv.width, this.cv.height);
     cx.setTransform(dpr, 0, 0, dpr, 0, 0);
     cx.imageSmoothingEnabled = false;
-    for (const f of this.fx) { f.t += dt; (f.type === 'packet' ? this.drawPacket : f.type === 'probe' ? this.drawProbe : f.type === 'warp' ? this.drawWarp : this.drawBeam).call(this, f); }
+    for (const f of this.fx) { f.t += dt; (f.type === 'packet' ? this.drawPacket : f.type === 'probe' ? this.drawProbe : f.type === 'warp' ? this.drawWarp : f.type === 'dbslow' ? this.drawDbSlow : this.drawBeam).call(this, f); }
     // un archivo expuesto queda marcado 6 s; lo demas se va al terminar
     this.fx = this.fx.filter(f => f.t < f.dur + (f.type === 'probe' && f.exposed ? 6 : 0.35));
     this.raf = this.fx.length ? requestAnimationFrame(t => this.frame(t)) : 0;
@@ -216,6 +222,27 @@ export class CommFx {
     cx.fillStyle = 'rgba(5, 9, 18, .85)'; cx.fillRect(Math.round(x - tw / 2), ly - 13, Math.round(tw), 18);
     cx.fillStyle = c; cx.fillRect(Math.round(x - tw / 2), ly + 4, Math.round(tw), 2);
     cx.fillText(f.label, x, ly);
+    cx.globalAlpha = 1;
+  }
+
+  // consulta lenta: un cilindro de base pixelado sobre el edificio, con reloj de arena y dos ondas ambar
+  drawDbSlow(f) {
+    const { cx } = this, c = '#fbbf24', k = Math.min(1, f.t / f.dur);
+    const fade = f.t > f.dur ? Math.max(0, 1 - (f.t - f.dur) / 0.35) : Math.min(1, f.t / 0.2);
+    const x = Math.round(f.at.x), y = Math.round(f.at.y - 34 - 6 * Math.sin(Math.min(1, k * 2) * Math.PI / 2));
+    for (let i = 0; i < 2; i++) { const u = (k * 1.6 + i * 0.5) % 1; this.burst({ x: f.at.x, y: f.at.y }, c, u, fade * 0.8); }
+    cx.globalAlpha = fade;
+    // cilindro 14x16 en pixeles de 2
+    cx.fillStyle = '#78350f'; cx.fillRect(x - 8, y - 8, 16, 18);
+    cx.fillStyle = c; cx.fillRect(x - 7, y - 8, 14, 3); cx.fillRect(x - 7, y - 1, 14, 2); cx.fillRect(x - 7, y + 6, 14, 2);
+    cx.fillStyle = '#fde68a'; cx.fillRect(x - 5, y - 8, 4, 1);
+    // reloj de arena al costado
+    cx.fillStyle = '#e2e8f0'; cx.fillRect(x + 10, y - 7, 8, 2); cx.fillRect(x + 10, y + 6, 8, 2);
+    cx.fillStyle = c; cx.fillRect(x + 11, y - 5, 6, 3); cx.fillRect(x + 13, y - 2, 2, 3); cx.fillRect(x + 11, y + 1 + Math.round(2 * (1 - k)), 6, 5 - Math.round(2 * (1 - k)));
+    cx.font = "600 11px 'Space Grotesk', system-ui, sans-serif"; cx.textAlign = 'center';
+    const label = `consulta lenta · ${f.secs} s`, tw = cx.measureText(label).width + 12;
+    cx.fillStyle = 'rgba(5, 9, 18, .85)'; cx.fillRect(Math.round(x - tw / 2), y - 30, Math.round(tw), 17);
+    cx.fillStyle = c; cx.fillText(label, x, y - 18);
     cx.globalAlpha = 1;
   }
 
