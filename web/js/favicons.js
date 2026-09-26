@@ -16,7 +16,8 @@ function load(key) {
 }
 // cambia el icono de cada item por su favicon si ya esta listo (y pide los que faltan)
 export function withFavicons(list) {
-  for (const it of list || []) {
+  if (!Array.isArray(list)) return list; // en algunas fichas 'apps' o 'sites' es una cantidad, no una lista
+  for (const it of list) {
     if (!it || !it.favicon) continue;
     if (favImage(it.favicon)) it.icon = 'fav:' + it.favicon; else load(it.favicon);
   }

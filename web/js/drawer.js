@@ -67,6 +67,13 @@ export class Drawer {
         this.load();
         return;
       }
+      const up = e.target.closest('[data-audit-updates]');
+      if (up) {
+        up.disabled = true;
+        const r = await fetch('/api/audit/updates', { method: 'POST', headers: { 'Content-Type': 'application/json', 'X-Atalaya': '1' }, body: '{}' }).then(x => x.json()).catch(() => ({}));
+        if (r.error) { up.insertAdjacentHTML('afterend', `<span class="dmuted"> ${esc(r.error)}</span>`); up.disabled = false; } else { up.textContent = 'Revisando…'; setTimeout(() => this.load(), 12000); }
+        return;
+      }
       const au = e.target.closest('[data-audit-db]');
       if (au) {
         au.disabled = true;
@@ -114,14 +121,14 @@ export class Drawer {
       if (r.status === 401) { location.href = '/login'; return; }
       d = r.ok ? await r.json() : null;
       if (d) { withFavicons([d]); withFavicons(d.apps); withFavicons(d.sites); } // favicons reales (solo llegan en privado)
-    } catch { return; }
+    } catch (e) { console.error('[detalle]', e); if (kind === this.kind && id === this.id) this.body.innerHTML = '<p class="dmuted">No se pudo cargar el detalle. Se reintenta solo en unos segundos.</p>'; return; }
     if (kind !== this.kind || id !== this.id) return; // ya se abrio otra cosa
     if (!d) {
       clearInterval(this.timer);
       this.body.innerHTML = '<p class="dmuted">Este elemento ya no existe (la sesión terminó o el servicio se retiró).</p>';
       return;
     }
-    this.render(d);
+    try { this.render(d); } catch (e) { console.error('[detalle]', kind, e); this.body.innerHTML = '<p class="dmuted">No se pudo mostrar este detalle.</p>'; }
   }
 
   // cabecera con icono pixel; el canvas solo se regenera si cambia
@@ -311,6 +318,7 @@ export class Drawer {
       case 'databases': return this.renderDatabases(d);
       case 'database': return this.renderDatabase(d);
       case 'projects': return this.renderProjects(d);
+      case 'audit': return this.renderAudit(d);
       case 'project': return this.renderProject(d);
     }
   }
@@ -528,6 +536,7 @@ export class Drawer {
         ${stat('Red ↓ / ↑', `${fmtBytes(s.net.rx)}/s · ${fmtBytes(s.net.tx)}/s`)}${stat('Encendido hace', dur(s.uptime))}${stat('Procesos', s.procs)}
         ${stat('Servicios', `${d.apps}${d.appsDown ? ` (${d.appsDown} con problemas)` : ''}`, d.appsDown ? 'bad' : '')}${stat('Agentes Claude', d.sessions)}
       </div>
+      <section class="dsec"><div class="row dmrow"><span class="grow">${px('shield')} <b>Salud del servidor</b>: respaldos, actualizaciones, cola de correo, cron y puertos.</span><button class="btn small" data-go="audit:all">Ver revisiones</button></div></section>
       ${d.connectors && d.connectors.length ? `<section class="dsec"><h4>Conectores de nube</h4><ul class="dlist">${d.connectors.map(c => `<li>
         <span class="pill ${c.ok ? 'ok' : 'bad'}">${c.ok ? 'conectado' : 'error'}</span><span class="grow"><b>${esc(c.label)}</b> · ${c.projects} proyecto${c.projects === 1 ? '' : 's'}${c.error ? `<br><span class="dmuted">${esc(c.error)}</span>` : ''}</span>
         <span class="dmuted">${c.lastOk ? 'leído hace ' + ago(Date.now() - c.lastOk) : 'sin lectura'}${c.type === 'vercel' ? (c.drainAt ? ` · visitas hace ${ago(Date.now() - c.drainAt)}` : ' · sin Drain') : ''}</span></li>`).join('')}</ul></section>` : ''}
@@ -556,6 +565,30 @@ export class Drawer {
     const rec = d.recent.length ? d.recent.map(e => `<li><time>${hhmm(e.t)}</time><span class="grow">${DIR[e.dir]}</span></li>`).join('') : '<li class="dmuted">Sin movimiento de correo desde que Atalaya arrancó.</li>';
     this.content(`<div class="dstats">${stat('Enviados', fmtNum(d.counts.out))}${stat('Recibidos', fmtNum(d.counts.in))}${stat('Rebotes', fmtNum(d.counts.bounce), d.counts.bounce ? 'warn' : '')}</div>
       <section class="dsec"><h4>Últimos movimientos</h4><ul class="dlist">${rec}</ul></section>`);
+  }
+
+  // salud del servidor: una seccion por revision, con sus cifras y cada hallazgo con su "como arreglarlo"
+  renderAudit(d) {
+    const cv = document.createElement('div'); cv.className = 'dswatch'; cv.innerHTML = px('shield', 'big');
+    const all = d.sections.flatMap(s => s.findings);
+    const bad = all.filter(f => f.sev === 'bad').length, warn = all.filter(f => f.sev === 'warn').length;
+    this.setHead('audit:all', cv, 'Salud del servidor', `Revisado hace ${ago(Date.now() - d.t)} · solo lectura`,
+      `<span class="pill ${bad ? 'bad' : warn ? 'warn' : 'ok'}">${bad ? bad + ' grave' + (bad === 1 ? '' : 's') : warn ? warn + ' para revisar' : 'en orden'}</span>`);
+    const ST = { ok: ['ok', 'En orden'], warn: ['warn', 'Para revisar'], bad: ['bad', 'Grave'], unknown: ['off', 'Sin revisar'] };
+    const sec = s => {
+      const st = ST[s.status] || ST.unknown;
+      const finds = d.priv ? s.findings.map(f => `<div class="afind ${f.sev}"><h5>${esc(f.title)}</h5><p>${esc(f.detail || '')}</p>${f.fix ? `<p class="fix">${esc(f.fix)}</p>` : ''}
+          ${f.rows && f.rows.length ? `<ul>${f.rows.map(r => `<li>${r.port ? `puerto <b>${r.port}</b> ${esc(r.proc || '')}` : `<b>${esc(r.user || '')}</b> <span class="dmuted">${esc(r.schedule || '')}</span> <code>${esc(r.command || '')}</code>`}</li>`).join('')}</ul>` : ''}
+          ${f.names && f.names.length ? `<p class="dmuted">${esc(f.names.slice(0, 20).join(', '))}${f.names.length > 20 ? '…' : ''}</p>` : ''}</div>`).join('')
+        : (s.findings.length ? `<p class="dmuted">${s.findings.length} hallazgo${s.findings.length === 1 ? '' : 's'}. Active el modo privado para verlos con su «cómo arreglarlo».</p>` : '');
+      const btn = s.canCheck ? `<button class="btn small" data-audit-updates="1" ${d.running ? 'disabled' : ''}>${d.running ? 'Revisando…' : 'Revisar actualizaciones'}</button>` : '';
+      return `<section class="dsec"><h4>${px(s.icon)} ${esc(s.title)} <span class="pill ${st[0]}">${st[1]}</span></h4>
+        <div class="dstats">${s.items.map(i => stat(i.label, `${esc(i.value)}${i.sub ? `<br><small class="dmuted">${esc(i.sub)}</small>` : ''}`)).join('')}</div>
+        ${finds || (s.status === 'ok' ? '<p class="dmuted">Nada para revisar.</p>' : '')}${btn ? `<div class="row dmrow">${btn}</div>` : ''}</section>`;
+    };
+    // primero lo grave
+    const order = d.sections.slice().sort((a, b) => ({ bad: 0, warn: 1, unknown: 2, ok: 3 }[a.status] - { bad: 0, warn: 1, unknown: 2, ok: 3 }[b.status]));
+    this.content(order.map(sec).join('') + '<p class="hint">Atalaya solo mira: no cambia nada. Estas revisiones se repiten cada 15 minutos; las actualizaciones, solo cuando usted lo pide.</p>');
   }
 
   renderProjects(d) {
