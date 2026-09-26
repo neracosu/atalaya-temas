@@ -113,7 +113,7 @@ export class Drawer {
         let r;
         if (bl.dataset.blockIp) {
           if (!(await ask({ title: `Bloquear ${bl.dataset.blockIp}`, danger: true, icon: 'jail', ok: 'Bloquear y llevar a la cárcel', body: 'No podrá entrar a <b>ningún sitio</b> del servidor hasta que venza el bloqueo; después sale sola. Puede liberarla antes desde la cárcel.' }))) return;
-          bl.disabled = true; bl.textContent = 'Bloqueando…'; r = await post('api/defense/block', { ip: bl.dataset.blockIp });
+          bl.disabled = true; bl.textContent = 'Bloqueando…'; r = await post('api/defense/block', { ip: bl.dataset.blockIp, reason: bl.dataset.reason || undefined });
         } else if (bl.dataset.unblockIp) { bl.disabled = true; r = await post('api/defense/unblock', { ip: bl.dataset.unblockIp }); }
         else {
           const box = bl.closest('.defbox');
@@ -645,6 +645,9 @@ export class Drawer {
       const rows = d.phpSus.map(x => `<div class="afind bad"><h5>${px('bad')} ${x.short ? `<code>${esc(x.short)}</code>` : 'Archivo PHP sospechoso'}</h5>
         <p>${x.why.map(esc).join(' · ')}</p>
         <p class="dmuted">${fmtBytes(x.size)} · modificado el ${new Date(x.mtime).toLocaleDateString('es-VE')}${x.existing ? ' · ya estaba cuando Atalaya empezó a vigilar' : ` · apareció hace ${ago(Date.now() - x.at)}`}</p>
+        ${x.hits && x.hits.length ? `<p><b>Quién lo buscó</b> <span class="dmuted">(pedir la ruta exacta de un archivo así delata a quien lo puso)</span></p><ul class="dlist">${x.hits.map(h => `<li><span class="grow"><span class="mono">${esc(h.ip)}</span> <span class="dmuted">· ${new Date(h.t).toLocaleString('es-VE', { hour12: false, day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' })} · respuesta ${h.status}${h.status === 200 ? ' (<b>lo ejecutó</b>)' : ''}</span></span>
+            ${h.jailed ? '<span class="pill ok">en la cárcel</span>' : h.blockable ? `<button class="btn small danger" data-block-ip="${esc(h.ip)}" data-reason="phpfile">Llevar a la cárcel</button>` : ''}</li>`).join('')}</ul>`
+          : x.hitCount ? `<p class="dmuted">${x.hitCount} petición(es) a este archivo en los registros.</p>` : '<p class="dmuted">Nadie lo pidió en los registros de este mes y el anterior.</p>'}
         ${x.path ? `<p class="row"><button class="btn small danger" data-php-q="${esc(x.path)}">Poner en cuarentena</button><button class="btn small ghost" data-php-ack="${esc(x.path)}">Marcar como revisado</button></p>` : ''}</div>`).join('');
       body.insertAdjacentHTML('afterbegin', `<section class="dsec"><h4>Archivos PHP sospechosos</h4>${rows}
         <p class="hint">Cuarentena: el archivo sale del sitio (deja de funcionar) y se guarda aparte, sin borrarse. Si no lo subió usted, cambie además las contraseñas de cPanel, FTP y WordPress y actualice plugins y temas.</p>${d.phpSus.some(x => x.path) ? '' : '<p class="dmuted">Active el modo privado para ver las rutas y actuar.</p>'}</section>`);

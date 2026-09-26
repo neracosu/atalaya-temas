@@ -278,7 +278,8 @@ export function tickerEvent(e, accounts, priv) {
     case 'phpfile': {
       const st = window.atalaya && window.atalaya.state;
       const nm = e.name || (st && (st.sites.find(x => x.id === e.site) || {}).name) || 'un sitio';
-      addTicker('bad', e.label || '', `Archivo PHP sospechoso en ${nm}${priv && e.path ? ': ' + e.path.replace(/^\/home\/[^/]+\//, '~/') : ''} · ${e.why || ''}`, '#ef4444', e.site ? 'site:' + e.site : null);
+      if (e.action === 'hit') addTicker('siren', e.label || '', `${priv && e.ip ? e.ip : 'Alguien'} pidió el archivo PHP sospechoso de ${nm} (respuesta ${e.status || '?'})`, '#ef4444', e.site ? 'site:' + e.site : null);
+      else addTicker('bad', e.label || '', `Archivo PHP sospechoso en ${nm}${priv && e.path ? ': ' + e.path.replace(/^\/home\/[^/]+\//, '~/') : ''} · ${e.why || ''}`, '#ef4444', e.site ? 'site:' + e.site : null);
       return;
     }
     case 'saturation':
