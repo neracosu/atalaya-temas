@@ -9,12 +9,15 @@ import { buildPin } from './pin.js';
 import { Drawer } from './drawer.js';
 import { withFavicons, clearFavicons } from './favicons.js';
 import { showTip, hideTip, openLegend } from './tips.js';
+import { CommFx } from './commfx.js';
 
 const $ = id => document.getElementById(id);
 const post = (url, body = {}) => fetch(url, { method: 'POST', headers: { 'Content-Type': 'application/json', 'X-Atalaya': '1' }, body: JSON.stringify(body) })
   .then(async r => { const j = await r.json().catch(() => ({})); if (r.status === 401 && url !== 'api/private') location.href = 'login'; if (!r.ok) throw new Error(j.error || 'Error'); return j; });
 
 let hello = null, state = null, chartsReady = false, loadedVersion = null;
+// encargos, resultados, mensajes y el haz al proyecto, encima de cualquier tema
+const comm = new CommFx(() => world);
 // el mundo lo pone el tema activo (web/themes/<id>); cambia en caliente
 let world = null;
 const tm = new ThemeManager($('world'), w => {
@@ -22,7 +25,7 @@ const tm = new ThemeManager($('world'), w => {
   w.onSelect = (kind, id) => { hideTip(); drawer.open(kind, id); };
   w.onTip = (t, x, y) => (t ? showTip(t, x, y) : hideTip());
   w.onNav = onNav;
-  window.atalaya = { world: w, drawer, themes: tm }; // referencia para depurar desde la consola
+  window.atalaya = { world: w, drawer, themes: tm, comm }; // referencia para depurar desde la consola
 });
 
 // ---------------------------------------------------------------- detalle y navegacion
@@ -106,7 +109,9 @@ function applyMode(h) {
   document.querySelectorAll('.owneronly').forEach(b => { b.hidden = h.role !== 'owner'; });
   // Atalaya Cloud: sin servidor propio (ni metricas de maquina ni instalar en otro servidor)
   document.body.classList.toggle('ed-cloud', h.edition === 'cloud');
-  document.querySelectorAll('.nocloud').forEach(b => { b.hidden = b.hidden || h.edition === 'cloud'; });
+  document.body.classList.toggle('ed-equipo', h.edition === 'equipo');
+  document.querySelectorAll('.nocloud').forEach(b => { b.hidden = b.hidden || h.edition === 'cloud' || h.edition === 'equipo'; });
+  document.querySelectorAll('.noequipo').forEach(b => { b.hidden = b.hidden || h.edition === 'equipo'; });
   $('version').textContent = `${h.title} v${h.version}`;
   // tras una actualizacion, las novedades se muestran una vez
   let seen = null; try { seen = localStorage.getItem('atalaya_seen_version'); localStorage.setItem('atalaya_seen_version', h.version); } catch { }
@@ -403,12 +408,14 @@ function connect() {
   });
   es.addEventListener('state', e => {
     state = JSON.parse(e.data);
+    if (window.atalaya) window.atalaya.state = state;
     withFavicons(state.apps); withFavicons(state.sites);
     renderState(state);
     tm.update(state);
   });
   es.addEventListener('ev', e => {
     const ev = JSON.parse(e.data);
+    comm.onEvent(ev);
     if (world) world.onEvent(ev, state?.priv);
     if (state) tickerEvent(ev, state.accounts, state.priv);
   });

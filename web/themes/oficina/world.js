@@ -18,6 +18,7 @@ import { signCanvas } from '../../js/sprites.js';
 import { groupsOf, layoutKeyOf, packRows, iconURL, plaqueList, healthLine } from '../../js/layout.js';
 import { esc, fmtBytes } from '../../js/hud.js';
 import { accountCaption } from '../../js/accounts.js';
+import { pixiScreen } from '../../js/commfx.js';
 
 const TW = 64, TH = 32, WALL = 104, PX = 2; // tile isometrico, alto de pared, escala del pixel art
 const iso = (gx, gy) => ({ x: (gx - gy) * TW / 2, y: (gx + gy) * TH / 2 });
@@ -223,6 +224,12 @@ export default class OficinaWorld {
     this.app.ticker.add(tk => this.tick(tk.deltaMS / 1000));
     window.addEventListener('resize', () => this.fit(), sig);
   }
+  // donde esta cada cosa en la pantalla (comunicacion entre agentes); los subagentes van junto a su sesion
+  screenOf(kind, id) {
+    if (kind === 'session' || kind === 'agent') return pixiScreen(this.app, this.mates.get(String(id).split('/')[0]));
+    return pixiScreen(this.app, this.desks.get(id));
+  }
+
   destroy() { this.ac.abort(); this.plaques.remove(); this.app.destroy({ removeView: true }, { children: true }); }
   setInsets(ins) { this.insets = ins; this.fit(); }
 

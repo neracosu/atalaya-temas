@@ -51,6 +51,14 @@ export default class TerminalWorld {
     this.timer = setInterval(() => this.tick(), 250);
     this.place();
   }
+  // donde esta cada cosa en la pantalla (comunicacion entre agentes): la linea del proyecto o el proceso claude
+  screenOf(kind, id) {
+    const el = kind === 'session' || kind === 'agent' ? this.root.querySelector(`[data-go="session:${CSS.escape(String(id).split('/')[0])}"]`) : this.rows.get(id)?.line;
+    if (!el || !el.offsetParent) return null;
+    const r = el.getBoundingClientRect();
+    return { x: r.left + Math.min(r.width, 160), y: r.top + r.height / 2 };
+  }
+
   destroy() { this.ac.abort(); clearInterval(this.timer); this.root.remove(); }
 
   // una ventana: barra de titulo con caracteres de caja y un cuerpo de lineas

@@ -6,6 +6,7 @@ import { STATION_TIPS } from './tips.js';
 import { esc, fmtBytes } from './hud.js';
 import { accountCaption } from './accounts.js';
 import { healthLine } from './layout.js';
+import { pixiScreen } from './commfx.js';
 
 const TW = 64, TH = 32; // tile isometrico
 const iso = (gx, gy) => ({ x: (gx - gy) * TW / 2, y: (gx + gy) * TH / 2 });
@@ -17,6 +18,8 @@ function mix(c1, c2, t) {
   return (Math.round(r) << 16) | (Math.round(g) << 8) | Math.round(b);
 }
 const STATIONS = ['desk', 'library', 'workshop', 'terminal', 'antenna', 'portal'];
+// nombre visible de cada estacion (lo que esta haciendo el agente que se para ahi)
+const STATION_NAME = { desk: 'En pausa', library: 'Leyendo', workshop: 'Editando', terminal: 'Terminal', antenna: 'Web', portal: 'Subagentes' };
 const STATUS_COLOR = { online: 0x22c55e, degraded: 0xf59e0b, down: 0xef4444 };
 const PIXEL_FONT = { fontFamily: 'Silkscreen, monospace' };
 const UI_FONT = { fontFamily: 'Space Grotesk, system-ui, sans-serif' };
@@ -272,6 +275,12 @@ export class World {
   }
 
   // al cambiar de tema: quita escuchas, canvas y objetos (las texturas compartidas quedan en cache)
+  // donde esta cada cosa en la pantalla (para la comunicacion entre agentes, web/js/commfx.js)
+  screenOf(kind, id) {
+    if (kind === 'session' || kind === 'agent') return pixiScreen(this.app, this.robots.get(id));
+    return pixiScreen(this.app, this.buildings.get(id));
+  }
+
   destroy() {
     this.ac.abort();
     this.app.destroy({ removeView: true }, { children: true });
@@ -339,21 +348,44 @@ export class World {
   }
 
   makeStations(d, origin) {
-    // fila de 6 estaciones en el frente de la parcela
-    const pts = {};
+    // fila de 6 estaciones en el frente de la parcela, cada una con su nombre debajo: se entiende que hace
+    // cada agente sin pasar el mouse. Vacia queda tenue; ocupada se enciende (anillo, icono y nombre).
+    const pts = {}, items = {};
     const cont = new Container();
     STATIONS.forEach((s, i) => {
-      const p = { x: origin.x + (i - 2.5) * 70, y: origin.y + (i % 2) * 8 };
+      const p = { x: origin.x + (i - 2.5) * 92, y: origin.y + (i % 2) * 8 };
       pts[s] = p;
-      const pad = new Graphics().ellipse(0, 0, 26, 11).fill({ color: 0x0f172a, alpha: 0.9 }).stroke({ width: 1, color: 0x334155 });
-      const ic = new Sprite(iconTexture(s)); ic.anchor.set(0.5, 1); ic.scale.set(3.4);
-      pad.x = p.x; pad.y = p.y; ic.x = p.x; ic.y = p.y - 2;
+      const pad = new Graphics().ellipse(0, 0, 28, 12).fill({ color: 0x0f172a, alpha: 0.9 }).stroke({ width: 1, color: 0x334155 });
+      const ring = new Graphics().ellipse(0, 0, 32, 14).stroke({ width: 3, color: 0x22d3ee });
+      const ic = new Sprite(iconTexture(s)); ic.anchor.set(0.5, 1); ic.scale.set(3.6);
+      const name = label(STATION_NAME[s], 13, 0x8a9ab3, UI_FONT);
+      pad.x = ring.x = ic.x = name.x = p.x; pad.y = ring.y = p.y; ic.y = p.y - 2; name.y = p.y + 24;
+      ring.alpha = 0; ic.alpha = 0.55; name.alpha = 0.6;
       this.hoverTip(ic, () => ({ title: STATION_TIPS[s][0], body: STATION_TIPS[s][1] }));
-      ic.alpha = 0.85;
-      cont.addChild(pad, ic);
+      cont.addChild(ring, pad, ic, name);
+      items[s] = { ring, ic, name, on: false };
     });
     this.ground.addChild(cont);
-    return { pts, cont };
+    return { pts, cont, items };
+  }
+
+  // estaciones ocupadas: se encienden con el color de quien las usa
+  lightStations(occupancy) {
+    for (const [acc, st] of this.stations) {
+      if (!st.items) continue;
+      for (const [s, it] of Object.entries(st.items)) {
+        const on = occupancy.has(acc + '/' + s) || (s === 'desk' && occupancy.has(acc + '/waiting'));
+        const wait = s === 'desk' && occupancy.has(acc + '/waiting');
+        if (on === it.on && wait === it.wait) continue;
+        it.on = on; it.wait = wait;
+        it.ic.alpha = on ? 1 : 0.55;
+        it.name.alpha = on ? 1 : 0.6;
+        it.name.style.fill = on ? (wait ? 0xfbbf24 : 0xf1f5f9) : 0x8a9ab3;
+        it.name.text = wait ? 'Espera su respuesta' : STATION_NAME[s];
+        it.ring.clear().ellipse(0, 0, 32, 14).stroke({ width: 3, color: wait ? 0xfbbf24 : on ? hex(this.colorOf(acc === 'root' ? 'root' : acc)) : 0x22d3ee });
+        it.ring.alpha = on ? 0.9 : 0;
+      }
+    }
   }
 
   // --- distribucion de distritos alrededor de la torre
@@ -678,9 +710,10 @@ export class World {
   stationPoint(account, station, slot) {
     const st = this.stations.get(account) || this.stations.get('root');
     const p = st.pts[station === 'waiting' ? 'desk' : station] || st.pts.desk;
+    // adelante y a la derecha del icono (no encima): el icono y su nombre siguen a la vista
     const ang = slot * 2.4;
-    const r = slot ? 26 + slot * 4 : 0;
-    return { x: p.x + Math.cos(ang) * r, y: p.y - 6 + Math.sin(ang) * r * 0.5 };
+    const r = slot ? 18 + slot * 4 : 0;
+    return { x: p.x + 38 + Math.cos(ang) * r, y: p.y + 10 + Math.sin(ang) * r * 0.5 };
   }
 
   syncRobots(sessions, accounts) {
@@ -719,6 +752,7 @@ export class World {
     for (const [k, r] of this.robots) {
       if (!seen.has(k)) { this.beamFx(r.x, r.y, 0xffffff); r.destroy({ children: true }); this.robots.delete(k); }
     }
+    this.lightStations(occupancy);
   }
 
   robotFor(e) {

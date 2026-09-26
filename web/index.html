@@ -39,7 +39,7 @@
       <button data-act="lockall">Bloquear todas las pantallas</button>
       <button data-act="setup" class="owneronly">Asistente de configuración</button>
       <button data-act="install" class="owneronly nocloud">Instalar en otro servidor</button>
-      <button data-act="hosting" class="owneronly">Conectar un hosting compartido</button>
+      <button data-act="hosting" class="owneronly noequipo">Conectar un hosting compartido</button>
       <button data-act="logout">Cerrar sesión</button>
       <span class="mver" id="version"></span>
     </div>
@@ -53,7 +53,7 @@
 </aside>
 
 <aside id="right" class="panel">
-  <section class="link sysonly" data-go="system:root">
+  <section class="link syschart" data-go="system:root">
     <h2><span class="pix">CPU y memoria</span><span class="legend"><i class="sw cpu"></i>CPU <i class="sw mem"></i>RAM</span></h2>
     <div class="chart" id="chCpu"></div>
   </section>
@@ -61,7 +61,7 @@
     <h2><span class="pix">Tráfico HTTP</span><span class="legend"><i class="sw req"></i>req / 10 s <i class="sw err"></i>5xx</span></h2>
     <div class="chart" id="chReq"></div>
   </section>
-  <section class="link sysonly" data-go="system:root">
+  <section class="link sysprocs" data-go="system:root">
     <h2><span class="pix">Procesos</span><span class="sub" id="procCount"></span></h2>
     <div id="procs" class="procs"></div>
   </section>

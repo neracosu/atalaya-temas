@@ -75,6 +75,19 @@ export class Stage3D {
     const loop = () => { this.raf = requestAnimationFrame(loop); this.tick(Math.min(this.clock.getDelta(), 0.1)); };
     loop();
   }
+  // donde esta cada cosa en la pantalla (comunicacion entre agentes, web/js/commfx.js): se busca entre lo
+  // que se puede tocar y se proyecta a la ventana; los subagentes van junto a su sesion
+  screenOf(kind, id) {
+    const k = kind === 'agent' ? 'session' : kind, want = kind === 'agent' ? String(id).split('/')[0] : id;
+    const o = this.pickables.find(m => m.userData && m.userData.id === want && (m.userData.kind === k || (k !== 'session' && (m.userData.kind === 'app' || m.userData.kind === 'site'))));
+    if (!o || !o.visible) return null;
+    const v = new THREE.Vector3();
+    o.getWorldPosition(v); v.project(this.camera);
+    if (v.z > 1 || Math.abs(v.x) > 1.05 || Math.abs(v.y) > 1.05) return null;
+    const r = this.renderer.domElement.getBoundingClientRect();
+    return { x: r.left + (v.x + 1) / 2 * r.width, y: r.top + (1 - v.y) / 2 * r.height };
+  }
+
   destroy() {
     this.ac.abort(); cancelAnimationFrame(this.raf);
     this.scene.traverse(o => { if (o.geometry) o.geometry.dispose(); if (o.material) [].concat(o.material).forEach(m => { if (m.map) m.map.dispose(); m.dispose(); }); });

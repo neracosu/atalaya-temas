@@ -101,6 +101,7 @@ Métodos que la pantalla llama:
 | `setDirector(bool)`, `directorOn` | Modo director (cámara automática), tecla D |
 | `resetView()`, `zoomBy(f)` | Botones de navegación |
 | `navChanged()` | Avisar el estado de la cámara con `onNav({ mode: 'director' \| 'fixed' \| 'manual', left })` |
+| `screenOf(kind, id)` | *Opcional.* Dónde está en la ventana una sesión (`'session'`, id de la sesión), un subagente (`'agent'`, `sesión/agente`) o un proyecto (`'app'` o `'site'`): `{ x, y }` en píxeles, o `null`. Con esto la comunicación entre agentes (encargos, resultados, mensajes y el haz al proyecto que se edita) se dibuja sobre su mundo; sin esto, entre las tarjetas del panel de agentes. En Pixi, `pixiScreen(app, objeto)` de `../../js/commfx.js` lo resuelve; los temas sobre `Stage3D` ya lo traen. |
 
 Callbacks que la pantalla le asigna al mundo:
 

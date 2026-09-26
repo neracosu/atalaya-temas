@@ -11,6 +11,7 @@ import { signTexture } from '../../js/sprites.js';
 import { esc, fmtBytes } from '../../js/hud.js';
 import { accountCaption } from '../../js/accounts.js';
 import { healthLine } from '../../js/layout.js';
+import { pixiScreen } from '../../js/commfx.js';
 
 const U = 16; // una casilla = 16 pixeles de arte
 const FONT_T = "'Jacquard 24', 'Pixelify Sans', serif";
@@ -180,6 +181,12 @@ export default class VillaWorld {
     this.app.ticker.add(tk => this.tick(Math.min(tk.deltaMS / 1000, 0.1)));
     window.addEventListener('resize', () => this.fit(true), sig);
   }
+  // donde esta cada cosa en la pantalla (comunicacion entre agentes); los subagentes van junto a su sesion
+  screenOf(kind, id) {
+    if (kind === 'session' || kind === 'agent') return pixiScreen(this.app, this.mages.get(String(id).split('/')[0]));
+    return pixiScreen(this.app, this.houses.get(id));
+  }
+
   destroy() { this.ac.abort(); this.app.destroy({ removeView: true }, { children: true }); }
 
   // ------------------------------------------------------------------ el mapa
