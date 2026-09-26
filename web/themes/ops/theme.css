@@ -107,3 +107,6 @@ body[data-theme="ops"] #log { align-items: stretch; width: 100%; min-width: 0; w
 body[data-theme="ops"] #log .ev, body[data-theme="ops"] #log .ev.link { display: block; width: 100%; max-width: none; text-align: right; white-space: normal; overflow-wrap: anywhere; overflow: visible; text-overflow: clip; }
 body[data-theme="ops"] #log .ev .ic { display: inline-block; vertical-align: -2px; }
 body[data-theme="ops"] #log .ev > * + * { margin-left: .4rem; }
+
+/* area libre del mundo: entre las escuadras (abajo a la izquierda) y la columna de la derecha, sobre la barra de navegacion */
+body[data-theme="ops"] #worldArea { display: block; top: 5.4rem; bottom: 5rem; left: calc(clamp(260px, 20vw, 520px) + 2rem); right: calc(clamp(280px, 22vw, 560px) + 2rem); }
