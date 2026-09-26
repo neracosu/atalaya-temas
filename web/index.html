@@ -55,15 +55,15 @@
 </aside>
 
 <aside id="right" class="panel">
-  <section class="link syschart" data-go="system:root">
+  <section class="link syschart" data-go="metric:cpu">
     <h2><span class="pix">CPU y memoria</span><span class="legend"><i class="sw cpu"></i>CPU <i class="sw mem"></i>RAM</span></h2>
     <div class="chart" id="chCpu"></div>
   </section>
-  <section>
+  <section class="link" data-go="metric:req">
     <h2><span class="pix">Tráfico HTTP</span><span class="legend"><i class="sw req"></i>req / 10 s <i class="sw err"></i>5xx</span></h2>
     <div class="chart" id="chReq"></div>
   </section>
-  <section class="link sysprocs" data-go="system:root">
+  <section class="link sysprocs" data-go="metric:procs">
     <h2><span class="pix">Procesos</span><span class="sub" id="procCount"></span></h2>
     <div id="procs" class="procs"></div>
   </section>
@@ -71,7 +71,7 @@
     <h2><span class="pix">Proyectos</span><span class="sub" id="projSub"></span></h2>
     <div class="mini" id="proj"><span class="dmuted">Conecte GitHub o Vercel para armar el mapa.</span></div>
   </section>
-  <section class="link sysonly" data-go="system:root" data-tip="Salud del servidor|Respaldos, actualizaciones, cola de correo, tareas cron y puertos abiertos, revisados en solo lectura cada 15 minutos.">
+  <section class="link sysonly" data-go="audit:all" data-tip="Salud del servidor|Respaldos, actualizaciones, cola de correo, tareas cron y puertos abiertos, revisados en solo lectura cada 15 minutos.">
     <h2><span class="pix">Salud del servidor</span><span class="sub" id="healthSub"></span></h2>
     <div class="health" id="health"><span class="dmuted">Revisando…</span></div>
   </section>

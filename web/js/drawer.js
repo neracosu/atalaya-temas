@@ -256,12 +256,19 @@ export class Drawer {
 
   // panel de un indicador de la barra superior
   renderMetric(d) {
-    const T = { cpu: ['CPU', 'terminal'], mem: ['Memoria', 'library'], disk: ['Disco', 'desk'], load: ['Carga del servidor', 'workshop'], net: ['Red', 'antenna'], req: ['Visitas', 'portal'], err: ['Errores 5xx', 'terminal'] }[d.id] || ['Detalle', 'desk'];
+    const T = { procs: ['Procesos', 'terminal'], cpu: ['CPU', 'terminal'], mem: ['Memoria', 'library'], disk: ['Disco', 'desk'], load: ['Carga del servidor', 'workshop'], net: ['Red', 'antenna'], req: ['Visitas', 'portal'], err: ['Errores 5xx', 'terminal'] }[d.id] || ['Detalle', 'desk'];
     const s = d.system || {};
     const pctBar = (label, v, total, extra = '') => `<li class="bar"><span class="grow">${label}${extra}</span><span class="bw"><i style="width:${Math.min(100, total ? v / total * 100 : v).toFixed(1)}%;${(total ? v / total * 100 : v) > 85 ? 'background:#f87171' : ''}"></i></span><span class="mono">${total ? fmtBytes(v) : v.toFixed(1) + '%'}</span></li>`;
     const procs = list => `<ul class="dlist">${(list || []).map(p => `<li><span class="mono grow">${esc(p.comm)} <span class="dmuted">×${p.n}</span></span><span class="mono">${p.cpu.toFixed(1)}%</span><span class="mono dmuted">${fmtBytes(p.mem)}</span></li>`).join('')}</ul>`;
     const line = (title, series, fmt, range, min) => ({ title, series: series.map(([stroke, fill]) => ({ stroke, width: 2, fill, points: { show: false } })), fmt, range, min });
     switch (d.id) {
+      case 'procs': {
+        this.setHead('metric:procs', iconCanvas(T[1], 4), 'Procesos', `${fmtNum(d.procs || 0)} procesos · ${d.cores || '?'} núcleos`, '');
+        this.content(`<section class="dsec"><h4>Los que más CPU usan</h4>${procs(d.top)}</section>
+          <section class="dsec"><h4>Los que más memoria usan</h4>${procs(d.topMem)}</section>
+          <p class="hint">Agrupados por programa (×N = cuántos procesos de ese programa). Para ver la CPU por núcleo: <a data-go="metric:cpu">CPU</a> · memoria: <a data-go="metric:mem">Memoria</a>.</p>`);
+        return;
+      }
       case 'cpu': {
         this.setHead('metric:cpu', iconCanvas(T[1], 4), 'CPU', `${s.cores} núcleos · carga ${s.load ? s.load[0].toFixed(2) : '–'}`, `<span class="pill ${s.cpu > 90 ? 'bad' : s.cpu > 70 ? 'warn' : 'ok'}">${(s.cpu || 0).toFixed(0)}%</span>`);
         this.frame([line('Uso total · 10 min', [['#22d3ee', 'rgba(34,211,238,.1)']], v => v + '%', [0, 100])]);
@@ -747,7 +754,15 @@ export class Drawer {
     return `<span class="pill ${bad ? 'bad' : warn ? 'warn' : 'ok'}">${bad ? bad + ' grave' + (bad === 1 ? '' : 's') : warn ? warn + ' para revisar' : 'en orden'}</span>`;
   }
   renderAudit(d) {
-    const cv = document.createElement('div'); cv.className = 'dswatch'; cv.innerHTML = px('shield', 'big');
+    // un chip de la salud abre solo su revision; «Salud del servidor» las abre todas
+    const one = d.focus && d.sections.find(x => x.id === d.focus);
+    const cv = document.createElement('div'); cv.className = 'dswatch'; cv.innerHTML = px(one ? one.icon : 'shield', 'big');
+    if (one) {
+      const h = { ...d, sections: [one] };
+      this.setHead('audit:' + one.id, cv, one.title, `Revisado hace ${ago(Date.now() - d.t)} · parte de la Salud del servidor`, this.healthPill(h));
+      this.content(this.healthHtml(h, false).replace(/<p class="hint">[\s\S]*$/, '') + '<p class="dlinks"><a data-go="audit:all">' + px('shield') + ' Ver toda la salud del servidor</a></p>');
+      return;
+    }
     this.setHead('audit:all', cv, 'Salud del servidor', `Revisado hace ${ago(Date.now() - d.t)} · solo lectura`, this.healthPill(d));
     this.content(this.healthHtml(d, false));
   }

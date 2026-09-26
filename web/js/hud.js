@@ -200,7 +200,7 @@ function renderHealth(list) {
   if (!list || !list.length) return;
   const LBL = { ok: 'en orden', warn: 'para revisar', bad: 'grave', unknown: 'sin revisar' };
   const SHORT = { backups: 'Respaldos', updates: 'Paquetes', mail: 'Correo', cron: 'Cron', ports: 'Puertos' };
-  el.innerHTML = list.map(h => `<span class="hchip ${h.status}" title="${esc(h.title)}: ${LBL[h.status] || h.status}">${px(h.icon)}<i>${esc(SHORT[h.id] || h.title)}</i><b>${h.bad + h.warn || (h.status === 'unknown' ? '?' : '')}</b></span>`).join('');
+  el.innerHTML = list.map(h => `<span class="hchip ${h.status}" data-go="audit:${esc(h.id)}" title="${esc(h.title)}: ${LBL[h.status] || h.status}">${px(h.icon)}<i>${esc(SHORT[h.id] || h.title)}</i><b>${h.bad + h.warn || (h.status === 'unknown' ? '?' : '')}</b></span>`).join('');
   const bad = list.reduce((n, h) => n + h.bad, 0), warn = list.reduce((n, h) => n + h.warn, 0);
   $('healthSub').textContent = bad ? `${bad} grave${bad === 1 ? '' : 's'}${warn ? ` · ${warn} para revisar` : ''}` : warn ? `${warn} para revisar` : 'en orden';
   $('healthSub').className = 'sub ' + (bad ? 'bad' : warn ? 'warn' : 'ok');
