@@ -19,6 +19,8 @@ function mix(c1, c2, t) {
 }
 const STATIONS = ['desk', 'library', 'workshop', 'terminal', 'antenna', 'portal'];
 // nombre visible de cada estacion (lo que esta haciendo el agente que se para ahi)
+// ancho de una fila de estaciones: 6 estaciones a 92 px, mas el robot al costado y los nombres
+const STATION_GAP = 92, STATION_ROW = STATION_GAP * 5 + 160;
 const STATION_NAME = { desk: 'En pausa', library: 'Leyendo', workshop: 'Editando', terminal: 'Terminal', antenna: 'Web', portal: 'Subagentes' };
 const STATUS_COLOR = { online: 0x22c55e, degraded: 0xf59e0b, down: 0xef4444 };
 const PIXEL_FONT = { fontFamily: 'Silkscreen, monospace' };
@@ -353,7 +355,7 @@ export class World {
     const pts = {}, items = {};
     const cont = new Container();
     STATIONS.forEach((s, i) => {
-      const p = { x: origin.x + (i - 2.5) * 92, y: origin.y + (i % 2) * 8 };
+      const p = { x: origin.x + (i - 2.5) * STATION_GAP, y: origin.y + (i % 2) * 8 };
       pts[s] = p;
       const pad = new Graphics().ellipse(0, 0, 28, 12).fill({ color: 0x0f172a, alpha: 0.9 }).stroke({ width: 1, color: 0x334155 });
       const ring = new Graphics().ellipse(0, 0, 32, 14).stroke({ width: 3, color: 0x22d3ee });
@@ -408,7 +410,9 @@ export class World {
       const cols = Math.max(2, Math.ceil(Math.sqrt(n)));
       const rows = Math.ceil(n / cols);
       const W = cols * 4 + 1, H = rows * 4 + 1;
-      const sw = (W + H) * TW / 2, sh = (W + H) * TH / 2 + 180; // alto incluye edificios y estaciones
+      // ancho: la parcela o la fila de estaciones con sus nombres, lo que sea mayor (si no, las de distritos
+      // chicos vecinos se pisan); alto incluye edificios y estaciones
+      const sw = Math.max((W + H) * TW / 2, STATION_ROW), sh = (W + H) * TH / 2 + 180;
       return { a, n, cols, rows, W, H, sw, sh };
     }).sort((x, y) => y.n - x.n);
     // ranuras: der, izq, arriba-der, arriba-izq, abajo, abajo-der, abajo-izq
@@ -429,7 +433,7 @@ export class World {
         }
       }
       for (const it of items) { // no pisar la torre
-        const ox = it.sw / 2 + 200 - Math.abs(it.cx), oy = it.sh / 2 + 190 - Math.abs(it.cy);
+        const ox = it.sw / 2 + STATION_ROW / 2 - Math.abs(it.cx), oy = it.sh / 2 + 250 - Math.abs(it.cy);
         if (ox > 0 && oy > 0) { if (ox < oy) it.cx += (Math.sign(it.cx) || 1) * ox; else it.cy += (Math.sign(it.cy) || 1) * oy; }
       }
     }
