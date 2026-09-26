@@ -4,7 +4,7 @@ import { px } from './pixicons.js';
 import { robotTextures, monoTextures, iconTexture, signTexture, carTexture, suspectTexture, INVADER, ENVELOPE } from './sprites.js';
 import { STATION_TIPS } from './tips.js';
 import { esc, fmtBytes } from './hud.js';
-import { accountCaption } from './accounts.js';
+import { accountCaption, forEdition } from './accounts.js';
 import { healthLine } from './layout.js';
 import { pixiScreen } from './commfx.js';
 
@@ -385,7 +385,7 @@ export class World {
     // mastil
     tower.rect(-2, -h - hh - 40, 4, 40).fill(0x94a3b8);
     radar.y = -h - hh - 40;
-    const name = label('TORRE DE CONTROL', 20, 0xe6edf7);
+    const name = label('TORRE DE CONTROL', 20, 0xe6edf7); this.hqName = name;
     name.y = TH * S + 26;
     this.hqTag = label('apache · mariadb · exim', 13, 0x6b7a93);
     this.hqTag.y = TH * S + 50;
@@ -951,6 +951,7 @@ export class World {
     this.hq.alarm = (state.keys || []).filter(k => k.state === 'failed').map(k => k.label);
     if (state.jail) this.drawJail(state.jail.n);
     this.lastQueue = state.mailQueue; this.drawPost(state.mailQueue);
+    if (this.hqName) { const n = forEdition('TORRE DE CONTROL'); if (this.hqName.text !== n) this.hqName.text = n; }
     this.updateSilos(state.silos);
     // servidor al limite: los autos hacen fila en el peaje y avanzan lento (atasco)
     const jam = !!(state.saturation && state.saturation.level === 'bad');

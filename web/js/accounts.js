@@ -22,3 +22,13 @@ export function countsByAccount(state) {
   for (const s of state.sites || []) (c[s.account] = c[s.account] || { apps: 0, sites: 0 }).sites++;
   return c;
 }
+
+// Edicion Equipo (una computadora, no un servidor): los textos que dicen «servidor» o «torre de control» pasan a
+// decir «este equipo». Los temas conservan su metafora (filtro, torre del reloj, base...).
+export function onThisPc() { return typeof document !== 'undefined' && document.body.classList.contains('ed-equipo'); }
+export function forEdition(text) {
+  if (!text || !onThisPc()) return text;
+  return String(text).replace(/TORRE DE CONTROL/g, 'ESTE EQUIPO').replace(/Torre de control/g, 'Este equipo').replace(/Sala de servidores/g, 'Este equipo')
+    .replace(/El <b>servidor<\/b>/g, 'Esta <b>computadora</b>').replace(/\bel servidor\b/g, 'este equipo').replace(/\bEl servidor\b/g, 'Este equipo')
+    .replace(/\bdel servidor\b/g, 'de este equipo').replace(/\bservidor\b/g, 'equipo').replace(/\bServidor\b/g, 'Equipo');
+}

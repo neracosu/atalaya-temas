@@ -6,6 +6,7 @@ import { px } from './pixicons.js';
 import uPlot from '../vendor/uPlot.esm.js';
 import { signCanvas, robotCanvas, iconCanvas } from './sprites.js';
 import { ask } from './ask.js';
+import { forEdition } from './accounts.js';
 import { esc, fmtBytes, fmtNum, ago } from './hud.js';
 
 // version de las definiciones (que se detecta y como resolverlo), que se actualizan solas como un antivirus
@@ -605,7 +606,7 @@ export class Drawer {
 
   renderSystem(d) {
     const s = d.system;
-    this.setHead('system', iconCanvas('terminal', 4), 'Torre de control', d.host ? esc(d.host) : 'El servidor completo', d.health ? this.healthPill(d.health) : '');
+    this.setHead('system', iconCanvas('terminal', 4), forEdition('Torre de control'), d.host ? esc(d.host) : forEdition('El servidor completo'), d.health ? this.healthPill(d.health) : '');
     this.frame([{ title: 'CPU y memoria · 10 min', range: [0, 100], fmt: v => v + '%',
       series: [{ stroke: '#22d3ee', width: 2, fill: 'rgba(34,211,238,.1)', points: { show: false } }, { stroke: '#a78bfa', width: 2, points: { show: false } }] }]);
     this.setChart(0, d.hist, [r => r.cpu, r => r.mem]);

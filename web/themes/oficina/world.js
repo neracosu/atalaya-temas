@@ -14,6 +14,7 @@
 //  - los avisos salen en GLOBOS de dialogo
 // Regla de oro: pixel art nitido para los muebles y la gente; los textos, siempre nitidos.
 import { Application, Container, Graphics, Sprite, Text, Texture, Rectangle } from '../../vendor/pixi.csp.mjs';
+import { forEdition } from '../../js/accounts.js';
 import { signCanvas } from '../../js/sprites.js';
 import { groupsOf, layoutKeyOf, packRows, iconURL, plaqueList, healthLine } from '../../js/layout.js';
 import { esc, fmtBytes } from '../../js/hud.js';
@@ -345,7 +346,7 @@ export default class OficinaWorld {
         this.racks.push({ s, led, gx: 0.5 + i * 1.2, gy: 0.5, ph: Math.random() * 6 });
       }
       this.place(room, coolerTex(), 3, 2.6, 16, 36);
-      room.label = this.roomLabel(room, 'Sala de servidores', '', '#4f9dff');
+      room.label = this.roomLabel(room, forEdition('Sala de servidores'), '', '#4f9dff'); // edicion Equipo: «este equipo»
       // salud del servidor, bajo el titulo de la sala
       this.srvHealth = text('', 13, 0x4ade80, '700'); this.srvHealth.anchor.set(0.5, 1); this.srvHealth.y = -16 - 28; room.label.addChild(this.srvHealth);
       this.tappable(base, () => this.pick('system', 'root'), () => this.tipFor({ kind: 'system' }));

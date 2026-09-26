@@ -1,6 +1,7 @@
 // HUD tipo Grafana: KPIs, agentes, graficas, procesos y ticker de eventos
 import { animate, stagger } from '../vendor/anime.esm.min.js';
 import { px } from './pixicons.js';
+import { forEdition } from './accounts.js';
 import uPlot from '../vendor/uPlot.esm.js';
 
 const $ = id => document.getElementById(id);
@@ -261,7 +262,7 @@ export function tickerEvent(e, accounts, priv) {
       return;
     }
     case 'keysvc':
-      addTicker(e.action === 'down' ? 'siren' : 'ok', 'Torre de control', e.action === 'down' ? `${e.label} FALLÓ` : `${e.label} volvió a funcionar`, e.action === 'down' ? '#ef4444' : '#4ade80', 'system:root');
+      addTicker(e.action === 'down' ? 'siren' : 'ok', forEdition('Torre de control'), e.action === 'down' ? `${e.label} FALLÓ` : `${e.label} volvió a funcionar`, e.action === 'down' ? '#ef4444' : '#4ade80', 'system:root');
       return;
     case 'watch': {
       if (e.action !== 'start') return;
@@ -283,8 +284,8 @@ export function tickerEvent(e, accounts, priv) {
       return;
     }
     case 'saturation':
-      if (e.action === 'start') addTicker('fire', 'Torre de control', `Servidor al límite: ${(e.causes || []).join(', ')}`, '#ef4444', 'system:root');
-      else addTicker('ok', 'Torre de control', 'El servidor volvió a tener margen', '#4ade80', 'system:root');
+      if (e.action === 'start') addTicker('fire', forEdition('Torre de control'), `${forEdition('Servidor')} al límite: ${(e.causes || []).join(', ')}`, '#ef4444', 'system:root');
+      else addTicker('ok', forEdition('Torre de control'), forEdition('El servidor volvió a tener margen'), '#4ade80', 'system:root');
       return;
     case 'defense': {
       const st = window.atalaya && window.atalaya.state;

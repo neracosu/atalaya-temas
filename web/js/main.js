@@ -12,6 +12,7 @@ import { showTip, hideTip, openLegend } from './tips.js';
 import { CommFx } from './commfx.js';
 import { ask } from './ask.js';
 import { Director } from './director.js';
+import { forEdition } from './accounts.js';
 
 const $ = id => document.getElementById(id);
 const post = (url, body = {}) => fetch(url, { method: 'POST', headers: { 'Content-Type': 'application/json', 'X-Atalaya': '1' }, body: JSON.stringify(body) })
@@ -25,7 +26,7 @@ let world = null;
 const tm = new ThemeManager($('world'), w => {
   world = w;
   w.onSelect = (kind, id) => { hideTip(); drawer.open(kind, id); };
-  w.onTip = (t, x, y) => (t ? showTip(t, x, y) : hideTip());
+  w.onTip = (t, x, y) => (t ? showTip({ ...t, title: forEdition(t.title), body: forEdition(t.body) }, x, y) : hideTip()); // en la edicion Equipo, «este equipo»
   w.onNav = onNav;
   window.atalaya = { world: w, drawer, themes: tm, comm }; // referencia para depurar desde la consola
 });

@@ -7,6 +7,7 @@
 //  - los robots de Claude Code caminan por su distrito (pixel art); los invasores chocan contra el escudo
 // Regla de oro: la informacion vive en la ciudad (altura, luces, techos); el pixel art es el acento.
 import { Stage3D, THREE, color, clamp, billboard, rowsCanvas } from '../../js/stage3d.js';
+import { forEdition } from '../../js/accounts.js';
 import { signCanvas, robotCanvas, INVADER, ENVELOPE } from '../../js/sprites.js';
 import { esc, fmtBytes } from '../../js/hud.js';
 import { accountCaption } from '../../js/accounts.js';
@@ -188,6 +189,8 @@ export default class Ciudad3D extends Stage3D {
 
   // ------------------------------------------------------------------ estado
   update(state) {
+    // edicion Equipo: el edificio central es «este equipo»
+    if (this.hqLabel && this.hqLabel.d && forEdition('TORRE DE CONTROL') !== 'TORRE DE CONTROL' && !this.eqLabel) { this.eqLabel = true; this.hqLabel.d.innerHTML = this.hqLabel.d.innerHTML.replace('TORRE DE CONTROL', 'ESTE EQUIPO'); }
     this.state = state;
     this.layout(state);
     const top = new Set([...state.apps, ...(state.sites || [])].sort((x, y) => (y.reqMin || 0) - (x.reqMin || 0)).slice(0, 5).filter(x => x.reqMin > 0).map(x => x.id));
