@@ -280,6 +280,7 @@ export class World {
   // donde esta cada cosa en la pantalla (para la comunicacion entre agentes, web/js/commfx.js)
   screenOf(kind, id) {
     if (kind === 'gate') return pixiScreen(this.app, this.hwBar); // el peaje: de ahi salen los sondeos
+    if (kind === 'tower') return this.hq ? pixiScreen(this.app, this.hq.c) : null; // de aqui salen las patrullas
     if (kind === 'session' || kind === 'agent') return pixiScreen(this.app, this.robots.get(id));
     return pixiScreen(this.app, this.buildings.get(id));
   }

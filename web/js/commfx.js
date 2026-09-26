@@ -2,7 +2,7 @@
 // el resultado que vuelve, los mensajes (SendMessage) y el haz del agente al proyecto que lee o edita.
 // Cada tema dice donde esta cada cosa con world.screenOf(kind, id) -> { x, y } en pixeles de la ventana;
 // si no lo sabe, se usan las tarjetas del panel de agentes. Sobres y chispas en pixel art, textos nitidos.
-import { ENVELOPE, POLICE_CAR, PROBE_CAR, CAR_COLORS, paintCanvas } from './pixeldata.js';
+import { ENVELOPE, POLICE_CAR, FLY_POLICE, PROBE_CAR, CAR_COLORS, paintCanvas } from './pixeldata.js';
 
 const COLORS = { task: '#22d3ee', result: '#4ade80', message: '#c084fc', edit: '#fbbf24', read: '#38bdf8' };
 const LABEL = { task: 'encargo', result: 'resultado', message: 'mensaje' };
@@ -20,8 +20,8 @@ export class CommFx {
     for (const [k, c] of Object.entries(COLORS)) this.env[k] = paintCanvas(ENVELOPE, { x: c }, 1);
     this.still = matchMedia('(prefers-reduced-motion: reduce)').matches;
     // autos de perfil (2 cuadros: las luces alternan); se dibujan al doble, sin suavizar
-    this.cars = { police: POLICE_CAR.map(f => paintCanvas(f, CAR_COLORS, 1)), probe: PROBE_CAR.map(f => paintCanvas(f, CAR_COLORS, 1)) };
-    this.watch = [];
+    this.cars = { police: POLICE_CAR.map(f => paintCanvas(f, CAR_COLORS, 1)), fly: FLY_POLICE.map(f => paintCanvas(f, CAR_COLORS, 1)), probe: PROBE_CAR.map(f => paintCanvas(f, CAR_COLORS, 1)) };
+    this.patrols = new Map(); // sitio vigilado -> { w, phase: out | on | back, t0, park }
     this.resize = () => { const d = Math.min(2, devicePixelRatio || 1); this.dpr = d; this.cv.width = innerWidth * d; this.cv.height = innerHeight * d; };
     this.resize(); addEventListener('resize', this.resize);
     this.raf = 0;
@@ -141,46 +141,88 @@ export class CommFx {
     cx.restore();
   }
 
-  // vigilancia (del estado): patrullas estacionadas junto al edificio (escaneo o scraping) o reflectores (pico de
-  // visitas), con su cartel. Queda mientras el sitio siga en vigilancia.
+  // vigilancia (del estado). Escaneo o scraping: dos patrullas voladoras despegan de la torre de control,
+  // vuelan en arco hasta el edificio y quedan suspendidas a sus lados con las luces encendidas; cuando la
+  // amenaza se descarta, vuelven a la torre. Pico de visitas: reflectores sobre el edificio. Con su cartel.
   setWatch(list) {
-    this.watch = list || [];
-    if (this.watch.length) this.run();
+    const now = performance.now() / 1000, keys = new Set();
+    for (const w of list || []) {
+      const k = w.kind + ':' + w.id; keys.add(k);
+      const P = this.patrols.get(k);
+      if (!P) this.patrols.set(k, { w, phase: w.reason === 'surge' ? 'on' : 'out', t0: now, park: [] });
+      else { P.w = w; if (P.phase === 'back') { P.phase = 'out'; P.t0 = now; } }
+    }
+    for (const [k, P] of this.patrols) if (!keys.has(k) && P.phase !== 'back') {
+      if (P.w.reason === 'surge') this.patrols.delete(k); else { P.phase = 'back'; P.t0 = now; }
+    }
+    if (this.patrols.size) this.run();
   }
-  drawWatch(now) {
-    const { cx } = this;
-    for (const w of this.watch) {
-      const p = this.pos(w.kind, w.id);
-      if (!p || !p.world) continue;
-      const t = now / 1000;
+  // de donde salen: la torre de control del tema; si no la hay, el borde de la pantalla mas cercano
+  home(b) {
+    const w = this.getWorld();
+    let p = null;
+    try { p = w && w.screenOf ? w.screenOf('tower') : null; } catch { p = null; }
+    if (p && p.x > -200 && p.x < innerWidth + 200 && p.y > -200 && p.y < innerHeight + 200) return { x: p.x, y: p.y - 30 };
+    return b ? { x: b.x < innerWidth / 2 ? -60 : innerWidth + 60, y: Math.max(40, b.y - 160) } : null;
+  }
+  drawWatch(nowMs) {
+    const { cx } = this, t = nowMs / 1000;
+    const ease = u => (u < 0.5 ? 2 * u * u : 1 - (-2 * u + 2) ** 2 / 2);
+    for (const [k, P] of this.patrols) {
+      const w = P.w, b = this.pos(w.kind, w.id);
       if (w.reason === 'surge') {
+        if (!b) continue;
         // dos reflectores que barren el cielo desde el edificio
         for (const side of [-1, 1]) {
-          const a = -Math.PI / 2 + side * (0.35 + 0.25 * Math.sin(t * 1.3 + side));
-          const L = 120;
+          const a = -Math.PI / 2 + side * (0.35 + 0.25 * Math.sin(t * 1.3 + side)), L = 120;
           cx.globalAlpha = 0.22; cx.fillStyle = '#fde68a';
-          cx.beginPath(); cx.moveTo(p.x + side * 10, p.y - 10);
-          cx.lineTo(p.x + side * 10 + Math.cos(a - 0.09) * L, p.y - 10 + Math.sin(a - 0.09) * L);
-          cx.lineTo(p.x + side * 10 + Math.cos(a + 0.09) * L, p.y - 10 + Math.sin(a + 0.09) * L);
+          cx.beginPath(); cx.moveTo(b.x + side * 10, b.y - 10);
+          cx.lineTo(b.x + side * 10 + Math.cos(a - 0.09) * L, b.y - 10 + Math.sin(a - 0.09) * L);
+          cx.lineTo(b.x + side * 10 + Math.cos(a + 0.09) * L, b.y - 10 + Math.sin(a + 0.09) * L);
           cx.closePath(); cx.fill();
         }
         cx.globalAlpha = 1;
-      } else {
-        // dos patrullas a los lados del edificio, con las luces alternando
-        this.car('police', p.x - 46, p.y + 22, t + 0.3, false);
-        this.car('police', p.x + 46, p.y + 22, t, true);
-        // destello rojo y azul en el suelo
-        cx.globalAlpha = 0.18; cx.fillStyle = Math.floor(t * 6) % 2 ? '#ef4444' : '#3b82f6';
-        cx.fillRect(Math.round(p.x - 70), Math.round(p.y + 14), 140, 14); cx.globalAlpha = 1;
+        this.watchLabel(b, `PICO DE VISITAS · ${w.n}/min`, '#fbbf24');
+        continue;
       }
-      const label = w.reason === 'surge' ? `PICO DE VISITAS · ${w.n}/min` : w.reason === 'scraping' ? `EN VIGILANCIA · UNA IP · ${w.n} pedidos` : `EN VIGILANCIA · ${w.n} sondeos`;
-      const col = w.reason === 'surge' ? '#fbbf24' : '#ef4444';
-      cx.font = "700 11px 'Space Grotesk', system-ui, sans-serif"; cx.textAlign = 'center';
-      const tw = cx.measureText(label).width + 14, ly = Math.round(p.y - 58);
-      cx.fillStyle = 'rgba(5, 9, 18, .88)'; cx.fillRect(Math.round(p.x - tw / 2), ly - 13, Math.round(tw), 19);
-      cx.fillStyle = col; cx.fillRect(Math.round(p.x - tw / 2), ly - 13, 3, 19); cx.fillRect(Math.round(p.x - tw / 2), ly + 5, Math.round(tw), 1);
-      cx.fillStyle = col; cx.fillText(label, p.x + 1, ly + 1);
+      const home = this.home(b), e = t - P.t0;
+      let moving = false;
+      for (const i of [0, 1]) {
+        const side = i ? 1 : -1;
+        if (b) P.park[i] = { x: b.x + side * 48, y: b.y - 4 };
+        const park = P.park[i];
+        const hover = Math.sin(t * 2.2 + i * 1.7) * 3;
+        if (!park || !home) continue;
+        const from = P.phase === 'back' ? park : home, to = P.phase === 'back' ? home : park;
+        const d = Math.hypot(to.x - from.x, to.y - from.y), dur = this.still ? 0.6 : Math.min(3.2, Math.max(1.4, d / 300));
+        let u = P.phase === 'on' ? 1 : Math.min(1, Math.max(0, (e - i * 0.35) / dur));
+        if (P.phase !== 'on' && u < 1) moving = true;
+        if (P.phase === 'out' && u <= 0) continue; // todavia no despego
+        if (P.phase === 'back' && u >= 1) continue; // ya llego a la torre
+        const k2 = ease(u), lift = Math.min(170, 50 + d * 0.3);
+        const mx = (from.x + to.x) / 2, my = Math.min(from.y, to.y) - lift;
+        const x = (1 - k2) ** 2 * from.x + 2 * (1 - k2) * k2 * mx + k2 * k2 * to.x;
+        const y = (1 - k2) ** 2 * from.y + 2 * (1 - k2) * k2 * my + k2 * k2 * to.y + (P.phase === 'on' ? hover : 0);
+        // en vuelo mira hacia donde va; suspendida, hacia el edificio
+        const flip = P.phase === 'on' ? side > 0 : to.x < from.x;
+        this.car('fly', x, y, t + i * 0.3, flip);
+      }
+      if (P.phase === 'out' && !moving && e > 0.5) P.phase = 'on';
+      if (P.phase === 'back' && !moving && e > 0.5) { this.patrols.delete(k); continue; }
+      if (b && P.phase === 'on') {
+        cx.globalAlpha = 0.16; cx.fillStyle = Math.floor(t * 6) % 2 ? '#ef4444' : '#3b82f6';
+        cx.fillRect(Math.round(b.x - 72), Math.round(b.y + 14), 144, 12); cx.globalAlpha = 1;
+      }
+      if (b && P.phase !== 'back') this.watchLabel(b, w.reason === 'scraping' ? `EN VIGILANCIA · UNA IP · ${w.n} pedidos` : `EN VIGILANCIA · ${w.n} sondeos`, '#ef4444');
     }
+  }
+  watchLabel(p, label, col) {
+    const { cx } = this;
+    cx.font = "700 11px 'Space Grotesk', system-ui, sans-serif"; cx.textAlign = 'center';
+    const tw = cx.measureText(label).width + 14, ly = Math.round(p.y - 58);
+    cx.fillStyle = 'rgba(5, 9, 18, .88)'; cx.fillRect(Math.round(p.x - tw / 2), ly - 13, Math.round(tw), 19);
+    cx.fillStyle = col; cx.fillRect(Math.round(p.x - tw / 2), ly - 13, 3, 19); cx.fillRect(Math.round(p.x - tw / 2), ly + 5, Math.round(tw), 1);
+    cx.fillText(label, p.x + 1, ly + 1);
   }
 
   later(find, then, tries = 8) {
@@ -221,11 +263,11 @@ export class CommFx {
     cx.clearRect(0, 0, this.cv.width, this.cv.height);
     cx.setTransform(dpr, 0, 0, dpr, 0, 0);
     cx.imageSmoothingEnabled = false;
-    if (this.watch.length) this.drawWatch(now);
+    if (this.patrols.size) this.drawWatch(now);
     for (const f of this.fx) { f.t += dt; (f.type === 'packet' ? this.drawPacket : f.type === 'probe' ? this.drawProbe : f.type === 'warp' ? this.drawWarp : f.type === 'dbslow' ? this.drawDbSlow : f.type === 'spot' ? this.drawSpot : this.drawBeam).call(this, f); }
     // un archivo expuesto queda marcado 6 s; lo demas se va al terminar
     this.fx = this.fx.filter(f => f.t < f.dur + (f.type === 'probe' && f.exposed ? 6 : 0.35));
-    this.raf = this.fx.length || this.watch.length ? requestAnimationFrame(t => this.frame(t)) : 0;
+    this.raf = this.fx.length || this.patrols.size ? requestAnimationFrame(t => this.frame(t)) : 0;
     if (!this.raf) cx.clearRect(0, 0, innerWidth, innerHeight);
   }
 
