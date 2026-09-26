@@ -65,3 +65,10 @@ body[data-theme="acuario"] .dstat { background: #0b1e2d; }
 body[data-theme="acuario"] .btn { background: #16475b; border: 2px solid #3a8c8c; color: var(--ink); }
 body[data-theme="acuario"] .btn.ghost { background: none; }
 body[data-theme="acuario"] .cc { font-family: var(--font); background: #0b1e2d; border-color: #3a8c8c; }
+
+/* placas de las peceras: laton oscuro con remaches, la letra de la tienda */
+body[data-theme="acuario"] .w3-plaque { background: #0b1e2d; border: 0; box-shadow: var(--plaque); padding: .4em .6em .5em; }
+body[data-theme="acuario"] .w3-plaque > b { font-family: var(--pixel); font-weight: 700; color: var(--ink); }
+body[data-theme="acuario"] .w3-plaque .fishlist span { color: var(--ink); }
+body[data-theme="acuario"] .w3-plaque.w3-filter > b { border-color: #3ddbd9; }
+body[data-theme="acuario"] .w3-fish { font-family: var(--pixel); font-size: .8rem; background: rgba(8, 22, 32, .8); box-shadow: 0 0 0 1px #3a8c8c; }

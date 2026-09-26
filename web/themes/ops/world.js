@@ -1,492 +1,485 @@
-// Tema "Ops": radar tactico en pixel art (vista polar desde arriba).
-//  - el centro es la BASE (el servidor); cada cuenta es un SECTOR del radar
-//  - cada servicio o sitio es un contacto amigo; el barrido lo ilumina al pasar
-//  - las visitas son trazas que entran desde el borde; los ataques, contactos hostiles que chocan con el escudo
-//  - las sesiones de Claude Code son ESCUADRAS (triangulos) en su sector
-// Se dibuja a media resolucion y se escala sin suavizado: todo queda en pixeles gruesos.
-// Regla de oro del tema: nada redondeado, el color solo significa algo (amigo, alerta, hostil).
-import { Application, Container, Graphics, Text, Rectangle } from '/vendor/pixi.csp.mjs';
+// Tema "Ops": mesa tactica holografica en 3D (three.js), nitida y a resolucion completa.
+//  - la mesa es un disco con anillos y rumbos; cada cuenta es un SECTOR con su nombre (y su cuenta de cPanel)
+//  - cada servicio es una COLUMNA que sube con su CPU; cada sitio un PRISMA que sube con sus visitas;
+//    verde bien, ambar a medias, rojo parpadeando caido; encima, su cartel en pixel art
+//  - el BARRIDO gira y hace brillar cada columna al pasar
+//  - en el centro, la BASE (el servidor) con su CUPULA de escudo
+//  - cada visita es un punto de luz que cae en arco sobre su columna; cada intento de acceso, un MISIL
+//    rojo contra la cupula (si la IP queda bloqueada: NEUTRALIZADO)
+//  - cada sesion de Claude Code es un DRON sobre su sector (ambar con "!" si espera su permiso)
+// Regla de oro: geometria limpia y textos nitidos; el pixel art va en los carteles; el color solo
+// significa amigo, alerta u hostil.
+import * as THREE from '/vendor/three.module.min.js';
+import { signCanvas } from '/js/sprites.js';
 import { esc, fmtBytes } from '/js/hud.js';
 import { accountCaption } from '/js/accounts.js';
 
+const R = 10;
 const TAU = Math.PI * 2;
-const hexn = h => parseInt(String(h || '#ffffff').slice(1), 16);
 const clamp = (v, a, b) => Math.max(a, Math.min(b, v));
-const R = 460; // radio del radar en unidades de mundo
-const FONT = "'VT323', ui-monospace, monospace";
+const col = h => new THREE.Color(h);
 
 export default class OpsWorld {
   constructor(el, { manifest } = {}) {
     this.el = el;
     const p = (manifest && manifest.palette) || {};
-    this.C = { ok: hexn(p.ok || '#9fd356'), warn: hexn(p.warn || '#f5a524'), crit: hexn(p.crit || '#ff4d3d'), ink: hexn(p.ink || '#d9e3c8'),
-      dim: 0x4b5a3a, grid: 0x243020, bg: hexn(p.bg || '#0b0d09'), friendly: hexn(p.friendly || '#9fd356') };
-    this.blips = new Map(); this.sectors = new Map(); this.squads = new Map();
-    this.fx = []; this.t = 0; this.sweep = 0; this.layoutKey = '';
+    this.C = { ok: p.ok || '#9fd356', warn: p.warn || '#f5a524', crit: p.crit || '#ff4d3d', ink: p.ink || '#d9e3c8', bg: p.bg || '#0b0d09', grid: '#3a4a2c', dim: '#5d6e48' };
+    this.items = new Map(); this.sectors = new Map(); this.drones = new Map();
+    this.fx = []; this.t = 0; this.layoutKey = '';
     this.directorOn = true; this.insets = { top: 0, right: 0, bottom: 0, left: 0 };
-    this.cam = { s: 1, x: 0, y: 0 }; this.camTarget = null; this.manualUntil = 0; this.shotT = 0; this.shotIdx = 0;
+    this.orbit = { az: -0.6, el: 0.95, dist: 30, tx: 0, tz: 0, zoom: 1 };
+    this.goal = { ...this.orbit };
+    this.manualUntil = 0; this.shotT = 6; this.shotIdx = 0; this.sweep = 0; this.fitZoom = 1;
   }
 
+  // ------------------------------------------------------------------ montaje
   async init() {
     this.ac = new AbortController();
     const sig = { signal: this.ac.signal };
-    await document.fonts.load(`32px ${FONT}`).catch(() => { });
-    this.app = new Application();
-    // media resolucion + sin suavizado = pixeles gruesos
-    await this.app.init({ resizeTo: this.el, background: this.C.bg, antialias: false, autoDensity: false, resolution: 0.5, roundPixels: true, preference: 'webgl' });
-    this.app.canvas.style.imageRendering = 'pixelated';
-    this.app.canvas.style.width = '100%'; this.app.canvas.style.height = '100%';
-    this.el.appendChild(this.app.canvas);
-    this.world = new Container();
-    this.bg = new Graphics(); this.bgText = new Container(); this.sectorG = new Graphics(); this.sweepG = new Graphics(); this.selG = new Graphics();
-    this.blipL = new Container(); this.squadL = new Container(); this.fxL = new Container(); this.labelL = new Container();
-    this.world.addChild(this.bg, this.bgText, this.sectorG, this.sweepG, this.selG, this.blipL, this.squadL, this.fxL, this.labelL);
-    this.app.stage.addChild(this.world);
-    this.app.stage.eventMode = 'static';
-    this.app.stage.hitArea = this.app.screen;
-    this.drawGrid();
+    await document.fonts.load("24px 'VT323'").catch(() => { });
+    this.renderer = new THREE.WebGLRenderer({ antialias: true });
+    this.renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, 2));
+    this.renderer.setClearColor(this.C.bg);
+    this.el.appendChild(this.renderer.domElement);
+    this.renderer.domElement.style.display = 'block';
+    this.labels = Object.assign(document.createElement('div'), { className: 'ops3-labels' });
+    this.el.appendChild(this.labels);
+    this.scene = new THREE.Scene();
+    this.scene.fog = new THREE.Fog(this.C.bg, 38, 70);
+    this.camera = new THREE.PerspectiveCamera(38, 1, 0.1, 200);
+    this.scene.add(new THREE.AmbientLight(0xffffff, 0.55));
+    const sun = new THREE.DirectionalLight(0xffffff, 1.1); sun.position.set(8, 20, 6); this.scene.add(sun);
+    this.buildTable();
     this.buildBase();
+    this.buildSweep();
+    this.itemsG = new THREE.Group(); this.scene.add(this.itemsG);
+    this.fxG = new THREE.Group(); this.scene.add(this.fxG);
+    this.ray = new THREE.Raycaster();
     this.setupNav(sig);
-    this.app.ticker.add(tk => this.tick(Math.min(tk.deltaMS / 1000, 0.1)));
-    window.addEventListener('resize', () => this.fit(), sig);
-    this.fit(true);
+    window.addEventListener('resize', () => this.resize(), sig);
+    this.resize();
+    this.clock = new THREE.Clock();
+    const loop = () => { this.raf = requestAnimationFrame(loop); this.tick(Math.min(this.clock.getDelta(), 0.1)); };
+    loop();
+  }
+  destroy() {
+    this.ac.abort(); cancelAnimationFrame(this.raf);
+    this.scene.traverse(o => { if (o.geometry) o.geometry.dispose(); if (o.material) [].concat(o.material).forEach(m => { if (m.map) m.map.dispose(); m.dispose(); }); });
+    this.renderer.dispose(); this.renderer.domElement.remove(); this.labels.remove();
   }
 
-  destroy() { this.ac.abort(); this.app.destroy({ removeView: true }, { children: true }); }
-
-  // ------------------------------------------------------------------ fondo: anillos, rumbos y cuadricula
-  drawGrid() {
-    const g = this.bg, C = this.C;
-    g.clear();
-    for (let x = -R - 200; x <= R + 200; x += 40) g.moveTo(x, -R - 200).lineTo(x, R + 200);
-    for (let y = -R - 200; y <= R + 200; y += 40) g.moveTo(-R - 200, y).lineTo(R + 200, y);
-    g.stroke({ width: 1, color: C.grid, alpha: 0.5 });
-    for (const f of [0.25, 0.5, 0.75, 1]) g.circle(0, 0, R * f).stroke({ width: f === 1 ? 3 : 2, color: C.dim, alpha: f === 1 ? 0.9 : 0.55 });
-    for (let d = 0; d < 360; d += 10) {
-      const a = d / 180 * Math.PI - Math.PI / 2, l = d % 30 === 0 ? 18 : 8;
-      g.moveTo(Math.cos(a) * R, Math.sin(a) * R).lineTo(Math.cos(a) * (R + l), Math.sin(a) * (R + l));
-      if (d % 30 === 0) {
-        const t = new Text({ text: String(d).padStart(3, '0'), style: { fontFamily: FONT, fontSize: 24, fill: C.dim } });
-        t.anchor.set(0.5); t.x = Math.cos(a) * (R + 40); t.y = Math.sin(a) * (R + 40);
-        this.bgText.addChild(t);
-      }
+  // ------------------------------------------------------------------ mesa, base y barrido
+  line(points, color, opacity = 1) {
+    const g = new THREE.BufferGeometry().setFromPoints(points);
+    return new THREE.LineSegments(g, new THREE.LineBasicMaterial({ color, transparent: opacity < 1, opacity }));
+  }
+  buildTable() {
+    const table = new THREE.Group();
+    const disc = new THREE.Mesh(new THREE.CircleGeometry(R * 1.12, 96), new THREE.MeshStandardMaterial({ color: 0x10140c, roughness: 0.9, metalness: 0.1 }));
+    disc.rotation.x = -Math.PI / 2; disc.position.y = -0.02; table.add(disc);
+    const pts = [];
+    for (const f of [0.25, 0.5, 0.75, 1]) for (let i = 0; i < 128; i++) {
+      const a = i / 128 * TAU, b = (i + 1) / 128 * TAU;
+      pts.push(new THREE.Vector3(Math.cos(a) * R * f, 0, Math.sin(a) * R * f), new THREE.Vector3(Math.cos(b) * R * f, 0, Math.sin(b) * R * f));
     }
-    g.stroke({ width: 2, color: C.dim });
+    for (let d = 0; d < 360; d += 10) {
+      const a = d / 180 * Math.PI, l = d % 30 === 0 ? 0.6 : 0.25;
+      pts.push(new THREE.Vector3(Math.cos(a) * R, 0, Math.sin(a) * R), new THREE.Vector3(Math.cos(a) * (R + l), 0, Math.sin(a) * (R + l)));
+    }
+    table.add(this.line(pts, this.C.dim, 0.9));
+    const rim = new THREE.Mesh(new THREE.TorusGeometry(R * 1.12, 0.08, 8, 128), new THREE.MeshStandardMaterial({ color: 0x2b3322, metalness: 0.6, roughness: 0.4 }));
+    rim.rotation.x = Math.PI / 2; table.add(rim);
+    this.scene.add(table);
+    this.sectorG = new THREE.Group(); this.scene.add(this.sectorG);
   }
-
   buildBase() {
-    const C = this.C;
-    const base = new Container();
-    const sq = new Graphics().rect(-18, -18, 36, 36).fill({ color: C.bg }).stroke({ width: 3, color: C.ink }).rect(-6, -6, 12, 12).fill(C.ink);
-    this.shield = new Graphics();
-    const lbl = new Text({ text: 'BASE', style: { fontFamily: FONT, fontSize: 30, fill: C.ink, letterSpacing: 2 } });
-    lbl.anchor.set(0.5, 0); lbl.y = 26;
-    this.baseTag = new Text({ text: '', style: { fontFamily: FONT, fontSize: 22, fill: C.dim } });
-    this.baseTag.anchor.set(0.5, 0); this.baseTag.y = 54;
-    base.addChild(this.shield, sq, lbl, this.baseTag);
-    base.eventMode = 'static'; base.cursor = 'pointer'; base.hitArea = new Rectangle(-60, -40, 120, 110);
-    base.on('pointertap', () => { if (!this.dragMoved) this.pick('system', 'root'); });
-    this.tipOn(base, () => ({ title: 'Base', body: 'El <b>servidor</b>. El anillo es el <b>escudo</b>: los contactos hostiles (intentos de acceso) chocan contra él.',
-      meta: this.state?.system ? `CPU ${this.state.system.cpu.toFixed(0)}% · RAM ${this.state.system.mem.pct.toFixed(0)}% · carga ${this.state.system.load[0].toFixed(2)}` : '', hint: 'Clic para ver el servidor completo' }));
-    this.labelL.addChild(base);
-    this.base = base;
-    this.shieldFlash = 0;
+    const g = new THREE.Group();
+    const core = new THREE.Mesh(new THREE.CylinderGeometry(0.55, 0.75, 1.4, 8), new THREE.MeshStandardMaterial({ color: 0x1b2214, emissive: col(this.C.ok), emissiveIntensity: 0.15, metalness: 0.5, roughness: 0.4 }));
+    core.position.y = 0.7; core.userData = { kind: 'system', id: 'root' };
+    const dome = new THREE.Mesh(new THREE.SphereGeometry(1.9, 24, 12, 0, TAU, 0, Math.PI / 2), new THREE.MeshBasicMaterial({ color: col(this.C.ok), wireframe: true, transparent: true, opacity: 0.18 }));
+    g.add(core, dome);
+    this.scene.add(g);
+    this.base = { core, dome, flash: 0 };
+    this.pickables = [core];
+    this.baseLabel = this.mkLabel('ops3-base', 'BASE');
+  }
+  buildSweep() {
+    this.sweepG = new THREE.Group();
+    for (let i = 0; i < 12; i++) {
+      const m = new THREE.Mesh(new THREE.CircleGeometry(R, 32, 0, 0.045), new THREE.MeshBasicMaterial({ color: col(this.C.ok), transparent: true, opacity: 0.32 * (1 - i / 12), side: THREE.DoubleSide, depthWrite: false, blending: THREE.AdditiveBlending }));
+      m.rotation.x = -Math.PI / 2; m.position.y = 0.01; m.rotation.z = -i * 0.045;
+      this.sweepG.add(m);
+    }
+    this.scene.add(this.sweepG);
   }
 
-  // ------------------------------------------------------------------ sectores y contactos
+  mkLabel(cls, html) {
+    const d = document.createElement('div'); d.className = 'ops3-label ' + cls; d.innerHTML = html;
+    this.labels.appendChild(d);
+    return d;
+  }
+  toScreen(v) {
+    const p = v.clone().project(this.camera);
+    return { x: (p.x + 1) / 2 * this.W, y: (1 - p.y) / 2 * this.H, behind: p.z > 1 };
+  }
+
+  // ------------------------------------------------------------------ sectores y columnas
   layout(state) {
     const accounts = state.accounts.filter(a => a.id !== 'root');
     const by = {};
     for (const a of state.apps) (by[a.account] = by[a.account] || []).push({ ...a, _k: 'app' });
     for (const x of state.sites || []) (by[x.account] = by[x.account] || []).push({ ...x, _k: 'site' });
-    const key = accounts.map(a => a.id + ':' + (by[a.id] || []).map(x => x.id).join(',')).join('|');
+    const key = accounts.map(a => a.id + ':' + (a.cpanel || '') + ':' + (by[a.id] || []).map(x => x.id).join(',')).join('|');
     if (key === this.layoutKey) return;
     this.layoutKey = key;
-    for (const b of this.blips.values()) b.c.destroy({ children: true });
-    for (const s of this.sectors.values()) { s.label.destroy(); s.sub.destroy(); }
-    this.blips.clear(); this.sectors.clear();
-    const C = this.C, g = this.sectorG;
-    g.clear();
-    // cada sector con un minimo de ancho, para que los chicos no queden como una linea
-    const weights = accounts.map(a => Math.max(4, (by[a.id] || []).length));
-    const total = weights.reduce((n, w) => n + w, 0) || 1;
+    for (const it of this.items.values()) { this.itemsG.remove(it.g); it.label.remove(); }
+    for (const s of this.sectors.values()) s.label.remove();
+    this.sectorG.clear(); this.items.clear(); this.sectors.clear();
+    this.pickables = [this.base.core, ...[...this.drones.values()].map(d => d.mesh)];
+    const list = accounts.filter(a => (by[a.id] || []).length);
+    const weights = list.map(a => Math.max(4, by[a.id].length)), total = weights.reduce((n, w) => n + w, 0) || 1;
     let a0 = -Math.PI / 2;
-    accounts.forEach((acc, i) => {
+    list.forEach((acc, i) => {
       const w = weights[i] / total * TAU, a1 = a0 + w, mid = a0 + w / 2;
-      g.moveTo(Math.cos(a0) * 70, Math.sin(a0) * 70).lineTo(Math.cos(a0) * R, Math.sin(a0) * R);
-      const short = acc.label.replace(/^Distrito\s+/i, '').replace(/^Servicios del\s+/i, '').toUpperCase().slice(0, 14);
-      const label = new Text({ text: 'SECTOR ' + short, style: { fontFamily: FONT, fontSize: 28, fill: C.ink, letterSpacing: 2 } });
-      // sectores angostos: nombres escalonados hacia afuera para que no se encimen
-      const lr = R + 80 + (w < 0.6 ? (i % 2) * 46 : 0);
-      label.anchor.set(0.5); label.x = Math.cos(mid) * lr; label.y = Math.sin(mid) * lr;
-      label.eventMode = 'static'; label.cursor = 'pointer';
-      label.on('pointertap', () => { if (!this.dragMoved) this.pick('district', acc.id); });
-      this.tipOn(label, () => ({ title: acc.label, body: `Sector con ${(by[acc.id] || []).length} contactos: servicios (cuadrados llenos) y sitios (cuadrados vacíos).`, meta: this.sectors.get(acc.id)?.caption || '', hint: 'Clic para ver el sector' }));
-      this.labelL.addChild(label);
-      const nA = (by[acc.id] || []).filter(x => x._k === 'app').length;
-      const caption = accountCaption(acc, nA, (by[acc.id] || []).length - nA);
-      const sub = new Text({ text: caption.toUpperCase(), style: { fontFamily: FONT, fontSize: 20, fill: C.dim, letterSpacing: 1 } });
-      sub.anchor.set(0.5); sub.x = label.x; sub.y = label.y + 24;
-      this.labelL.addChild(sub);
-      this.sectors.set(acc.id, { a0, a1, mid, label, sub, acc, caption });
-      // contactos en anillos, de adentro hacia afuera
-      const items = (by[acc.id] || []).sort((x, y) => (x._k === y._k ? 0 : x._k === 'app' ? -1 : 1));
-      let ring = 0, placed = 0;
-      for (const it of items) {
-        let r = R * (0.36 + ring * 0.105);
-        const cap = Math.max(1, Math.floor((w * r) / 46));
-        const slot = placed;
-        const ang = a0 + (slot + 0.5) * (w / cap);
-        placed++;
-        if (placed >= cap) { ring++; placed = 0; }
-        if (ring > 5) { ring = 5; }
-        this.addBlip(it, ang, Math.min(r, R * 0.93), acc);
+      const wedge = new THREE.Mesh(new THREE.RingGeometry(2.3, R, 48, 1, -a1, w), new THREE.MeshBasicMaterial({ color: col(acc.color), transparent: true, opacity: 0.07, side: THREE.DoubleSide, depthWrite: false }));
+      wedge.rotation.x = -Math.PI / 2; wedge.position.y = 0.005; wedge.userData = { kind: 'district', id: acc.id };
+      this.sectorG.add(wedge);
+      this.sectorG.add(this.line([new THREE.Vector3(Math.cos(a0) * 2.3, 0.01, Math.sin(a0) * 2.3), new THREE.Vector3(Math.cos(a0) * R, 0.01, Math.sin(a0) * R)], acc.color, 0.7));
+      const items = by[acc.id].sort((x, y) => (x._k === y._k ? 0 : x._k === 'app' ? -1 : 1));
+      const nA = items.filter(x => x._k === 'app').length;
+      const caption = accountCaption(acc, nA, items.length - nA);
+      const label = this.mkLabel('ops3-sector', `<b style="border-color:${acc.color}">${esc(acc.label)}</b><small>${esc(caption)}</small>`);
+      label.dataset.go = 'district:' + acc.id;
+      this.sectors.set(acc.id, { acc, a0, a1, mid, label, wedge, caption, pos: new THREE.Vector3(Math.cos(mid) * (R + 1.2), 0, Math.sin(mid) * (R + 1.2)) });
+      this.pickables.push(wedge);
+      // anillos parejos desde la base hasta el borde; cada anillo con tantas columnas como quepan
+      let radii = [6.2];
+      for (let rows = 1; rows <= 9; rows++) {
+        radii = rows === 1 ? [6.2] : Array.from({ length: rows }, (_, k) => 3.4 + k * (R * 0.9 - 3.4) / (rows - 1));
+        if (radii.reduce((n, r) => n + Math.max(1, Math.floor(w * r / 0.95)), 0) >= items.length) break;
       }
+      const caps = radii.map(r => Math.max(1, Math.floor(w * r / 0.95)));
+      const totalCap = caps.reduce((n, c) => n + c, 0);
+      // se reparte en proporcion a lo que entra en cada anillo (los de afuera llevan mas)
+      const take = caps.map(c => Math.floor(items.length * c / totalCap));
+      for (let k = 0, left = items.length - take.reduce((n, x) => n + x, 0); left > 0; k = (k + 1) % take.length) if (take[k] < caps[k]) { take[k]++; left--; }
+      let idx = 0;
+      radii.forEach((r, k) => { for (let j = 0; j < take[k]; j++) this.addItem(items[idx++], a0 + (j + 0.5) * (w / take[k]), r, acc); });
       a0 = a1;
     });
-    g.stroke({ width: 2, color: C.dim, alpha: 0.8 });
-    this.fit(true);
   }
 
-  addBlip(it, ang, r, acc) {
-    const c = new Container();
-    c.x = Math.cos(ang) * r; c.y = Math.sin(ang) * r;
-    const g = new Graphics();
-    const lbl = new Text({ text: '', style: { fontFamily: FONT, fontSize: 22, fill: this.C.ink } });
-    lbl.x = 14; lbl.y = -12;
-    c.addChild(g, lbl);
-    c.eventMode = 'static'; c.cursor = 'pointer'; c.hitArea = new Rectangle(-18, -18, 36, 36);
-    const b = { c, g, lbl, ang: ((ang % TAU) + TAU) % TAU, r, data: it, kind: it._k, acc, lit: 0, flash: 0 };
-    c.on('pointertap', () => { if (!this.dragMoved) this.pick(b.kind, it.id); });
-    this.tipOn(c, () => {
-      const a = b.data;
-      const st = { online: 'en línea', degraded: 'parcial', down: 'CAÍDO' }[a.status] || a.status;
-      return { title: a.name, body: `${a.kind && a.kind !== a.name ? `<b>${esc(a.kind)}</b> · ` : ''}${b.kind === 'site' ? 'sitio' : 'servicio'} del ${esc(acc.label)}`,
-        meta: `${st}${b.kind === 'app' ? ` · CPU ${(a.cpu || 0).toFixed(1)}% · RAM ${fmtBytes(a.mem || 0)}` : ''} · ${a.reqMin || 0} visitas/min`, hint: 'Clic para ver el detalle' };
-    });
-    this.blipL.addChild(c);
-    this.blips.set(it.id, b);
-    this.drawBlip(b);
-  }
-
-  drawBlip(b) {
-    const a = b.data, C = this.C;
-    const col = a.status === 'down' ? C.crit : a.status === 'degraded' ? C.warn : C.friendly;
-    const s = clamp(8 + Math.sqrt(a.reqMin || 0) * 2, 8, 18);
-    const g = b.g; g.clear();
-    if (b.kind === 'app') g.rect(-s / 2, -s / 2, s, s).fill(col);
-    else g.rect(-s / 2, -s / 2, s, s).stroke({ width: 3, color: col });
-    b.col = col; b.size = s;
+  addItem(it, ang, r, acc) {
+    const site = it._k === 'site';
+    const geo = site ? new THREE.CylinderGeometry(0.26, 0.26, 1, 6) : new THREE.BoxGeometry(0.44, 1, 0.44);
+    geo.translate(0, 0.5, 0);
+    const mat = new THREE.MeshStandardMaterial({ color: col(this.C.ok), emissive: col(this.C.ok), emissiveIntensity: 0.25, metalness: 0.3, roughness: 0.5, transparent: site, opacity: site ? 0.9 : 1 });
+    const mesh = new THREE.Mesh(geo, mat);
+    const g = new THREE.Group(); g.position.set(Math.cos(ang) * r, 0, Math.sin(ang) * r);
+    g.add(mesh);
+    // cartel pixel art encima (billboard, sin suavizado)
+    const tex = new THREE.CanvasTexture(signCanvas(it.icon || 'web', 6));
+    tex.magFilter = THREE.NearestFilter; tex.minFilter = THREE.NearestFilter; tex.colorSpace = THREE.SRGBColorSpace;
+    const sign = new THREE.Sprite(new THREE.SpriteMaterial({ map: tex, transparent: true, depthWrite: false }));
+    sign.scale.set(0.7, 0.7, 1);
+    g.add(sign);
+    mesh.userData = { kind: site ? 'site' : 'app', id: it.id };
+    this.itemsG.add(g);
+    this.pickables.push(mesh);
+    const label = this.mkLabel('ops3-item', '');
+    this.items.set(it.id, { g, mesh, sign, data: it, site, acc, ang: ((ang % TAU) + TAU) % TAU, r, h: 0.4, target: 0.4, lit: 0, flash: 0, label });
   }
 
   // ------------------------------------------------------------------ estado
   update(state) {
     this.state = state;
     this.layout(state);
-    const labeled = new Set([...state.apps, ...(state.sites || [])].sort((x, y) => (y.reqMin || 0) - (x.reqMin || 0)).slice(0, 8).filter(x => x.reqMin > 0).map(x => x.id));
+    const top = new Set([...state.apps, ...(state.sites || [])].sort((x, y) => (y.reqMin || 0) - (x.reqMin || 0)).slice(0, 6).filter(x => x.reqMin > 0).map(x => x.id));
     for (const x of [...state.apps, ...(state.sites || [])]) {
-      const b = this.blips.get(x.id);
-      if (!b) continue;
-      const prev = b.data.status;
-      b.data = { ...x, _k: b.kind };
-      this.drawBlip(b);
-      const show = labeled.has(x.id) || x.status === 'down';
-      const txt = show ? String(x.name).toUpperCase().slice(0, 18) : '';
-      if (b.lbl.text !== txt) b.lbl.text = txt;
-      b.lbl.style.fill = x.status === 'down' ? this.C.crit : this.C.ink;
-      if (prev && prev !== x.status && x.status === 'down') this.pulse(b.c.x, b.c.y, this.C.crit, 'CAÍDO');
+      const it = this.items.get(x.id);
+      if (!it) continue;
+      const prev = it.data.status;
+      it.data = { ...x, _k: it.site ? 'site' : 'app' };
+      it.target = it.site ? 0.35 + clamp(Math.sqrt(x.reqMin || 0) * 0.35, 0, 3.2) : 0.4 + clamp((x.cpu || 0) / 100, 0, 1) * 3.2 + clamp(Math.log2(1 + (x.mem || 0) / 100e6) * 0.12, 0, 0.6);
+      const c = x.status === 'down' ? this.C.crit : x.status === 'degraded' ? this.C.warn : this.C.ok;
+      it.mesh.material.color.set(c); it.mesh.material.emissive.set(c);
+      it.label.textContent = top.has(x.id) || x.status === 'down' ? x.name : '';
+      it.label.classList.toggle('down', x.status === 'down');
+      if (prev && prev !== x.status && x.status === 'down') this.float(it.g.position.clone().setY(it.h + 1), 'CAÍDO', 'crit');
     }
-    const act = (state.keys || []).filter(k => k.state === 'active').map(k => k.label.toUpperCase()).filter(l => !['SSH', 'CRON'].includes(l)).slice(0, 4).join(' · ');
-    if (this.baseTag.text !== act) this.baseTag.text = act;
     this.failed = (state.keys || []).filter(k => k.state === 'failed').map(k => k.label);
-    this.syncSquads(state.sessions || []);
+    this.baseLabel.innerHTML = 'BASE<small>' + esc((state.keys || []).filter(k => k.state === 'active').map(k => k.label).filter(l => !['SSH', 'Cron'].includes(l)).slice(0, 4).join(' · ')) + '</small>';
+    this.syncDrones(state.sessions || []);
   }
 
-  syncSquads(sessions) {
-    const seen = new Set();
-    const per = {};
-    for (const s of sessions) {
+  syncDrones(sessions) {
+    const seen = new Set(), per = {};
+    sessions.forEach((s, n) => {
       seen.add(s.id);
-      let q = this.squads.get(s.id);
-      if (!q) {
-        const c = new Container();
-        const g = new Graphics();
-        const t = new Text({ text: '', style: { fontFamily: FONT, fontSize: 22, fill: this.C.ink } });
-        t.anchor.set(0.5, 0); t.y = 12;
-        c.addChild(g, t);
-        c.eventMode = 'static'; c.cursor = 'pointer'; c.hitArea = new Rectangle(-20, -20, 40, 44);
-        c.on('pointertap', () => { if (!this.dragMoved) this.pick('session', s.id); });
-        this.tipOn(c, () => ({ title: 'Escuadra · agente de Claude Code', body: `${esc(q.s.activity || '')}${q.s.subagents && q.s.subagents.length ? ` · ${q.s.subagents.length} subagente(s)` : ''}`,
-          meta: q.s.waitKind ? 'Espera su permiso o su respuesta' : { working: 'Trabajando', thinking: 'Pensando', idle: 'En pausa' }[q.s.state] || '', hint: 'Clic para ver la línea de tiempo' }));
-        this.squadL.addChild(c);
-        q = { c, g, t, s, phase: Math.random() * TAU };
-        this.squads.set(s.id, q);
+      let d = this.drones.get(s.id);
+      if (!d) {
+        const mesh = new THREE.Mesh(new THREE.ConeGeometry(0.32, 0.7, 3), new THREE.MeshStandardMaterial({ color: col(this.C.ink), emissive: col(this.C.ink), emissiveIntensity: 0.3 }));
+        mesh.userData = { kind: 'session', id: s.id };
+        this.scene.add(mesh); this.pickables.push(mesh);
+        d = { mesh, label: this.mkLabel('ops3-drone', ''), s, ph: Math.random() * TAU };
+        this.drones.set(s.id, d);
       }
-      q.s = s;
-      per[s.account] = (per[s.account] || 0) + 1;
-      q.slot = per[s.account] - 1;
-      q.t.text = 'ESC-' + String(sessions.indexOf(s) + 1).padStart(2, '0') + (s.subagents && s.subagents.length ? ` +${s.subagents.length}` : '');
-    }
-    for (const [id, q] of this.squads) if (!seen.has(id)) { q.c.destroy({ children: true }); this.squads.delete(id); }
+      d.s = s;
+      per[s.account] = (per[s.account] || 0) + 1; d.slot = per[s.account] - 1;
+      d.label.innerHTML = `ESC-${String(n + 1).padStart(2, '0')}${s.waitKind ? ' <em>ESPERA PERMISO</em>' : ''}`;
+    });
+    for (const [id, d] of this.drones) if (!seen.has(id)) { this.scene.remove(d.mesh); d.label.remove(); this.pickables = this.pickables.filter(p => p !== d.mesh); this.drones.delete(id); }
   }
 
   // ------------------------------------------------------------------ eventos
   onEvent(e, priv) {
-    const C = this.C;
     switch (e.kind) {
-      case 'http': return this.trace(e);
-      case 'attack': return this.hostile(false);
-      case 'block': return this.hostile(true, priv ? e.ip : null);
-      case 'login': return this.pulse(0, 0, C.ok, priv && e.user ? `ACCESO SSH ${e.user.toUpperCase()}` : 'ACCESO SSH');
-      case 'mail': return this.streak(e.dir === 'in', e.dir === 'bounce' ? C.crit : C.dim);
+      case 'http': return this.visit(e);
+      case 'attack': return this.missile(false);
+      case 'block': return this.missile(true, priv ? e.ip : null);
+      case 'login': return this.float(new THREE.Vector3(0, 3, 0), priv && e.user ? `ACCESO SSH · ${e.user}` : 'ACCESO SSH', 'ok');
       case 'deploy': {
-        const b = this.blips.get(e.app);
-        const T = { building: ['DESPLEGANDO', C.warn], ready: ['DESPLEGADO', C.ok], error: ['FALLÓ EL DESPLIEGUE', C.crit], canceled: ['CANCELADO', C.dim] }[e.action];
-        if (b && T) this.pulse(b.c.x, b.c.y, T[1], T[0]);
+        const it = this.items.get(e.app);
+        const T = { building: ['DESPLEGANDO', 'warn'], ready: ['DESPLEGADO', 'ok'], error: ['FALLÓ EL DESPLIEGUE', 'crit'], canceled: ['CANCELADO', 'dim'] }[e.action];
+        if (it && T) { this.float(it.g.position.clone().setY(it.h + 1), T[0], T[1]); this.ring(it.g.position, T[1]); }
         return;
       }
-      case 'pm2': { const b = this.blips.get(e.app); if (b) this.pulse(b.c.x, b.c.y, e.action === 'down' ? C.crit : C.warn, e.action === 'down' ? 'CAÍDA' : 'REINICIO'); return; }
-      case 'domain': {
-        const s = this.sectors.get(e.account);
-        if (s) this.pulse(Math.cos(s.mid) * R * 0.7, Math.sin(s.mid) * R * 0.7, e.action === 'removed' ? C.crit : C.ok, { added: 'NUEVO DOMINIO', removed: 'DOMINIO ELIMINADO', changed: 'SITIO CAMBIÓ' }[e.action] || '');
-        return;
-      }
+      case 'pm2': { const it = this.items.get(e.app); if (it && e.action !== 'down') { this.float(it.g.position.clone().setY(it.h + 1), 'REINICIO', 'warn'); this.ring(it.g.position, 'warn'); } return; }
+      case 'domain': { const s = this.sectors.get(e.account); if (s) this.float(new THREE.Vector3(Math.cos(s.mid) * R * 0.7, 1, Math.sin(s.mid) * R * 0.7), ({ added: 'NUEVO DOMINIO', removed: 'DOMINIO ELIMINADO', changed: 'SITIO CAMBIÓ' }[e.action] || '') + (priv && e.domain ? ` · ${e.domain}` : ''), e.action === 'removed' ? 'crit' : 'ok'); return; }
       case 'claude': {
-        const q = this.squads.get(e.sid) || [...this.squads.entries()].find(([k]) => e.sid && k.startsWith(e.sid))?.[1];
-        if (!q) return;
-        if (e.action === 'permission') { this.pulse(q.c.x, q.c.y, C.warn, 'SOLICITA PERMISO'); this.urgent = { x: q.c.x, y: q.c.y, until: this.t + 12 }; }
-        else if (e.action === 'done') this.pulse(q.c.x, q.c.y, C.ok, 'MISIÓN CUMPLIDA');
-        else if (e.action === 'error') this.pulse(q.c.x, q.c.y, C.crit, '');
+        const d = this.drones.get(e.sid) || [...this.drones.entries()].find(([k]) => e.sid && k.startsWith(e.sid))?.[1];
+        if (!d) return;
+        if (e.action === 'permission') { this.urgent = { x: d.mesh.position.x, z: d.mesh.position.z, until: this.t + 12 }; this.float(d.mesh.position.clone().setY(d.mesh.position.y + 1), 'SOLICITA PERMISO', 'warn'); }
+        else if (e.action === 'done') this.float(d.mesh.position.clone().setY(d.mesh.position.y + 1), 'MISIÓN CUMPLIDA', 'ok');
         return;
       }
     }
   }
 
-  addFx(obj, tick) { this.fxL.addChild(obj); this.fx.push({ obj, tick, age: 0 }); }
-
-  // visita: traza que entra desde el borde hasta su contacto
-  trace(e) {
-    if (this.fx.length > 220) return;
-    const b = this.blips.get(e.app || e.site);
-    const ang = b ? b.ang + (Math.random() - 0.5) * 0.06 : Math.random() * TAU;
-    const to = b ? { x: b.c.x, y: b.c.y } : { x: Math.cos(ang) * R * 0.3, y: Math.sin(ang) * R * 0.3 };
-    const col = e.status >= 500 ? this.C.crit : e.status >= 400 ? this.C.warn : e.bot ? this.C.dim : this.C.ink;
-    const g = new Graphics().rect(-2, -2, 4, 4).fill(col);
-    g.x = Math.cos(ang) * (R + 20); g.y = Math.sin(ang) * (R + 20);
-    const sp = 520 + Math.random() * 200;
-    this.addFx(g, (f, dt) => {
-      const dx = to.x - g.x, dy = to.y - g.y, d = Math.hypot(dx, dy), st = sp * dt;
-      if (d <= st) { if (b) { b.lit = 1; if (e.status >= 500) b.flash = 1; } return false; }
-      g.x += dx / d * st; g.y += dy / d * st;
-      return true;
-    });
+  // visita: punto de luz que cae en arco desde el borde hasta su columna
+  visit(e) {
+    if (this.fx.length > 180) return;
+    const it = this.items.get(e.app || e.site);
+    const ang = it ? it.ang + (Math.random() - 0.5) * 0.1 : Math.random() * TAU;
+    const from = new THREE.Vector3(Math.cos(ang) * (R + 1.5), 2.5, Math.sin(ang) * (R + 1.5));
+    const to = it ? it.g.position.clone().setY(it.h + 0.05) : new THREE.Vector3(Math.cos(ang) * 3, 0, Math.sin(ang) * 3);
+    const curve = new THREE.QuadraticBezierCurve3(from, from.clone().lerp(to, 0.5).setY(Math.max(from.y, to.y) + 2), to);
+    const c = e.status >= 500 ? this.C.crit : e.status >= 400 ? this.C.warn : e.bot ? this.C.dim : this.C.ink;
+    const m = new THREE.Mesh(new THREE.SphereGeometry(0.07, 6, 6), new THREE.MeshBasicMaterial({ color: col(c) }));
+    this.fxG.add(m);
+    const dur = 1 + Math.random() * 0.4;
+    this.fx.push({ obj: m, age: 0, tick: f => { const k = f.age / dur; if (k >= 1) { if (it) { it.lit = 1; if (e.status >= 500) it.flash = 1; } return false; } m.position.copy(curve.getPoint(k)); return true; } });
   }
 
-  // intento de acceso: contacto hostil que viene desde un rumbo al azar y choca con el escudo
-  hostile(blocked, ip) {
-    const C = this.C, ang = Math.random() * TAU;
-    const c = new Container();
-    const g = new Graphics().moveTo(0, -9).lineTo(9, 0).lineTo(0, 9).lineTo(-9, 0).closePath().fill(C.crit);
-    c.addChild(g);
-    c.x = Math.cos(ang) * (R + 60); c.y = Math.sin(ang) * (R + 60);
-    const hit = { x: Math.cos(ang) * 64, y: Math.sin(ang) * 64 };
-    this.addFx(c, (f, dt) => {
-      const dx = hit.x - c.x, dy = hit.y - c.y, d = Math.hypot(dx, dy), st = 230 * dt;
-      g.visible = Math.floor(f.age * 6) % 2 === 0 || d < 120;
-      if (d <= st) {
-        this.shieldFlash = 1;
-        this.cross(hit.x, hit.y);
-        if (blocked) this.floatText(hit.x, hit.y - 30, ip ? `NEUTRALIZADO ${ip}` : 'NEUTRALIZADO', C.crit);
+  // intento de acceso: misil rojo desde afuera que se estrella contra la cupula
+  missile(blocked, ip) {
+    const ang = Math.random() * TAU;
+    const from = new THREE.Vector3(Math.cos(ang) * R * 1.8, 6, Math.sin(ang) * R * 1.8);
+    const hit = new THREE.Vector3(Math.cos(ang) * 1.5, 1.1, Math.sin(ang) * 1.5);
+    const curve = new THREE.QuadraticBezierCurve3(from, from.clone().lerp(hit, 0.5).setY(8), hit);
+    const m = new THREE.Mesh(new THREE.ConeGeometry(0.12, 0.45, 6), new THREE.MeshBasicMaterial({ color: col(this.C.crit) }));
+    this.fxG.add(m);
+    this.fx.push({ obj: m, age: 0, tick: f => {
+      const k = f.age / 2.2;
+      if (k >= 1) {
+        this.base.flash = 1; this.ring(hit.clone().setY(0), 'crit', 2.6);
+        if (blocked) this.float(hit.clone().setY(2.6), ip ? `NEUTRALIZADO · ${ip}` : 'NEUTRALIZADO', 'crit');
         return false;
       }
-      c.x += dx / d * st; c.y += dy / d * st;
+      const p = curve.getPoint(k), q = curve.getPoint(Math.min(1, k + 0.02));
+      m.position.copy(p); m.lookAt(q); m.rotateX(Math.PI / 2);
+      if (Math.random() < 0.5) {
+        const s = new THREE.Mesh(new THREE.SphereGeometry(0.05, 4, 4), new THREE.MeshBasicMaterial({ color: col(this.C.crit), transparent: true, opacity: 0.6 }));
+        s.position.copy(p); this.fxG.add(s);
+        this.fx.push({ obj: s, age: 0, tick: g => { s.material.opacity = 0.6 * (1 - g.age / 0.8); return g.age < 0.8; } });
+      }
       return true;
-    });
+    } });
   }
 
-  cross(x, y) {
-    const g = new Graphics().moveTo(-10, -10).lineTo(10, 10).moveTo(10, -10).lineTo(-10, 10).stroke({ width: 4, color: this.C.crit });
-    g.x = x; g.y = y;
-    this.addFx(g, f => { g.alpha = 1 - f.age / 1.6; return f.age < 1.6; });
+  ring(pos, tone, size = 1.2) {
+    const m = new THREE.Mesh(new THREE.RingGeometry(0.3, 0.38, 32), new THREE.MeshBasicMaterial({ color: col(this.C[tone] || this.C.ok), transparent: true, side: THREE.DoubleSide, depthWrite: false }));
+    m.rotation.x = -Math.PI / 2; m.position.set(pos.x, 0.03, pos.z);
+    this.fxG.add(m);
+    this.fx.push({ obj: m, age: 0, tick: f => { const k = f.age / 1.1; m.scale.setScalar(1 + k * size * 3); m.material.opacity = 1 - k; return k < 1; } });
   }
-
-  streak(inbound, col) {
-    const ang = Math.random() * TAU;
-    const g = new Graphics().rect(-3, -3, 6, 6).fill(col);
-    const from = inbound ? R + 20 : 20, to = inbound ? 20 : R + 20;
-    this.addFx(g, f => {
-      const k = Math.min(1, f.age / 1.4), r = from + (to - from) * k;
-      g.x = Math.cos(ang) * r; g.y = Math.sin(ang) * r;
-      return k < 1;
-    });
-  }
-
-  pulse(x, y, col, text) {
-    const g = new Graphics(); g.x = x; g.y = y;
-    this.addFx(g, f => {
-      const k = f.age / 1.2;
-      g.clear().rect(-10 - k * 40, -10 - k * 40, 20 + k * 80, 20 + k * 80).stroke({ width: 3, color: col, alpha: 1 - k });
-      return k < 1;
-    });
-    if (text) this.floatText(x, y - 34, text, col);
-  }
-
-  floatText(x, y, text, col) {
-    const t = new Text({ text, style: { fontFamily: FONT, fontSize: 28, fill: col, letterSpacing: 2 } });
-    t.anchor.set(0.5); t.x = x; t.y = y;
-    const bg = new Graphics().rect(-t.width / 2 - 6, -t.height / 2 - 2, t.width + 12, t.height + 4).fill({ color: this.C.bg, alpha: 0.85 }).stroke({ width: 2, color: col });
-    const c = new Container(); c.addChild(bg, t); c.x = x; c.y = y; t.x = 0; t.y = 0;
-    this.addFx(c, f => { c.y = y - f.age * 18; c.alpha = f.age < 2.4 ? 1 : 1 - (f.age - 2.4) / 0.6; return f.age < 3; });
+  float(pos, text, tone) {
+    const d = this.mkLabel('ops3-float ' + tone, esc(text));
+    this.fx.push({ obj: null, dom: d, age: 0, pos: pos.clone(), tick: f => { f.pos.y += 0.012; d.style.opacity = f.age < 2.2 ? 1 : 1 - (f.age - 2.2) / 0.8; return f.age < 3; } });
   }
 
   // ------------------------------------------------------------------ cuadro a cuadro
   tick(dt) {
     this.t += dt;
-    const C = this.C;
-    // barrido: ~6 s por vuelta, con estela
     const prev = this.sweep;
     this.sweep = (this.sweep + dt * TAU / 6) % TAU;
-    const sw = this.sweepG; sw.clear();
-    for (let i = 0; i < 14; i++) {
-      const a = this.sweep - Math.PI / 2 - i * 0.035;
-      sw.moveTo(0, 0).lineTo(Math.cos(a) * R, Math.sin(a) * R).stroke({ width: i === 0 ? 4 : 6, color: C.friendly, alpha: i === 0 ? 0.9 : 0.16 * (1 - i / 14) });
+    this.sweepG.rotation.y = -this.sweep;
+    const passed = a => { const p = prev, c = this.sweep; return p <= c ? a > p && a <= c : a > p || a <= c; };
+    const blink = Math.floor(this.t * 3) % 2 === 0;
+    for (const it of this.items.values()) {
+      it.h += (it.target - it.h) * Math.min(1, dt * 3);
+      it.mesh.scale.y = it.h;
+      it.sign.position.y = it.h + 0.45;
+      if (passed(it.ang)) it.lit = 1;
+      it.lit = Math.max(0, it.lit - dt * 0.5); it.flash = Math.max(0, it.flash - dt * 2);
+      const down = it.data.status === 'down';
+      it.mesh.material.emissiveIntensity = (down ? (blink ? 0.9 : 0.1) : 0.15) + it.lit * 0.9 + it.flash;
     }
-    const cur = (this.sweep - Math.PI / 2 + TAU) % TAU, pre = (prev - Math.PI / 2 + TAU) % TAU;
-    const passed = a => (pre <= cur ? a > pre && a <= cur : a > pre || a <= cur);
-    for (const b of this.blips.values()) {
-      if (passed(b.ang)) b.lit = 1;
-      b.lit = Math.max(0, b.lit - dt * 0.4);
-      b.flash = Math.max(0, b.flash - dt * 1.5);
-      const blink = b.data.status === 'down' ? (Math.floor(this.t * 3) % 2 ? 1 : 0.3) : 1;
-      b.g.alpha = (0.35 + 0.65 * b.lit) * blink;
-      b.g.scale.set(1 + b.flash * 0.6);
-    }
-    // escudo: se enciende al chocar un hostil; ambar si un servicio clave fallo
-    this.shieldFlash = Math.max(0, this.shieldFlash - dt * 1.4);
+    this.base.flash = Math.max(0, this.base.flash - dt * 1.5);
     const bad = this.failed && this.failed.length;
-    this.shield.clear();
-    for (let i = 0; i < 24; i++) {
-      const a0 = i / 24 * TAU + this.t * 0.2, a1 = a0 + TAU / 48;
-      this.shield.moveTo(Math.cos(a0) * 64, Math.sin(a0) * 64).lineTo(Math.cos(a1) * 64, Math.sin(a1) * 64);
+    this.base.dome.material.color.set(bad ? this.C.warn : this.base.flash > 0.1 ? this.C.crit : this.C.ok);
+    this.base.dome.material.opacity = 0.14 + this.base.flash * 0.5 + (bad ? 0.1 * Math.sin(this.t * 4) : 0);
+    this.base.dome.rotation.y += dt * 0.15;
+    for (const d of this.drones.values()) {
+      const s = this.sectors.get(d.s.account);
+      const mid = s ? s.mid : -Math.PI / 2, r = R * 0.45 + (d.slot % 3) * 1.1;
+      const a = mid + Math.sin(this.t * 0.35 + d.ph) * 0.15 + d.slot * 0.12;
+      d.mesh.position.set(Math.cos(a) * r, 3.2 + Math.sin(this.t * 1.5 + d.ph) * 0.2, Math.sin(a) * r);
+      d.mesh.rotation.set(Math.PI, 0, 0); d.mesh.rotation.y = this.t;
+      const waiting = !!d.s.waitKind;
+      const c = waiting ? this.C.warn : d.s.state === 'idle' ? this.C.dim : this.C.ink;
+      d.mesh.material.color.set(c); d.mesh.material.emissive.set(c);
+      d.mesh.material.emissiveIntensity = waiting ? (blink ? 1 : 0.2) : 0.3;
+      d.label.classList.toggle('wait', waiting);
     }
-    this.shield.stroke({ width: 3 + this.shieldFlash * 3, color: bad ? C.warn : this.shieldFlash > 0.1 ? C.crit : C.friendly, alpha: 0.5 + this.shieldFlash * 0.5 });
-    // escuadras: orbitan su sector
-    for (const q of this.squads.values()) {
-      const s = this.sectors.get(q.s.account);
-      const mid = s ? s.mid : -Math.PI / 2;
-      const r = R * (0.2 + (q.slot % 3) * 0.05);
-      const a = mid + Math.sin(this.t * 0.4 + q.phase) * 0.12 + q.slot * 0.14;
-      q.c.x = Math.cos(a) * r; q.c.y = Math.sin(a) * r;
-      const waiting = !!q.s.waitKind;
-      const col = waiting ? C.warn : q.s.state === 'idle' ? C.dim : C.ink;
-      const on = waiting ? Math.floor(this.t * 3) % 2 === 0 : true;
-      q.g.clear().moveTo(0, -12).lineTo(11, 9).lineTo(-11, 9).closePath().fill({ color: col, alpha: on ? 1 : 0.3 });
-      if (waiting) q.g.rect(-2, -26, 4, 8).fill(C.warn).rect(-2, -16, 4, 3).fill(C.warn);
-      q.t.style.fill = col;
-    }
-    // efectos
     for (let i = this.fx.length - 1; i >= 0; i--) {
       const f = this.fx[i]; f.age += dt;
-      if (!f.tick(f, dt)) { f.obj.destroy({ children: true }); this.fx.splice(i, 1); }
+      if (!f.tick(f, dt)) { if (f.obj) { this.fxG.remove(f.obj); f.obj.geometry.dispose(); f.obj.material.dispose(); } if (f.dom) f.dom.remove(); this.fx.splice(i, 1); }
     }
-    this.drawSelection();
     this.director(dt);
-    // camara suave
-    if (this.camTarget) {
-      const k = 1 - Math.pow(0.02, dt);
-      this.cam.s += (this.camTarget.s - this.cam.s) * k; this.cam.x += (this.camTarget.x - this.cam.x) * k; this.cam.y += (this.camTarget.y - this.cam.y) * k;
-    }
-    const W = this.app.screen.width, H = this.app.screen.height;
-    this.world.scale.set(this.cam.s);
-    this.world.x = W / 2 + this.cam.x; this.world.y = H / 2 + this.cam.y;
-    if (this.manualUntil && this.manualUntil < this.t) { this.manualUntil = 0; this.camTarget = this.overview; this.navChanged(); }
+    const k = 1 - Math.pow(0.03, dt), o = this.orbit, g = this.goal;
+    for (const key of ['el', 'dist', 'tx', 'tz', 'zoom']) o[key] += (g[key] - o[key]) * k;
+    const dAz = ((g.az - o.az + Math.PI) % TAU + TAU) % TAU - Math.PI; o.az += dAz * k;
+    this.camera.position.set(o.tx + Math.cos(o.az) * Math.cos(o.el) * o.dist, Math.sin(o.el) * o.dist, o.tz + Math.sin(o.az) * Math.cos(o.el) * o.dist);
+    this.camera.lookAt(o.tx, 0, o.tz);
+    this.camera.zoom = this.fitZoom * o.zoom; this.camera.updateProjectionMatrix();
+    this.renderer.render(this.scene, this.camera);
+    this.placeLabels();
+    if (this.manualUntil && this.manualUntil < this.t) { this.manualUntil = 0; this.resetGoal(); this.navChanged(); }
     else if (this.manualUntil && Math.floor(this.t) !== this.lastNav) { this.lastNav = Math.floor(this.t); this.navChanged(); }
   }
 
-  drawSelection() {
-    const g = this.selG; g.clear();
+  placeLabels() {
+    const put = (d, v) => { const p = this.toScreen(v); d.style.transform = `translate(${p.x | 0}px, ${p.y | 0}px)`; d.style.visibility = p.behind ? 'hidden' : ''; };
+    put(this.baseLabel, new THREE.Vector3(0, -0.2, 2.4));
+    for (const s of this.sectors.values()) put(s.label, s.pos);
+    for (const it of this.items.values()) if (it.label.textContent) put(it.label, it.g.position.clone().setY(it.h + 0.9));
+    for (const d of this.drones.values()) put(d.label, d.mesh.position.clone().setY(d.mesh.position.y + 0.6));
+    for (const f of this.fx) if (f.dom) put(f.dom, f.pos);
     const s = this.selected;
-    if (!s) return;
-    let p = null;
-    if (s.kind === 'app' || s.kind === 'site') { const b = this.blips.get(s.id); if (b) p = { x: b.c.x, y: b.c.y, r: 20 }; }
-    else if (s.kind === 'session') { const q = this.squads.get(s.id); if (q) p = { x: q.c.x, y: q.c.y, r: 22 }; }
-    if (!p) return;
-    const k = 4 + Math.sin(this.t * 6) * 2, r = p.r + k;
-    // esquinas de mira
-    for (const [sx, sy] of [[-1, -1], [1, -1], [1, 1], [-1, 1]]) g.moveTo(p.x + sx * r, p.y + sy * (r - 8)).lineTo(p.x + sx * r, p.y + sy * r).lineTo(p.x + sx * (r - 8), p.y + sy * r);
-    g.stroke({ width: 3, color: this.C.warn });
+    const it = s && this.items.get(s.id), d = s && this.drones.get(s.id);
+    const pos = it ? it.g.position : d ? d.mesh.position : null;
+    if (pos && !this.selRing) { this.selRing = new THREE.Mesh(new THREE.RingGeometry(0.42, 0.5, 32), new THREE.MeshBasicMaterial({ color: col(this.C.warn), side: THREE.DoubleSide, transparent: true })); this.selRing.rotation.x = -Math.PI / 2; this.scene.add(this.selRing); }
+    if (this.selRing) {
+      this.selRing.visible = !!pos;
+      if (pos) { this.selRing.position.set(pos.x, it ? 0.04 : pos.y - 0.4, pos.z); this.selRing.scale.setScalar(1 + 0.15 * Math.sin(this.t * 6)); }
+    }
   }
 
   // ------------------------------------------------------------------ camara y navegacion
-  setInsets(ins) { this.insets = ins; this.fit(true); }
-  fit(snap) {
-    if (!this.app) return;
-    const W = this.app.screen.width, H = this.app.screen.height, i = this.insets;
-    const aw = Math.max(200, W - i.left - i.right), ah = Math.max(200, H - i.top - i.bottom);
-    const s = Math.min(aw, ah) / ((R + 140) * 2);
-    this.overview = { s, x: (i.left - i.right) / 2, y: (i.top - i.bottom) / 2 };
-    if (snap || !this.camTarget) { if (!this.manualUntil) { this.camTarget = this.overview; if (snap) Object.assign(this.cam, this.overview); } }
+  resize() {
+    const r = this.el.getBoundingClientRect();
+    this.W = r.width; this.H = r.height;
+    this.renderer.setSize(this.W, this.H, false);
+    this.renderer.domElement.style.width = this.W + 'px'; this.renderer.domElement.style.height = this.H + 'px';
+    this.camera.aspect = this.W / this.H;
+    this.setInsets(this.insets);
   }
-  frameOn(x, y, zoom) {
-    const o = this.overview, s = o.s * zoom;
-    return { s, x: o.x - x * s, y: o.y - y * s };
+  setInsets(ins) {
+    this.insets = ins;
+    if (!this.camera || !this.W) return;
+    const aw = Math.max(200, this.W - ins.left - ins.right), ah = Math.max(200, this.H - ins.top - ins.bottom);
+    // la mesa se ve en el area libre: se corre el centro de la vista y se ajusta el zoom
+    const cx = ins.left + aw / 2, cy = ins.top + ah / 2;
+    this.camera.setViewOffset(this.W, this.H, this.W / 2 - cx, this.H / 2 - cy, this.W, this.H);
+    this.fitZoom = Math.min(aw / this.W, ah / this.H) * 1.22;
+    this.camera.updateProjectionMatrix();
   }
+  resetGoal() { Object.assign(this.goal, { el: 0.95, dist: 30, tx: 0, tz: 0, zoom: 1 }); }
   director(dt) {
     if (this.manualUntil) return;
-    if (this.urgent && this.urgent.until > this.t) { this.camTarget = this.frameOn(this.urgent.x, this.urgent.y, 1.8); return; }
+    if (this.urgent && this.urgent.until > this.t) { Object.assign(this.goal, { tx: this.urgent.x, tz: this.urgent.z, zoom: 1.9, el: 0.8 }); return; }
     this.urgent = null;
-    if (!this.directorOn) { this.camTarget = this.overview; return; }
+    if (!this.directorOn) { this.resetGoal(); return; }
+    this.goal.az += dt * 0.06; // orbita lenta
     this.shotT -= dt;
     if (this.shotT > 0) return;
     const secs = [...this.sectors.values()];
-    // alterna: vista general y cada sector de cerca
     this.shotIdx = (this.shotIdx + 1) % (secs.length * 2 || 1);
-    if (this.shotIdx % 2 === 0 || !secs.length) { this.camTarget = this.overview; this.shotT = 10; }
-    else { const s = secs[Math.floor(this.shotIdx / 2) % secs.length]; this.camTarget = this.frameOn(Math.cos(s.mid) * R * 0.55, Math.sin(s.mid) * R * 0.55, 1.6); this.shotT = 12; }
+    if (this.shotIdx % 2 === 0 || !secs.length) { this.resetGoal(); this.shotT = 12; return; }
+    const s = secs[Math.floor(this.shotIdx / 2) % secs.length];
+    Object.assign(this.goal, { tx: Math.cos(s.mid) * R * 0.55, tz: Math.sin(s.mid) * R * 0.55, zoom: 1.7, el: 0.75, az: s.mid + Math.PI * 0.15 });
+    this.shotT = 12;
   }
   setDirector(on) { this.directorOn = on; this.shotT = 0; }
   navState() { return this.manualUntil ? { mode: 'manual', left: Math.max(0, Math.ceil(this.manualUntil - this.t)) } : { mode: this.directorOn ? 'director' : 'fixed' }; }
   navChanged() { if (this.onNav) this.onNav(this.navState()); }
   manual() { this.manualUntil = this.t + 90; this.navChanged(); }
-  resetView() { this.manualUntil = 0; this.camTarget = this.overview; this.shotT = 10; this.navChanged(); }
-  zoomBy(f) { this.manual(); const c = this.camTarget || this.cam; this.camTarget = { s: clamp(c.s * f, this.overview.s * 0.6, this.overview.s * 4), x: c.x * f, y: c.y * f }; }
-
+  resetView() { this.manualUntil = 0; this.resetGoal(); this.shotT = 12; this.navChanged(); }
+  zoomBy(f) { this.manual(); this.goal.zoom = clamp(this.goal.zoom * f, 0.6, 5); }
   pick(kind, id) {
     this.selected = { kind, id };
     let p = null;
-    if (kind === 'app' || kind === 'site') { const b = this.blips.get(id); if (b) p = { x: b.c.x, y: b.c.y, z: 2.2 }; }
-    else if (kind === 'session') { const q = this.squads.get(id); if (q) p = { x: q.c.x, y: q.c.y, z: 2.2 }; }
-    else if (kind === 'district') { const s = this.sectors.get(id); if (s) p = { x: Math.cos(s.mid) * R * 0.6, y: Math.sin(s.mid) * R * 0.6, z: 1.7 }; }
-    else if (kind === 'system' || kind === 'security') p = { x: 0, y: 0, z: 1.8 };
-    if (p) { this.manual(); this.camTarget = this.frameOn(p.x, p.y, p.z); }
+    if (kind === 'app' || kind === 'site') { const it = this.items.get(id); if (it) p = { x: it.g.position.x, z: it.g.position.z, zoom: 2.8 }; }
+    else if (kind === 'session') { const d = this.drones.get(id); if (d) p = { x: d.mesh.position.x, z: d.mesh.position.z, zoom: 2.5 }; }
+    else if (kind === 'district') { const s = this.sectors.get(id); if (s) p = { x: Math.cos(s.mid) * R * 0.55, z: Math.sin(s.mid) * R * 0.55, zoom: 1.8 }; }
+    else if (kind === 'system' || kind === 'security') p = { x: 0, z: 0, zoom: 2.2 };
+    if (p) { this.manual(); Object.assign(this.goal, { tx: p.x, tz: p.z, zoom: p.zoom, el: 0.8 }); }
     if (this.onSelect) this.onSelect(kind, id);
   }
   clearSelection() { this.selected = null; }
 
-  tipOn(obj, fn) {
-    obj.on('pointerover', e => { if (this.onTip && !this.dragMoved) this.onTip(fn(), e.client.x, e.client.y); });
-    obj.on('pointerout', () => this.onTip && this.onTip(null));
+  hitTest(clientX, clientY) {
+    const r = this.renderer.domElement.getBoundingClientRect();
+    const v = new THREE.Vector2((clientX - r.left) / r.width * 2 - 1, -((clientY - r.top) / r.height) * 2 + 1);
+    this.ray.setFromCamera(v, this.camera);
+    const hits = this.ray.intersectObjects(this.pickables, false);
+    // prioridad: columnas, drones y base antes que la cuna del sector
+    return (hits.find(h => h.object.userData.kind !== 'district') || hits[0] || {}).object?.userData || null;
   }
-
+  tipFor(u) {
+    if (!u) return null;
+    if (u.kind === 'app' || u.kind === 'site') {
+      const it = this.items.get(u.id); if (!it) return null;
+      const a = it.data;
+      return { title: a.name, body: `${a.kind && a.kind !== a.name ? `<b>${esc(a.kind)}</b> · ` : ''}${it.site ? 'sitio (prisma)' : 'servicio (columna)'} · ${esc(it.acc.label)}`,
+        meta: `${{ online: 'en línea', degraded: 'parcial', down: 'CAÍDO' }[a.status] || a.status}${!it.site ? ` · CPU ${(a.cpu || 0).toFixed(1)}% · RAM ${fmtBytes(a.mem || 0)}` : ''} · ${a.reqMin || 0} visitas/min`, hint: 'Clic para ver el detalle' };
+    }
+    if (u.kind === 'session') { const d = this.drones.get(u.id); return d && { title: 'Dron · agente de Claude Code', body: esc(d.s.activity || ''), meta: d.s.waitKind ? 'Espera su permiso o su respuesta' : { working: 'Trabajando', thinking: 'Pensando', idle: 'En pausa' }[d.s.state] || '', hint: 'Clic para ver la línea de tiempo' }; }
+    if (u.kind === 'district') { const s = this.sectors.get(u.id); return s && { title: s.acc.label, body: 'Sector: una cuenta con sus servicios (columnas) y sitios (prismas).', meta: s.caption, hint: 'Clic para ver el sector' }; }
+    if (u.kind === 'system') return { title: 'Base', body: 'El <b>servidor</b>. La cúpula es el escudo: los misiles (intentos de acceso) se estrellan contra ella.', meta: this.state?.system ? `CPU ${this.state.system.cpu.toFixed(0)}% · RAM ${this.state.system.mem.pct.toFixed(0)}% · carga ${this.state.system.load[0].toFixed(2)}` : '', hint: 'Clic para ver el servidor completo' };
+    return null;
+  }
   setupNav(sig) {
-    const cv = this.app.canvas;
+    const cv = this.renderer.domElement;
     let start = null, last = null;
     cv.style.touchAction = 'none';
     window.addEventListener('pointerdown', e => { if (e.target !== cv) return; start = last = { x: e.clientX, y: e.clientY }; this.dragMoved = false; }, { capture: true, signal: sig.signal });
     window.addEventListener('pointermove', e => {
-      if (!start) return;
-      if (!this.dragMoved && Math.hypot(e.clientX - start.x, e.clientY - start.y) > 6) this.dragMoved = true;
-      if (this.dragMoved) {
-        if (!this.manualUntil) this.manual(); else this.manualUntil = this.t + 90;
-        const c = this.camTarget || this.cam;
-        this.camTarget = { ...c, x: c.x + (e.clientX - last.x), y: c.y + (e.clientY - last.y) };
-        Object.assign(this.cam, this.camTarget);
-        if (this.onTip) this.onTip(null);
+      if (start) {
+        if (!this.dragMoved && Math.hypot(e.clientX - start.x, e.clientY - start.y) > 6) this.dragMoved = true;
+        if (this.dragMoved) {
+          if (!this.manualUntil) this.manual(); else this.manualUntil = this.t + 90;
+          this.goal.az += (e.clientX - last.x) * 0.006; this.orbit.az = this.goal.az;
+          this.goal.el = clamp(this.goal.el + (e.clientY - last.y) * 0.004, 0.35, 1.45); this.orbit.el = this.goal.el;
+          if (this.onTip) this.onTip(null);
+        }
+        last = { x: e.clientX, y: e.clientY };
+        return;
       }
-      last = { x: e.clientX, y: e.clientY };
+      if (e.target !== cv) return;
+      const u = this.hitTest(e.clientX, e.clientY);
+      cv.style.cursor = u ? 'pointer' : 'grab';
+      if (this.onTip) this.onTip(this.tipFor(u), e.clientX, e.clientY);
     }, sig);
-    window.addEventListener('pointerup', () => { start = null; }, sig);
+    window.addEventListener('pointerup', e => {
+      if (start && !this.dragMoved && e.target === cv) { const u = this.hitTest(e.clientX, e.clientY); if (u) this.pick(u.kind, u.id); }
+      start = null;
+    }, sig);
+    cv.addEventListener('pointerleave', () => this.onTip && this.onTip(null), sig);
     cv.addEventListener('wheel', e => { e.preventDefault(); this.zoomBy(Math.exp(-e.deltaY * 0.0015)); }, { passive: false, signal: sig.signal });
     cv.addEventListener('dblclick', () => this.resetView(), sig);
+    // nombres de sector: clic para abrir su detalle
+    this.labels.addEventListener('click', e => { const el = e.target.closest('[data-go]'); if (el) { const [k, ...r] = el.dataset.go.split(':'); this.pick(k, r.join(':')); } }, sig);
   }
 }

@@ -357,3 +357,27 @@ button.ev:hover { background: rgba(255, 255, 255, .06); }
 .themes .tcard p { margin: 0; font-size: .85rem; color: var(--ink-2); }
 .themes .tsw { display: flex; gap: 3px; } .themes .tsw i { width: 1.2rem; height: .7rem; display: block; border: 1px solid rgba(255, 255, 255, .15); }
 .themes .tprev { width: 100%; aspect-ratio: 16 / 9; object-fit: cover; display: block; border: 1px solid var(--line); image-rendering: auto; }
+/* etiquetas HTML de los mundos 3D (web/js/stage3d.js): nitidas, siguen a su punto; cada tema las restiliza */
+.w3-labels { position: absolute; inset: 0; pointer-events: none; overflow: hidden; }
+.w3-label { position: absolute; left: 0; top: 0; white-space: nowrap; will-change: transform; }
+.w3-group { pointer-events: auto; cursor: pointer; display: grid; justify-items: center; gap: .1rem; translate: -50% -100%; text-align: center; }
+.w3-group b { font-family: var(--pixel); font-weight: 400; font-size: 1.1rem; letter-spacing: .08em; color: var(--ink); text-shadow: 0 2px 6px rgba(0, 0, 0, .8); }
+.w3-group small { font-size: .74rem; color: var(--ink-2); text-shadow: 0 1px 4px rgba(0, 0, 0, .9); }
+.w3-item { translate: -50% -100%; font-size: .78rem; font-weight: 600; color: var(--ink); background: rgba(5, 9, 18, .78); border-left: 2px solid var(--accent); padding: .05rem .35rem; }
+.w3-item:empty { display: none; }
+.w3-float { translate: -50% -100%; font-weight: 700; font-size: .95rem; padding: .1rem .5rem; background: rgba(5, 9, 18, .82); border: 1px solid currentColor; }
+.w3-float.ok { color: var(--good); } .w3-float.warn { color: var(--warn); } .w3-float.crit { color: var(--bad); } .w3-float.dim { color: var(--ink-3); } .w3-float.accent { color: var(--accent); }
+.w3-agent { translate: -50% -100%; font-size: .72rem; color: var(--ink-2); text-shadow: 0 1px 4px #000; }
+.w3-agent em { font-style: normal; color: #111; background: var(--warn); padding: 0 .3rem; margin-left: .25rem; font-weight: 700; }
+/* placas: una tarjeta que cuelga bajo un objeto 3D y nombra todo lo que contiene (se ubica sin hacer clic) */
+.w3-plaque { pointer-events: auto; cursor: pointer; translate: -50% 0; min-width: 7rem; padding: .35em .5em .45em; background: rgba(5, 9, 18, .86); border: 1px solid var(--line-strong); font-size: 12px; line-height: 1.25; white-space: normal; }
+.w3-plaque > b { display: block; font-family: var(--pixel); font-weight: 400; font-size: 1.15em; letter-spacing: .04em; color: var(--ink); border-left: 4px solid; padding-left: .4em; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.w3-plaque > small { display: block; font-size: .8em; color: var(--ink-3); margin: .1em 0 .3em; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.w3-plaque .fishlist { display: grid; grid-template-columns: repeat(auto-fill, minmax(10em, 1fr)); column-gap: .6em; }
+.w3-plaque .fishlist span { display: flex; align-items: center; gap: .35em; min-width: 0; color: var(--ink-2); }
+.w3-plaque .fishlist em { font-style: normal; min-width: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.w3-plaque .fishlist span:hover { color: var(--ink); }
+.w3-plaque .fishlist span.down { color: var(--bad); }
+.w3-plaque .fishlist img { width: 1.8em; height: 1em; flex: none; image-rendering: pixelated; }
+.w3-fish { translate: -50% -100%; font-size: .74rem; font-weight: 600; color: var(--ink); background: rgba(5, 9, 18, .72); padding: 0 .3rem; }
+.w3-fish.down { color: var(--bad); }

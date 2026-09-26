@@ -1,10 +1,10 @@
 {
   "id": "ops",
   "name": "Ops",
-  "description": "Radar táctico en pixel art: el servidor es la base, cada cuenta un sector, cada servicio un contacto amigo y cada ataque un contacto hostil que choca contra el escudo. Las novedades pasan como un parte de operaciones.",
+  "description": "Una mesa táctica holográfica en 3D: el servidor es la base con su cúpula de escudo, cada cuenta un sector, cada servicio una columna que sube con su CPU y cada sitio un prisma que sube con sus visitas. Las visitas caen en arco, los intentos de acceso son misiles contra la cúpula y los agentes de Claude Code son drones.",
   "author": "NERACOSU",
-  "version": "1.0.0",
-  "license": "Propietaria · fuente VT323 bajo SIL OFL 1.1",
+  "version": "2.0.0",
+  "license": "Propietaria · three.js (MIT) · fuente VT323 bajo SIL OFL 1.1",
   "world": "world.js",
   "css": "theme.css",
   "hud": {
@@ -20,8 +20,14 @@
     "bg": "#0b0d09",
     "ink": "#d9e3c8"
   },
-  "rule": "Nada redondeado ni brillante: líneas rectas, esquinas de mira y el color solo para amigo, alerta u hostil.",
+  "rule": "Geometría limpia y textos nítidos; el pixel art va en los carteles; el color solo significa amigo, alerta u hostil.",
   "credits": [
+    {
+      "what": "three.js",
+      "author": "three.js authors",
+      "license": "MIT",
+      "url": "https://threejs.org"
+    },
     {
       "what": "Fuente VT323",
       "author": "The VT323 Project Authors",
@@ -31,32 +37,28 @@
   ],
   "legend": [
     {
-      "title": "El radar",
+      "title": "La mesa",
       "items": [
         {
-          "icon": "terminal",
-          "title": "Base",
-          "text": "El servidor, en el centro. El anillo punteado es el escudo: se enciende en rojo cuando choca un contacto hostil y en ámbar si falla un servicio clave."
+          "icon": "shield",
+          "title": "Base y cúpula",
+          "text": "El servidor, en el centro. La cúpula es el escudo: se enciende en rojo cuando choca un misil y en ámbar si falla un servicio clave."
         },
         {
           "icon": "web",
           "title": "Sectores",
-          "text": "Cada cuenta es un sector del radar, con su nombre en el borde. Clic en el nombre para ver el sector."
+          "text": "Cada cuenta es un sector con su color, su nombre y, debajo, su cuenta de cPanel (en privado) o cuántos servicios y sitios tiene. Clic en el nombre para verlo."
         },
         {
           "color": "#9fd356",
-          "title": "Contacto amigo",
-          "text": "Cuadrado lleno: un servicio (PM2, systemd, contenedor, Vercel). Cuadrado vacío: un sitio servido directo. El barrido los ilumina al pasar; más grande = más visitas."
+          "title": "Columnas y prismas",
+          "text": "Columna: un servicio, más alta con más CPU. Prisma hexagonal: un sitio, más alto con más visitas. Verde bien, ámbar a medias, rojo parpadeando caído. Encima, su cartel."
         },
         {
-          "color": "#f5a524",
-          "title": "Contacto ámbar",
-          "text": "Un servicio parcial: le falta alguna instancia."
-        },
-        {
-          "color": "#ff4d3d",
-          "title": "Contacto rojo parpadeando",
-          "text": "Un servicio caído."
+          "color": "#d9e3c8",
+          "solid": false,
+          "title": "Barrido",
+          "text": "El haz que gira: hace brillar cada columna al pasar."
         }
       ]
     },
@@ -65,39 +67,28 @@
       "items": [
         {
           "color": "#d9e3c8",
-          "solid": false,
-          "title": "Traza clara",
-          "text": "Una visita real que entra desde el borde hasta el contacto que la atiende. Gris: un robot o rastreador. Ámbar: error del visitante (4xx). Rojo: error del servidor (5xx)."
+          "title": "Puntos de luz",
+          "text": "Visitas reales que caen en arco sobre su columna. Gris: robots. Ámbar: error del visitante. Rojo: error del servidor."
         },
         {
           "icon": "invader",
-          "title": "Contacto hostil",
-          "text": "Rombo rojo que viene desde un rumbo cualquiera: un intento de acceso fallido. Choca contra el escudo; si la IP queda bloqueada aparece «NEUTRALIZADO»."
+          "title": "Misiles",
+          "text": "Intentos de acceso fallidos que se estrellan contra la cúpula; si la IP queda bloqueada, aparece «NEUTRALIZADO»."
         },
         {
           "icon": "bot",
-          "title": "Escuadra",
-          "text": "Triángulo: una sesión de Claude Code en su sector (ESC-01, ESC-02…). Ámbar con «!»: espera su permiso o su respuesta."
-        },
-        {
-          "icon": "refresh",
-          "title": "Recuadro que se expande",
-          "text": "Algo pasó en ese punto: despliegue, reinicio, caída, dominio nuevo o acceso SSH, con su aviso."
+          "title": "Drones",
+          "text": "Las sesiones de Claude Code sobre su sector (ESC-01, ESC-02…). Ámbar con «ESPERA PERMISO»: lo esperan a usted."
         }
       ]
     },
     {
-      "title": "El HUD",
+      "title": "Cómo usarlo",
       "items": [
         {
-          "icon": "antenna",
-          "title": "Parte de operaciones",
-          "text": "Arriba a la derecha, las últimas novedades como un parte: la más nueva arriba. «Ver todo» abre el historial."
-        },
-        {
-          "icon": "chart",
-          "title": "Telemetría",
-          "text": "A la derecha: CPU, memoria, tráfico, procesos, proyectos, defensa y correo."
+          "icon": "refresh",
+          "title": "Cámara",
+          "text": "Arrastre para girar la mesa, rueda para acercar, doble clic para volver. En modo director la cámara orbita sola y visita cada sector."
         }
       ]
     }
