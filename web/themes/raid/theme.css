@@ -73,7 +73,7 @@ body[data-theme="raid"] #navbar { left: auto; right: calc(clamp(260px, 21vw, 520
 body[data-theme="raid"] #navbar button { background: #1d1916; border: 1px solid #5a4a2a; }
 
 /* el mundo entre las dos columnas, sobre la barra de accion */
-body[data-theme="raid"] #worldArea { display: block; top: 5rem; bottom: 10.4rem; left: calc(clamp(240px, 19vw, 460px) + 2rem); right: calc(clamp(260px, 21vw, 520px) + 2rem); }
+body[data-theme="raid"] #worldArea { display: block; top: 5rem; bottom: 7.6rem; left: calc(clamp(240px, 19vw, 460px) + 2rem); right: calc(clamp(260px, 21vw, 520px) + 2rem); }
 
 body[data-theme="raid"] .drawer { top: 1rem; bottom: 1rem; right: 1rem; }
 body[data-theme="raid"] .dstat { background: #1d1916; }
@@ -81,24 +81,7 @@ body[data-theme="raid"] .btn { background: #2a2219; border: 1px solid #c9a227; c
 body[data-theme="raid"] .btn.ghost { background: none; }
 body[data-theme="raid"] .cc { font-family: var(--font); background: #1d1916; border-color: #5a4a2a; }
 
-/* mundo 3D: jefe, lanzamientos, placas de grupo y numeros de combate */
-body[data-theme="raid"] .w3-boss { translate: -50% -100%; display: grid; justify-items: center; gap: .15rem; pointer-events: auto; cursor: pointer; }
-body[data-theme="raid"] .w3-boss b { font-family: var(--pixel); font-weight: 400; font-size: 1.6rem; letter-spacing: .1em; color: #d9a3ff; text-shadow: 0 2px 0 #000; }
-body[data-theme="raid"] .w3-boss i { display: block; width: 14rem; height: .8rem; background: #120f0d; box-shadow: 0 0 0 2px #000, 0 0 0 3px #5a2f86; }
-body[data-theme="raid"] .w3-boss s { display: block; height: 100%; background: linear-gradient(#d94a3a, #8f2a20); transition: width .4s; }
-body[data-theme="raid"] .w3-boss small { font-size: .95rem; color: var(--ink-2); text-shadow: 0 1px 0 #000; }
-body[data-theme="raid"] .w3-group b { font-size: 1.4rem; color: #e8c55a; }
-body[data-theme="raid"] .w3-cast { translate: -50% -100%; display: grid; justify-items: center; font-size: .95rem; color: #f4e7c5; text-shadow: 0 1px 0 #000; }
-body[data-theme="raid"] .w3-cast i { display: block; width: 7rem; height: .35rem; margin-top: .1rem; background: #120f0d; box-shadow: 0 0 0 1px #000, 0 0 0 2px #b8912e; overflow: hidden; }
-body[data-theme="raid"] .w3-cast i::after { content: ''; display: block; height: 100%; width: 40%; background: #e8c55a; animation: raidcast 1.6s linear infinite; }
-@keyframes raidcast { from { transform: translateX(-100%); } to { transform: translateX(250%); } }
-body[data-theme="raid"] .w3-cast em { font-style: normal; color: #120f0d; background: #e8c55a; padding: 0 .35rem; margin-right: .25rem; }
-body[data-theme="raid"] .w3-plaque { background: rgba(20, 17, 16, .9); border: 0; box-shadow: 0 0 0 2px #000, 0 0 0 3px #5a4a2a; }
-body[data-theme="raid"] .w3-plaque > b { font-size: 1.3em; color: #f4e7c5; }
-body[data-theme="raid"] .w3-plaque .fishlist span { color: #f4e7c5; }
-body[data-theme="raid"] .w3-plaque .fishlist img { width: 1.1em; height: 1.1em; }
-body[data-theme="raid"] .w3-item { font-family: var(--pixel); font-weight: 400; font-size: 1rem; border-left-color: #e8c55a; background: rgba(20, 17, 16, .85); }
-body[data-theme="raid"] .w3-item.down { color: #ff9a8c; border-left-color: #d94a3a; }
-/* numeros de combate: sin caja, grandes, con borde negro */
-body[data-theme="raid"] .w3-float { font-family: var(--pixel); font-weight: 400; font-size: 1.5rem; background: none; border: 0; padding: 0; text-shadow: 2px 2px 0 #000, -1px -1px 0 #000, 1px -1px 0 #000, -1px 1px 0 #000; }
-body[data-theme="raid"] .w3-float.ok { color: #6fe06a; } body[data-theme="raid"] .w3-float.crit { color: #ff5a4a; } body[data-theme="raid"] .w3-float.warn { color: #ffd24a; } body[data-theme="raid"] .w3-float.dim { color: #9aa0a8; }
+/* novedades: cada una ocupa el ancho del cuadro y hace salto de linea (tambien las que se tocan) */
+body[data-theme="raid"] #log { align-items: stretch; width: 100%; min-width: 0; white-space: normal; }
+body[data-theme="raid"] #log .ev, body[data-theme="raid"] #log .ev.link { display: block; width: 100%; max-width: none; text-align: left; white-space: normal; overflow-wrap: anywhere; overflow: visible; text-overflow: clip; }
+body[data-theme="raid"] #log .ev .ic { display: inline-block; vertical-align: -2px; }

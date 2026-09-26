@@ -72,3 +72,8 @@ body[data-theme="acuario"] .w3-plaque > b { font-family: var(--pixel); font-weig
 body[data-theme="acuario"] .w3-plaque .fishlist span { color: var(--ink); }
 body[data-theme="acuario"] .w3-plaque.w3-filter > b { border-color: #3ddbd9; }
 body[data-theme="acuario"] .w3-fish { font-family: var(--pixel); font-size: .8rem; background: rgba(8, 22, 32, .8); box-shadow: 0 0 0 1px #3a8c8c; }
+
+/* novedades: cada una ocupa el ancho del cuadro y hace salto de linea (tambien las que se tocan) */
+body[data-theme="acuario"] #log { align-items: stretch; width: 100%; min-width: 0; white-space: normal; }
+body[data-theme="acuario"] #log .ev, body[data-theme="acuario"] #log .ev.link { display: block; width: 100%; max-width: none; text-align: left; white-space: normal; overflow-wrap: anywhere; overflow: visible; text-overflow: clip; }
+body[data-theme="acuario"] #log .ev .ic { display: inline-block; vertical-align: -2px; }
