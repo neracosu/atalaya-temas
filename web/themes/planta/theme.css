@@ -82,3 +82,8 @@ body[data-theme="planta"] .w3-central > b { border-color: #ffec27; }
 body[data-theme="planta"] .w3-item { border-left-color: #ffec27; background: rgba(21, 21, 27, .88); }
 body[data-theme="planta"] .w3-item.down { color: #ff77a8; border-left-color: #ff004d; }
 body[data-theme="planta"] .w3-float { background: #15151b; }
+
+/* novedades: cada una ocupa el ancho del cuadro y hace salto de linea (tambien las que se tocan) */
+body[data-theme="planta"] #log { align-items: stretch; width: 100%; min-width: 0; white-space: normal; }
+body[data-theme="planta"] #log .ev, body[data-theme="planta"] #log .ev.link { display: block; width: 100%; max-width: none; text-align: left; white-space: normal; overflow-wrap: anywhere; overflow: visible; text-overflow: clip; }
+body[data-theme="planta"] #log .ev .ic { display: inline-block; vertical-align: -2px; }
