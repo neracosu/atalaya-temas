@@ -495,3 +495,21 @@ body.ed-cloud #kpi-rx, body.ed-cloud #kpi-tx, body.ed-cloud #instDlg .itabs, bod
 body.ed-equipo .sysonly, body.sys-lite .sysprocs, body.sys-lite #kpi-rx, body.sys-lite #kpi-tx, body.sys-noload #kpi-load { display: none !important; }
 /* comunicacion entre agentes (web/js/commfx.js): encima del mundo y del HUD, sin atrapar clics */
 .commfx { position: fixed; inset: 0; width: 100vw; height: 100vh; pointer-events: none; z-index: 60; }
+/* ficha de correo: tabla por cuenta y movimientos con contexto */
+.dtable { width: 100%; border-collapse: collapse; font-size: .85rem; }
+.dtable th, .dtable td { text-align: left; padding: .35rem .5rem; border-bottom: 1px solid var(--line); }
+.dtable th { color: var(--ink-3); font-weight: 500; font-size: .75rem; text-transform: uppercase; letter-spacing: .04em; }
+.dtable td.warn { color: #fcd34d; font-weight: 600; }
+.small { font-size: .78rem; }
+/* cada movimiento de correo se lee completo: sin cortes ni puntos suspensivos */
+.dlist li.mailrow { align-items: flex-start; }
+.dlist li.mailrow time { padding-top: .15rem; }
+.dlist li.mailrow .grow { white-space: normal; overflow: visible; text-overflow: clip; display: grid; gap: 3px; }
+.mfield { display: grid; grid-template-columns: 2.6rem 1fr; gap: .4rem; font-size: .78rem; }
+.mfield span { color: var(--ink-3); }
+.mfield b { font-weight: 500; color: var(--ink-2); overflow-wrap: anywhere; }
+.mwhy { font-size: .76rem; color: var(--ink-3); line-height: 1.4; overflow-wrap: anywhere; padding: .3rem .45rem; border-left: 2px solid rgba(248, 113, 113, .5); background: rgba(248, 113, 113, .05); border-radius: 0 6px 6px 0; }
+.mwhy b { color: #fca5a5; }
+/* defensa web en el bloque Defensa: expuestos en rojo, sospechosos en ambar */
+.mini .link.bad b { color: #f87171; } .mini .link.warn b { color: #fbbf24; }
+.mini .link { cursor: pointer; } .mini .link:hover span { color: var(--ink); }

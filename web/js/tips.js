@@ -104,6 +104,7 @@ export function openLegend(manifest) {
         ${row(dot('#64748b', false), 'Auto gris', 'Un robot o rastreador (Google, bots de IA, monitores).')}
         ${row(`${dot('#f59e0b')}${dot('#ef4444')}`, 'Auto ámbar / rojo', 'Ámbar: error del visitante (4xx, p. ej. página no encontrada). Rojo: <b>error del servidor</b> (5xx) y chispa en el edificio.')}
         ${row(`<span class="linv">${px('invader', 'big')}</span>`, 'Invasor', 'Un intento de entrar por SSH con clave equivocada. Baja por la autopista y revienta contra la barrera del peaje. Si cPHulk bloquea la IP, aparece el aviso “IP bloqueada”.')}
+        ${row(`<span class="linv">${px('invader', 'big')}</span>`, 'Auto con sirena', 'Un robot buscando una ruta vulnerable en un sitio (/.env, /.git, wp-login.php, phpmyadmin, webshells). Rebota con su código (404, 403); si la ruta respondió, el edificio queda en rojo con el cartel <b>EXPUESTO</b>. Detalle en Defensa › Defensa web.')}
         ${row(dot('#4ade80'), 'Cometa verde', 'Un acceso SSH correcto.')}
         ${row(`<span class="linv">${px('mail', 'big')}</span>`, 'Sobre', 'Correo: amarillo sale, violeta entra, rojo rebotó.')}
       </section>
