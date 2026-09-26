@@ -619,7 +619,7 @@ export class Drawer {
         scraping: ['bad', 'siren', `Scraping: una sola IP hizo ${fmtNum(w.n)} pedidos en 5 min${w.topIp ? ` (${esc(w.topIp)})` : ''}`, 'Una sola dirección se lleva el sitio página por página o lo satura. Si no es un servicio suyo, bloquee la IP en el firewall (o en cPHulk / CSF) y considere límites de velocidad.'],
         surge: ['warn', 'fire', `Pico de visitas: ${fmtNum(w.n)} por minuto (lo normal es ${fmtNum(w.base || 0)}) desde ${fmtNum(w.ips)} IPs`, 'Puede ser que se hizo viral (llegan de muchos países, con referer de redes o buscadores) o un ataque distribuido (muchas IPs, mismas páginas, sin referer). Compare países, referer y páginas más pedidas en esta ficha.'],
       }[w.reason];
-      const blockBtn = w.topIp && w.reason !== 'surge' ? `<p class="row"><button class="btn small danger" data-block-ip="${esc(w.topIp)}">Bloquear esta IP (${esc(w.topIp)})</button><span class="dmuted">se levanta sola al vencer</span></p>` : '';
+      const blockBtn = w.topIp && w.blockable && w.reason !== 'surge' ? `<p class="row"><button class="btn small danger" data-block-ip="${esc(w.topIp)}">Bloquear esta IP (${esc(w.topIp)})</button><span class="dmuted">se levanta sola al vencer</span></p>` : '';
       if (T) body.insertAdjacentHTML('afterbegin', `<section class="dsec"><div class="afind ${T[0]}"><h5>${px(T[1])} ${T[2]}</h5><p class="dmuted">Desde hace ${since}.</p><p class="fix">${T[3]}</p>${blockBtn}</div></section>`);
     }
     if (!d.probes || !d.probes.n) return;
