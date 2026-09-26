@@ -9,10 +9,10 @@
 //  - cada sesion de Claude Code es un BUZO en la arena de su pecera
 //  - a la izquierda, el FILTRO es el servidor: su agua sube con el disco usado y burbujea segun la carga
 // Regla de oro: calma y claridad; todo se mueve lento y cada pez se puede nombrar de un vistazo.
-import { Stage3D, THREE, color, clamp } from '/js/stage3d.js';
-import { esc, fmtBytes } from '/js/hud.js';
-import { accountCaption } from '/js/accounts.js';
-import { healthLine } from '/js/layout.js';
+import { Stage3D, THREE, color, clamp } from '../../js/stage3d.js';
+import { esc, fmtBytes } from '../../js/hud.js';
+import { accountCaption } from '../../js/accounts.js';
+import { healthLine } from '../../js/layout.js';
 
 const FISH_COLORS = ['#ff8a3d', '#ffd23f', '#ff5e8a', '#7be0ff', '#b48cff', '#7be06b', '#ff4d5e', '#f4f1e8', '#3ddbd9', '#ffb3c7'];
 function hash(s) { let h = 2166136261; for (const c of String(s)) { h ^= c.charCodeAt(0); h = Math.imul(h, 16777619); } return h >>> 0; }

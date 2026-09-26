@@ -6,11 +6,11 @@
 //    "Internet" por donde entran las visitas (puntos de luz que recorren las calles hasta su edificio)
 //  - los robots de Claude Code caminan por su distrito (pixel art); los invasores chocan contra el escudo
 // Regla de oro: la informacion vive en la ciudad (altura, luces, techos); el pixel art es el acento.
-import { Stage3D, THREE, color, clamp, billboard, rowsCanvas } from '/js/stage3d.js';
-import { signCanvas, robotCanvas, INVADER, ENVELOPE } from '/js/sprites.js';
-import { esc, fmtBytes } from '/js/hud.js';
-import { accountCaption } from '/js/accounts.js';
-import { healthLine } from '/js/layout.js';
+import { Stage3D, THREE, color, clamp, billboard, rowsCanvas } from '../../js/stage3d.js';
+import { signCanvas, robotCanvas, INVADER, ENVELOPE } from '../../js/sprites.js';
+import { esc, fmtBytes } from '../../js/hud.js';
+import { accountCaption } from '../../js/accounts.js';
+import { healthLine } from '../../js/layout.js';
 
 const GAP = 2.1; // distancia entre edificios
 const shade = (hex, f) => color(hex).lerp(color(f < 0 ? '#000000' : '#ffffff'), Math.abs(f));

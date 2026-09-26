@@ -1,9 +1,9 @@
 // Panel de detalle: se abre al tocar un servicio, agente, distrito, la torre o un evento.
 // Los datos vienen de /api/detail y ya llegan filtrados por el modo publico/privado.
-import { animate } from '/vendor/anime.esm.min.js';
+import { animate } from '../vendor/anime.esm.min.js';
 import { withFavicons } from './favicons.js';
 import { px } from './pixicons.js';
-import uPlot from '/vendor/uPlot.esm.js';
+import uPlot from '../vendor/uPlot.esm.js';
 import { signCanvas, robotCanvas, iconCanvas } from './sprites.js';
 import { esc, fmtBytes, fmtNum, ago } from './hud.js';
 
@@ -43,14 +43,14 @@ export class Drawer {
       if (dir) { this.params = { ...(this.params || {}), path: dir.dataset.dir }; this.load(); this.body.scrollTo({ top: this.body.querySelector('.crumbs')?.offsetTop - 80 || 0, behavior: 'smooth' }); return; }
       if (e.target.closest('[data-analyze]')) {
         const b = e.target.closest('[data-analyze]'); b.disabled = true;
-        const r = await fetch('/api/disk/analyze', { method: 'POST', headers: { 'Content-Type': 'application/json', 'X-Atalaya': '1' }, body: '{}' }).then(x => x.json()).catch(() => ({}));
+        const r = await fetch('api/disk/analyze', { method: 'POST', headers: { 'Content-Type': 'application/json', 'X-Atalaya': '1' }, body: '{}' }).then(x => x.json()).catch(() => ({}));
         if (r.error) { b.insertAdjacentHTML('afterend', `<span class="dmuted"> ${esc(r.error)}</span>`); b.disabled = false; } else this.load();
         return;
       }
       const ag = e.target.closest('[data-agent-du]');
       if (ag) {
         ag.disabled = true;
-        const r = await fetch('/api/agents/request', { method: 'POST', headers: { 'Content-Type': 'application/json', 'X-Atalaya': '1' }, body: JSON.stringify({ id: ag.dataset.agentDu, what: 'du' }) }).then(x => x.json()).catch(() => ({}));
+        const r = await fetch('api/agents/request', { method: 'POST', headers: { 'Content-Type': 'application/json', 'X-Atalaya': '1' }, body: JSON.stringify({ id: ag.dataset.agentDu, what: 'du' }) }).then(x => x.json()).catch(() => ({}));
         if (r.error) { ag.insertAdjacentHTML('afterend', `<span class="dmuted"> ${esc(r.error)}</span>`); ag.disabled = false; } else this.load();
         return;
       }
@@ -61,7 +61,7 @@ export class Drawer {
         if (act === 'rename') { const n = prompt('Nuevo nombre del proyecto', pa.dataset.name || ''); if (n == null) return; body.name = n; }
         if (act === 'hide' && !confirm('¿Ocultar este proyecto del mapa? (se puede volver a mostrar editando settings.json)')) return;
         pa.disabled = true;
-        const r = await fetch('/api/projects/' + act, { method: 'POST', headers: { 'Content-Type': 'application/json', 'X-Atalaya': '1' }, body: JSON.stringify(body) }).then(x => x.json()).catch(() => ({}));
+        const r = await fetch('api/projects/' + act, { method: 'POST', headers: { 'Content-Type': 'application/json', 'X-Atalaya': '1' }, body: JSON.stringify(body) }).then(x => x.json()).catch(() => ({}));
         if (r.error) { pa.insertAdjacentHTML('afterend', `<span class="dmuted"> ${esc(r.error)}</span>`); pa.disabled = false; return; }
         if (act === 'hide' || act === 'merge') { this.onNavigate('projects', 'all'); return; }
         this.load();
@@ -70,14 +70,14 @@ export class Drawer {
       const up = e.target.closest('[data-audit-updates]');
       if (up) {
         up.disabled = true;
-        const r = await fetch('/api/audit/updates', { method: 'POST', headers: { 'Content-Type': 'application/json', 'X-Atalaya': '1' }, body: '{}' }).then(x => x.json()).catch(() => ({}));
+        const r = await fetch('api/audit/updates', { method: 'POST', headers: { 'Content-Type': 'application/json', 'X-Atalaya': '1' }, body: '{}' }).then(x => x.json()).catch(() => ({}));
         if (r.error) { up.insertAdjacentHTML('afterend', `<span class="dmuted"> ${esc(r.error)}</span>`); up.disabled = false; } else { up.textContent = 'Revisando…'; setTimeout(() => this.load(), 12000); }
         return;
       }
       const au = e.target.closest('[data-audit-db]');
       if (au) {
         au.disabled = true;
-        const r = await fetch('/api/audit/db', { method: 'POST', headers: { 'Content-Type': 'application/json', 'X-Atalaya': '1' }, body: JSON.stringify({ name: au.dataset.auditDb }) }).then(x => x.json()).catch(() => ({}));
+        const r = await fetch('api/audit/db', { method: 'POST', headers: { 'Content-Type': 'application/json', 'X-Atalaya': '1' }, body: JSON.stringify({ name: au.dataset.auditDb }) }).then(x => x.json()).catch(() => ({}));
         if (r.error) { au.insertAdjacentHTML('afterend', `<span class="dmuted"> ${esc(r.error)}</span>`); au.disabled = false; } else this.load();
         return;
       }
@@ -117,8 +117,8 @@ export class Drawer {
     let d;
     try {
       const extra = this.params && this.params.path ? `&path=${encodeURIComponent(this.params.path)}` : '';
-      const r = await fetch(`/api/detail?kind=${encodeURIComponent(kind)}&id=${encodeURIComponent(id)}${extra}`);
-      if (r.status === 401) { location.href = '/login'; return; }
+      const r = await fetch(`api/detail?kind=${encodeURIComponent(kind)}&id=${encodeURIComponent(id)}${extra}`);
+      if (r.status === 401) { location.href = 'login'; return; }
       d = r.ok ? await r.json() : null;
       if (d) { withFavicons([d]); withFavicons(d.apps); withFavicons(d.sites); } // favicons reales (solo llegan en privado)
     } catch (e) { console.error('[detalle]', e); if (kind === this.kind && id === this.id) this.body.innerHTML = '<p class="dmuted">No se pudo cargar el detalle. Se reintenta solo en unos segundos.</p>'; return; }

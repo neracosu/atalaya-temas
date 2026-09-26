@@ -8,10 +8,10 @@
 //  - cada sesion de Claude Code es un JUGADOR con aura dorada y barra de lanzamiento (lo que hace);
 //    si espera su permiso, aparece la comprobacion "?"
 // Regla de oro: el color es la clase o el estado, nunca adorno; los numeros de combate cuentan lo que pasa.
-import { Application, Container, Graphics, Sprite, Text, Texture, Rectangle } from '/vendor/pixi.csp.mjs';
-import { esc, fmtBytes } from '/js/hud.js';
-import { accountCaption } from '/js/accounts.js';
-import { healthLine } from '/js/layout.js';
+import { Application, Container, Graphics, Sprite, Text, Texture, Rectangle } from '../../vendor/pixi.csp.mjs';
+import { esc, fmtBytes } from '../../js/hud.js';
+import { accountCaption } from '../../js/accounts.js';
+import { healthLine } from '../../js/layout.js';
 
 const U = 16;
 const FONT = "'Jersey 10', ui-monospace, monospace";

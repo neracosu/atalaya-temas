@@ -1,7 +1,7 @@
 // Iconos pixel para la interfaz (panel, cinta, dialogos): nada de emojis. Cada icono es una grilla de
 // letras (una por color) que se convierte en un SVG en linea con bordes nitidos. Reutiliza los letreros
-// y las estaciones del mundo (sprites.js) y agrega los que la interfaz necesita.
-import { SIGNS, ICONS, INVADER, ENVELOPE } from './sprites.js';
+// y las estaciones del mundo (pixeldata.js, sin PixiJS) y agrega los que la interfaz necesita.
+import { SIGNS, ICONS, INVADER, ENVELOPE } from './pixeldata.js';
 
 const PAL = { r: '#f87171', R: '#dc2626', o: '#fb923c', y: '#fbbf24', g: '#4ade80', G: '#16a34a', c: '#22d3ee', b: '#60a5fa', p: '#c084fc',
   w: '#f8fafc', k: '#cbd5e1', s: '#94a3b8', d: '#1e293b' };

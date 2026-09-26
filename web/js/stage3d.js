@@ -7,7 +7,7 @@
 //  - efectos con vida propia (fx) y limpieza completa al cambiar de tema
 // Un tema extiende Stage3D e implementa: build(), layout(state), update(state), onEvent(e, priv),
 // tipFor(userData), locate(kind, id) -> { x, y, z, zoom } y, si quiere, shots() para el director.
-import * as THREE from '/vendor/three.module.min.js';
+import * as THREE from '../vendor/three.module.min.js';
 export { THREE };
 
 const TAU = Math.PI * 2;

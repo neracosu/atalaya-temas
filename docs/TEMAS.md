@@ -112,6 +112,11 @@ Callbacks que la pantalla le asigna al mundo:
 
 Reglas técnicas:
 
+- **Importen con rutas relativas** (`../../js/hud.js`, `../../vendor/pixi.csp.mjs`), nunca
+  absolutas (`/js/...`): en Atalaya Cloud cada pantalla vive bajo su propio prefijo
+  (`/su-pantalla/`) y una ruta absoluta apuntaría al portal. Las pruebas lo revisan.
+- El pixel art de Atalaya (robot, invasor, sobre, carteles) está como datos en
+  `../../js/pixeldata.js`, sin PixiJS: sirve para canvas, SVG o lo que el tema use.
 - **Todas las escuchas globales** (`window.addEventListener`) con un `AbortController`, y
   `destroy()` las quita. Si no, al cambiar de tema quedan escuchas vivas.
 - En Pixi 8 un `Graphics` no debe tener hijos: los textos van en un `Container` aparte.
@@ -125,7 +130,7 @@ Para un tema en 3D, extiendan `Stage3D` de `/js/stage3d.js`: ya trae la interfaz
 tooltips y limpieza). El tema solo llena estos ganchos:
 
 ```js
-import { Stage3D, THREE, color, clamp, billboard, rowsCanvas } from '/js/stage3d.js';
+import { Stage3D, THREE, color, clamp, billboard, rowsCanvas } from '../../js/stage3d.js';
 
 export default class MiTema extends Stage3D {
   constructor(el, opts) { super(el, opts); this.fov = 34; this.view = { az: -0.9, el: 0.8, dist: 50, tx: 0, ty: 0, tz: 0, zoom: 1 }; }

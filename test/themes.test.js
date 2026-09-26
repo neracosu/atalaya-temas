@@ -21,10 +21,12 @@ for (const id of ids) {
   if (m.css) assert.ok(fs.existsSync(path.join(dir, id, m.css)), `${id}: falta ${m.css}`);
   // el mundo: la clase exportada (directa o reexportada) tiene la interfaz completa
   let src = fs.readFileSync(path.join(dir, id, m.world), 'utf8');
-  const re = src.match(/from\s+'\/js\/([\w.-]+)'/);
+  // rutas relativas: la pantalla tambien vive bajo un prefijo (Atalaya Cloud: /<cliente>/)
+  assert.ok(!/(from\s+|import\()['"`]\/(js|vendor|themes)\//.test(src), `${id}: importa con rutas relativas (../../js/...), no absolutas`);
+  const re = src.match(/from\s+'\.\.\/\.\.\/js\/([\w.-]+)'/);
   if (re && /export\s*\{[^}]*as default/.test(src)) src = fs.readFileSync(path.join(__dirname, '../web/js', re[1]), 'utf8');
   // los temas 3D heredan la interfaz del motor compartido
-  if (/from\s+'\/js\/stage3d\.js'/.test(src)) src += '\n' + fs.readFileSync(path.join(__dirname, '../web/js/stage3d.js'), 'utf8');
+  if (/from\s+'\.\.\/\.\.\/js\/stage3d\.js'/.test(src)) src += '\n' + fs.readFileSync(path.join(__dirname, '../web/js/stage3d.js'), 'utf8');
   for (const fn of METHODS) assert.ok(new RegExp(`\\n\\s+(async\\s+)?${fn}\\s*\\(`).test(src), `${id}: al mundo le falta ${fn}()`);
   assert.ok(!/fetch\(\s*['"`]https?:/.test(src), `${id}: el mundo no se conecta a otros servidores`);
   // sin emojis en nada del tema

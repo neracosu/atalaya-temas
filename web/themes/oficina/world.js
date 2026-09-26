@@ -13,11 +13,11 @@
 //  - cada sesion de Claude Code es un COMPANERO que camina por su sala; si espera su permiso levanta la mano
 //  - los avisos salen en GLOBOS de dialogo
 // Regla de oro: pixel art nitido para los muebles y la gente; los textos, siempre nitidos.
-import { Application, Container, Graphics, Sprite, Text, Texture, Rectangle } from '/vendor/pixi.csp.mjs';
-import { signCanvas } from '/js/sprites.js';
-import { groupsOf, layoutKeyOf, packRows, iconURL, plaqueList, healthLine } from '/js/layout.js';
-import { esc, fmtBytes } from '/js/hud.js';
-import { accountCaption } from '/js/accounts.js';
+import { Application, Container, Graphics, Sprite, Text, Texture, Rectangle } from '../../vendor/pixi.csp.mjs';
+import { signCanvas } from '../../js/sprites.js';
+import { groupsOf, layoutKeyOf, packRows, iconURL, plaqueList, healthLine } from '../../js/layout.js';
+import { esc, fmtBytes } from '../../js/hud.js';
+import { accountCaption } from '../../js/accounts.js';
 
 const TW = 64, TH = 32, WALL = 104, PX = 2; // tile isometrico, alto de pared, escala del pixel art
 const iso = (gx, gy) => ({ x: (gx - gy) * TW / 2, y: (gx + gy) * TH / 2 });

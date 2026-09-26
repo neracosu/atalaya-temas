@@ -11,11 +11,11 @@
 //  - cada sesion de Claude Code es un DRON sobre su sector (ambar con aviso si espera su permiso)
 // Regla de oro: geometria limpia y textos nitidos; el pixel art va en los carteles; el color solo
 // significa amigo, alerta u hostil.
-import { Stage3D, THREE, color, clamp, billboard, groupsOf, layoutKeyOf, iconURL, plaqueList } from '/js/stage3d.js';
-import { signCanvas } from '/js/sprites.js';
-import { esc, fmtBytes } from '/js/hud.js';
-import { accountCaption } from '/js/accounts.js';
-import { healthLine } from '/js/layout.js';
+import { Stage3D, THREE, color, clamp, billboard, groupsOf, layoutKeyOf, iconURL, plaqueList } from '../../js/stage3d.js';
+import { signCanvas } from '../../js/sprites.js';
+import { esc, fmtBytes } from '../../js/hud.js';
+import { accountCaption } from '../../js/accounts.js';
+import { healthLine } from '../../js/layout.js';
 
 const R = 10;
 const TAU = Math.PI * 2;
