@@ -6,11 +6,11 @@
 //  - cada intento de acceso es un slime que golpea la muralla del castillo; si la IP cae, un guardia lo derrota
 //  - cada sesion de Claude Code es un mago en la plaza de su pueblo ("!" = espera su permiso)
 // Regla de oro: nada de numeros sobre el mapa; todo se cuenta con casas, humo, fuego y gente.
-import { Application, Container, Graphics, Sprite, Text, Texture, TilingSprite, Rectangle } from '/vendor/pixi.csp.mjs';
-import { signTexture } from '/js/sprites.js';
-import { esc, fmtBytes } from '/js/hud.js';
-import { accountCaption } from '/js/accounts.js';
-import { healthLine } from '/js/layout.js';
+import { Application, Container, Graphics, Sprite, Text, Texture, TilingSprite, Rectangle } from '../../vendor/pixi.csp.mjs';
+import { signTexture } from '../../js/sprites.js';
+import { esc, fmtBytes } from '../../js/hud.js';
+import { accountCaption } from '../../js/accounts.js';
+import { healthLine } from '../../js/layout.js';
 
 const U = 16; // una casilla = 16 pixeles de arte
 const FONT_T = "'Jacquard 24', 'Pixelify Sans', serif";

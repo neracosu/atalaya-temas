@@ -1,5 +1,5 @@
 // Arranque: stream SSE, mundo, HUD y control del modo privado
-import { animate } from '/vendor/anime.esm.min.js';
+import { animate } from '../vendor/anime.esm.min.js';
 import { px } from './pixicons.js';
 // marcadores del HTML estatico: <span data-px="nombre"></span>
 document.querySelectorAll('[data-px]').forEach(el => { el.innerHTML = px(el.dataset.px); });
@@ -12,7 +12,7 @@ import { showTip, hideTip, openLegend } from './tips.js';
 
 const $ = id => document.getElementById(id);
 const post = (url, body = {}) => fetch(url, { method: 'POST', headers: { 'Content-Type': 'application/json', 'X-Atalaya': '1' }, body: JSON.stringify(body) })
-  .then(async r => { const j = await r.json().catch(() => ({})); if (r.status === 401 && url !== '/api/private') location.href = '/login'; if (!r.ok) throw new Error(j.error || 'Error'); return j; });
+  .then(async r => { const j = await r.json().catch(() => ({})); if (r.status === 401 && url !== 'api/private') location.href = 'login'; if (!r.ok) throw new Error(j.error || 'Error'); return j; });
 
 let hello = null, state = null, chartsReady = false, loadedVersion = null;
 // el mundo lo pone el tema activo (web/themes/<id>); cambia en caliente
@@ -104,6 +104,9 @@ function applyMode(h) {
   $('title').firstChild.textContent = h.title + ' ';
   $('verChip').textContent = 'v' + h.version;
   document.querySelectorAll('.owneronly').forEach(b => { b.hidden = h.role !== 'owner'; });
+  // Atalaya Cloud: sin servidor propio (ni metricas de maquina ni instalar en otro servidor)
+  document.body.classList.toggle('ed-cloud', h.edition === 'cloud');
+  document.querySelectorAll('.nocloud').forEach(b => { b.hidden = b.hidden || h.edition === 'cloud'; });
   $('version').textContent = `${h.title} v${h.version}`;
   // tras una actualizacion, las novedades se muestran una vez
   let seen = null; try { seen = localStorage.getItem('atalaya_seen_version'); localStorage.setItem('atalaya_seen_version', h.version); } catch { }
@@ -147,10 +150,10 @@ $('privCancel').addEventListener('click', () => dlg.close());
 $('privForm').addEventListener('submit', async e => {
   e.preventDefault();
   if (privPin.value().length !== 6) { $('privErr').textContent = 'Complete los 6 dígitos'; return; }
-  try { await post('/api/private', { pin: privPin.value(), minutes }); dlg.close(); }
+  try { await post('api/private', { pin: privPin.value(), minutes }); dlg.close(); }
   catch (ex) { $('privErr').textContent = ex.message; privPin.clear(); }
 });
-async function goPublic() { try { await post('/api/public'); } catch { } }
+async function goPublic() { try { await post('api/public'); } catch { } }
 
 $('mode').addEventListener('click', () => (hello?.priv ? goPublic() : openPrivate()));
 
@@ -162,12 +165,12 @@ $('menu').addEventListener('click', async e => {
   if (act === 'theme') openThemes();
   if (act === 'fullscreen') toggleFs();
   if (act === 'lock') goPublic();
-  if (act === 'setup') location.href = '/setup';
+  if (act === 'setup') location.href = 'setup';
   if (act === 'install') openInstall('vps');
   if (act === 'hosting') openInstall('hosting');
   if (act === 'director') document.dispatchEvent(new KeyboardEvent('keydown', { key: 'd' }));
-  if (act === 'lockall') { await post('/api/public-all').catch(() => { }); flash('Todas las pantallas pasaron a modo público'); }
-  if (act === 'logout') { await post('/api/logout').catch(() => { }); location.href = '/login'; }
+  if (act === 'lockall') { await post('api/public-all').catch(() => { }); flash('Todas las pantallas pasaron a modo público'); }
+  if (act === 'logout') { await post('api/logout').catch(() => { }); location.href = 'login'; }
 });
 function toggleFs() { document.fullscreenElement ? document.exitFullscreen() : document.documentElement.requestFullscreen().catch(() => { }); }
 
@@ -205,11 +208,12 @@ instDlg.addEventListener('click', ev => {
 async function openInstall(tab = instTab) {
   instTab = tab;
   instDlg.querySelectorAll('[data-itab]').forEach(b => b.setAttribute('aria-selected', b.dataset.itab === tab ? 'true' : 'false'));
+  if (document.body.classList.contains('ed-cloud')) tab = instTab = 'hosting';
   if (tab === 'hosting') await renderHosting(); else await renderVps();
   if (!instDlg.open) instDlg.showModal();
 }
 async function renderVps() {
-  const r = await ipost('/api/setup/install-command');
+  const r = await ipost('api/setup/install-command');
   if (!r.command) { $('instBody').innerHTML = `<p class="dmuted">${ie(r.error || 'No se pudo generar el comando')}</p>`; return; }
   const until = new Date(r.expires).toLocaleString('es-VE', { hour12: false });
   $('instBody').innerHTML = `
@@ -227,15 +231,15 @@ async function renderVps() {
   $('instBody').querySelector('[data-itab-go]').addEventListener('click', ev => { ev.preventDefault(); openInstall('hosting'); });
 }
 async function renderHosting(created) {
-  const list = await ipost('/api/agents/list');
+  const list = await ipost('api/agents/list');
   const rows = (list.agents || []).map(a => `<li><span class="pill ${a.pending ? 'waiting' : a.stale ? 'bad' : 'ok'}">${a.pending ? 'sin vincular' : a.stale ? 'sin señal' : 'conectado'}</span>
       <span class="grow"><b>${ie(a.label || a.id)}</b>${a.user ? ` <span class="dmuted mono">${ie(a.user)}@${ie(a.host)}</span>` : ''}</span>
       <span class="dmuted">${a.lastPush ? 'hace ' + Math.max(1, Math.round((Date.now() - a.lastPush) / 60000)) + ' min' : ''}</span>
       <button class="btn small ghost" data-recode="${ie(a.id)}">Nuevo código</button><button class="btn small ghost" data-remove="${ie(a.id)}">Quitar</button></li>`).join('');
   const got = created ? `<section class="newagent"><h4>${px('ok')} Listo: ahora instale el agente en el hosting «${ie(created.id)}»</h4>
       <p class="lhelp">El código vale <b>24 horas</b> y sirve <b>una sola vez</b>. Elija la forma que permita el hosting:</p>
-      <div class="lrow"><div class="lico">⌨️</div><div><b>Con Terminal</b> (cPanel › Avanzado › <b>Terminal</b>, o SSH)<p>Pegue y pulse Enter:</p>${copyBox('term', created.command)}</div></div>
-      <div class="lrow"><div class="lico">⏰</div><div><b>Sin Terminal</b> (cPanel › <b>Trabajos de cron</b>, hPanel › Avanzado › <b>Cron Jobs</b>)
+      <div class="lrow"><div class="lico">${px('terminal', 'big')}</div><div><b>Con Terminal</b> (cPanel › Avanzado › <b>Terminal</b>, o SSH)<p>Pegue y pulse Enter:</p>${copyBox('term', created.command)}</div></div>
+      <div class="lrow"><div class="lico">${px('clock', 'big')}</div><div><b>Sin Terminal</b> (cPanel › <b>Trabajos de cron</b>, hPanel › Avanzado › <b>Cron Jobs</b>)
         <p>Cree una tarea <b>cada minuto</b> (<code>* * * * *</code>) con este comando. En su primera ejecución el agente se instala y esa tarea se borra sola.</p>${copyBox('cron', created.cron)}</div></div>
       <p class="lhelp">En uno o dos minutos aparecerá un distrito nuevo en el mapa con sus sitios y visitas.</p></section>` : '';
   $('instBody').innerHTML = `
@@ -248,26 +252,26 @@ async function renderHosting(created) {
       <form id="wpForm" class="agform"><input name="id" placeholder="nombre-corto (ej. blog-ana)" pattern="[a-z0-9][a-z0-9-]{0,30}" required>
         <input name="label" placeholder="Descripción (ej. Blog de Ana)"><button class="btn small">Descargar plugin</button></form>
       <p class="dmuted" id="wpErr"></p>
-      <p class="lhelp">El .zip trae un código de un solo uso que vence en 24 horas. ¿Prefiere pegar el código a mano? Use el <a href="/install/atalaya-wp.zip">plugin genérico</a> y el código del formulario de abajo (Ajustes › Atalaya).</p></section>
+      <p class="lhelp">El .zip trae un código de un solo uso que vence en 24 horas. ¿Prefiere pegar el código a mano? Use el <a href="install/atalaya-wp.zip">plugin genérico</a> y el código del formulario de abajo (Ajustes › Atalaya).</p></section>
     <section><h4>Conectar un hosting</h4>
       <form id="agForm" class="agform"><input name="id" placeholder="nombre-corto (ej. cliente-godaddy)" pattern="[a-z0-9][a-z0-9-]{0,30}" required>
         <input name="label" placeholder="Descripción (ej. Tienda de Ana · GoDaddy)"><button class="btn small">Generar código</button></form>
       <p class="dmuted" id="agErr"></p></section>
     ${rows ? `<section><h4>Hostings conectados</h4><ul class="dlist">${rows}</ul></section>` : ''}
-    <section><h4>¿Su cliente quiere su propia pantalla?</h4><p class="lhelp">Si el hosting permite apps Node (cPanel › <b>Setup Node.js App</b>), puede instalarle <b>Atalaya Hosting completo</b> en su cuenta:
+    <section class="nocloud-sec"><h4>¿Su cliente quiere su propia pantalla?</h4><p class="lhelp">Si el hosting permite apps Node (cPanel › <b>Setup Node.js App</b>), puede instalarle <b>Atalaya Hosting completo</b> en su cuenta:
       en su Terminal de cPanel pegue el comando (cambie el dominio por un subdominio suyo). Queda con su propio acceso, asistente y agente.</p>
       <div class="row"><button class="btn small" id="hcmd">Generar comando de instalación</button></div><div id="hcmdOut"></div></section>
     <section><h4>Qué verá de cada hosting</h4><p class="lhelp">Sus dominios y subdominios como edificios, las visitas en vivo con país, errores de PHP, cuota de disco, bases de datos, certificados SSL por vencer,
       buzones de correo, uso de recursos y tareas cron (con los secretos tapados). Con <b>Analizar ahora</b> puede pedirle qué carpetas ocupan más espacio.
       Necesita <code>curl</code> y cron, que traen todos los hostings; con cPanel se aprovecha además <code>uapi</code>.</p></section>`;
   $('hcmd').addEventListener('click', async () => {
-    const r = await ipost('/api/setup/install-command');
+    const r = await ipost('api/setup/install-command');
     $('hcmdOut').innerHTML = r.hostingCommand ? `${copyBox('hosting', r.hostingCommand)}<p class="lhelp">Vale 24 horas y para 5 instalaciones. Sin Node en el hosting, conéctelo arriba como hosting de esta pantalla.</p>` : `<p class="dmuted">${ie(r.error || 'No se pudo generar')}</p>`;
   });
   $('wpForm').addEventListener('submit', async ev => {
     ev.preventDefault();
     const f = new FormData(ev.target);
-    const r = await fetch('/api/agents/wp-plugin', { method: 'POST', headers: { 'Content-Type': 'application/json', 'X-Atalaya': '1' }, body: JSON.stringify({ id: f.get('id'), label: f.get('label') || f.get('id') }) }).catch(() => null);
+    const r = await fetch('api/agents/wp-plugin', { method: 'POST', headers: { 'Content-Type': 'application/json', 'X-Atalaya': '1' }, body: JSON.stringify({ id: f.get('id'), label: f.get('label') || f.get('id') }) }).catch(() => null);
     if (!r || !r.ok) { const j = r ? await r.json().catch(() => ({})) : {}; $('wpErr').textContent = j.error || 'No se pudo generar el plugin'; return; }
     const url = URL.createObjectURL(await r.blob());
     const a = Object.assign(document.createElement('a'), { href: url, download: `atalaya-agent-${f.get('id')}.zip` });
@@ -278,17 +282,17 @@ async function renderHosting(created) {
   $('agForm').addEventListener('submit', async ev => {
     ev.preventDefault();
     const f = new FormData(ev.target);
-    const r = await ipost('/api/agents/create', { id: f.get('id'), label: f.get('label') || f.get('id') });
+    const r = await ipost('api/agents/create', { id: f.get('id'), label: f.get('label') || f.get('id') });
     if (r.error) { $('agErr').textContent = r.error; return; }
     renderHosting(r);
   });
   $('instBody').querySelectorAll('[data-recode]').forEach(b => b.addEventListener('click', async () => {
-    const r = await ipost('/api/agents/recode', { id: b.dataset.recode });
+    const r = await ipost('api/agents/recode', { id: b.dataset.recode });
     if (r.error) flash(r.error); else renderHosting(r);
   }));
   $('instBody').querySelectorAll('[data-remove]').forEach(b => b.addEventListener('click', async () => {
     if (!confirm(`¿Quitar el hosting «${b.dataset.remove}»? Dejará de aceptar sus envíos (el agente seguirá en el hosting hasta que lo desinstale).`)) return;
-    const r = await ipost('/api/agents/remove', { id: b.dataset.remove });
+    const r = await ipost('api/agents/remove', { id: b.dataset.remove });
     if (r.error) flash(r.error); else renderHosting();
   }));
 }
@@ -296,7 +300,7 @@ async function renderHosting(created) {
 // ---------------------------------------------------------------- temas
 const themeDlg = $('themeDlg');
 themeDlg.querySelector('.tclose').addEventListener('click', () => themeDlg.close());
-async function themeList() { const r = await fetch('/api/themes').then(x => x.ok ? x.json() : null).catch(() => null); return r ? r.themes : []; }
+async function themeList() { const r = await fetch('api/themes').then(x => x.ok ? x.json() : null).catch(() => null); return r ? r.themes : []; }
 async function cycleTheme() {
   const list = await themeList();
   if (list.length < 2) return;
@@ -322,7 +326,7 @@ async function openThemes() {
     <p class="lhelp">Tecla <b>T</b>: pasar al tema siguiente en esta pantalla. También sirve la dirección con <code>?theme=ops</code>.</p>`;
   $('themeBody').querySelectorAll('[data-tlocal]').forEach(b => b.addEventListener('click', async () => { tm.setLocal(b.dataset.tlocal); await switchTheme(b.dataset.tlocal); openThemes(); }));
   $('themeBody').querySelectorAll('[data-tall]').forEach(b => b.addEventListener('click', async () => {
-    try { await post('/api/theme', { id: b.dataset.tall }); tm.serverDefault = b.dataset.tall; tm.setLocal(null); await switchTheme(b.dataset.tall); flash('Tema cambiado en todas las pantallas'); openThemes(); } catch (e) { flash(e.message); }
+    try { await post('api/theme', { id: b.dataset.tall }); tm.serverDefault = b.dataset.tall; tm.setLocal(null); await switchTheme(b.dataset.tall); flash('Tema cambiado en todas las pantallas'); openThemes(); } catch (e) { flash(e.message); }
   }));
   $('tforget')?.addEventListener('click', async ev => { ev.preventDefault(); tm.setLocal(null); await switchTheme(tm.serverDefault); openThemes(); });
   if (!themeDlg.open) themeDlg.showModal();
@@ -330,7 +334,7 @@ async function openThemes() {
 
 // ---------------------------------------------------------------- resumen de proyectos (panel derecho)
 async function refreshProjects() {
-  const r = await fetch('/api/detail?kind=projects&id=all').then(x => x.ok ? x.json() : null).catch(() => null);
+  const r = await fetch('api/detail?kind=projects&id=all').then(x => x.ok ? x.json() : null).catch(() => null);
   if (!r || !r.projects) return;
   const n = r.projects.length, bad = r.projects.filter(x => x.bad || x.down).length, warn = r.projects.filter(x => !x.bad && !x.down && x.warn).length;
   $('projSub').textContent = n ? `${n} · promedio ${r.avg}` : '';
@@ -347,7 +351,7 @@ const md = t => String(t).replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;',
   .replace(/\*\*(.+?)\*\*/g, '<b>$1</b>').replace(/`([^`]+)`/g, '<code>$1</code>').replace(/\[([^\]]+)\]\([^)]+\)/g, '$1');
 const GROUP_ICON = { 'Añadido': px('star'), 'Corregido': px('workshop'), 'Cambiado': px('refresh'), 'Seguridad': px('lock'), 'Requiere acción': px('warn'), 'Eliminado': px('trash') };
 async function openNews(since) {
-  const r = await fetch('/api/changelog').then(x => x.json()).catch(() => null);
+  const r = await fetch('api/changelog').then(x => x.json()).catch(() => null);
   if (!r) return;
   const isNew = v => since && v.localeCompare(since, undefined, { numeric: true }) > 0;
   $('newsBody').innerHTML = r.releases.map((rel, i) => `<details class="rel${isNew(rel.version) ? ' fresh' : ''}" ${i === 0 || isNew(rel.version) ? 'open' : ''}>
@@ -370,7 +374,7 @@ setInterval(clock, 1000); clock();
 
 // ---------------------------------------------------------------- stream
 function connect() {
-  const es = new EventSource('/api/stream');
+  const es = new EventSource('api/stream');
   es.addEventListener('hello', e => {
     $('conn').hidden = true;
     const h = JSON.parse(e.data);
@@ -411,8 +415,8 @@ function connect() {
   es.onerror = async () => {
     $('conn').hidden = false;
     // si la sesion caduco, al login
-    const r = await fetch('/api/me').catch(() => null);
-    if (r && r.status === 401) { es.close(); location.href = '/login'; }
+    const r = await fetch('api/me').catch(() => null);
+    if (r && r.status === 401) { es.close(); location.href = 'login'; }
   };
 }
 
@@ -444,7 +448,7 @@ applyCompact();
 (async () => {
   initKpis();
   await document.fonts.ready.catch(() => { });
-  const th = await fetch('/api/themes').then(r => r.ok ? r.json() : null).catch(() => null);
+  const th = await fetch('api/themes').then(r => r.ok ? r.json() : null).catch(() => null);
   if (th) tm.serverDefault = th.current;
   await switchTheme(tm.preferred());
   addEventListener('resize', () => world && world.setInsets(insets()));

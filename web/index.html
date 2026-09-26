@@ -5,10 +5,10 @@
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <meta name="robots" content="noindex, nofollow">
 <title>Atalaya</title>
-<link rel="icon" href="/favicon.svg" type="image/svg+xml">
-<link rel="stylesheet" href="/vendor/uPlot.min.css">
-<link rel="stylesheet" href="/css/base.css">
-<link rel="stylesheet" href="/css/app.css">
+<link rel="icon" href="favicon.svg" type="image/svg+xml">
+<link rel="stylesheet" href="vendor/uPlot.min.css">
+<link rel="stylesheet" href="css/base.css">
+<link rel="stylesheet" href="css/app.css">
 </head>
 <body>
 <div id="world" aria-hidden="true"></div>
@@ -18,7 +18,7 @@
 
 <header id="top">
   <div class="brand">
-    <svg viewBox="0 0 64 64" aria-hidden="true"><use href="/favicon.svg#mark"/></svg>
+    <svg viewBox="0 0 64 64" aria-hidden="true"><use href="favicon.svg#mark"/></svg>
     <div>
       <h1 id="title">Atalaya <button id="verChip" class="verchip" data-tip="Versión instalada|Toque para ver las novedades de cada versión."></button></h1>
       <p id="subtitle"></p>
@@ -38,7 +38,7 @@
       <button data-act="lock">Pasar a público <kbd>L</kbd></button>
       <button data-act="lockall">Bloquear todas las pantallas</button>
       <button data-act="setup" class="owneronly">Asistente de configuración</button>
-      <button data-act="install" class="owneronly">Instalar en otro servidor</button>
+      <button data-act="install" class="owneronly nocloud">Instalar en otro servidor</button>
       <button data-act="hosting" class="owneronly">Conectar un hosting compartido</button>
       <button data-act="logout">Cerrar sesión</button>
       <span class="mver" id="version"></span>
@@ -53,7 +53,7 @@
 </aside>
 
 <aside id="right" class="panel">
-  <section class="link" data-go="system:root">
+  <section class="link sysonly" data-go="system:root">
     <h2><span class="pix">CPU y memoria</span><span class="legend"><i class="sw cpu"></i>CPU <i class="sw mem"></i>RAM</span></h2>
     <div class="chart" id="chCpu"></div>
   </section>
@@ -61,7 +61,7 @@
     <h2><span class="pix">Tráfico HTTP</span><span class="legend"><i class="sw req"></i>req / 10 s <i class="sw err"></i>5xx</span></h2>
     <div class="chart" id="chReq"></div>
   </section>
-  <section class="link" data-go="system:root">
+  <section class="link sysonly" data-go="system:root">
     <h2><span class="pix">Procesos</span><span class="sub" id="procCount"></span></h2>
     <div id="procs" class="procs"></div>
   </section>
@@ -69,11 +69,11 @@
     <h2><span class="pix">Proyectos</span><span class="sub" id="projSub"></span></h2>
     <div class="mini" id="proj"><span class="dmuted">Conecte GitHub o Vercel para armar el mapa.</span></div>
   </section>
-  <section class="link" data-go="system:root" data-tip="Salud del servidor|Respaldos, actualizaciones, cola de correo, tareas cron y puertos abiertos, revisados en solo lectura cada 15 minutos.">
+  <section class="link sysonly" data-go="system:root" data-tip="Salud del servidor|Respaldos, actualizaciones, cola de correo, tareas cron y puertos abiertos, revisados en solo lectura cada 15 minutos.">
     <h2><span class="pix">Salud del servidor</span><span class="sub" id="healthSub"></span></h2>
     <div class="health" id="health"><span class="dmuted">Revisando…</span></div>
   </section>
-  <section class="duo">
+  <section class="duo sysonly">
     <div class="link" data-go="security:all">
       <h2><span class="pix">Defensa</span></h2>
       <div class="mini" id="sec"></div>
@@ -161,6 +161,6 @@
   </form>
 </dialog>
 
-<script type="module" src="/js/main.js"></script>
+<script type="module" src="js/main.js"></script>
 </body>
 </html>

@@ -27,14 +27,14 @@ export class ThemeManager {
   setLocal(id) { try { if (id) localStorage.setItem(LOCAL_KEY, id); else localStorage.removeItem(LOCAL_KEY); } catch { } }
 
   async load(id) {
-    let m = await fetch(`/themes/${id}/theme.json`, { cache: 'no-cache' }).then(r => r.ok ? r.json() : null).catch(() => null);
+    let m = await fetch(`themes/${id}/theme.json`, { cache: 'no-cache' }).then(r => r.ok ? r.json() : null).catch(() => null);
     if (!m || !m.world) { if (id !== 'ciudad') return this.load('ciudad'); throw new Error('Tema base no disponible'); }
-    const mod = await import(`/themes/${id}/${m.world}`);
+    const mod = await import(`../themes/${id}/${m.world}`);
     const World = mod.default;
     // estilos del tema (el anterior se quita)
     document.getElementById('themeCss')?.remove();
     if (m.css) {
-      const link = Object.assign(document.createElement('link'), { id: 'themeCss', rel: 'stylesheet', href: `/themes/${id}/${m.css}` });
+      const link = Object.assign(document.createElement('link'), { id: 'themeCss', rel: 'stylesheet', href: `themes/${id}/${m.css}` });
       const ready = new Promise(r => { link.onload = r; link.onerror = r; });
       document.head.appendChild(link);
       await ready;

@@ -13,11 +13,11 @@
 //  - el correo son cuervos que salen o llegan a la torre
 // Regla de oro: pixel art para el castillo y sus habitantes; textos nitidos; la luz (llamas, vitrales,
 // ventanas) cuenta lo que pasa.
-import { Application, Container, Graphics, Sprite, Text, Texture } from '/vendor/pixi.csp.mjs';
-import { signTexture, signCanvas } from '/js/sprites.js';
-import { groupsOf, layoutKeyOf, packRows, iconURL, plaqueList, healthLine } from '/js/layout.js';
-import { esc, fmtBytes } from '/js/hud.js';
-import { accountCaption } from '/js/accounts.js';
+import { Application, Container, Graphics, Sprite, Text, Texture } from '../../vendor/pixi.csp.mjs';
+import { signTexture, signCanvas } from '../../js/sprites.js';
+import { groupsOf, layoutKeyOf, packRows, iconURL, plaqueList, healthLine } from '../../js/layout.js';
+import { esc, fmtBytes } from '../../js/hud.js';
+import { accountCaption } from '../../js/accounts.js';
 
 const PX = 2;                       // escala del pixel art
 const SLOT_W = 80, SLOT_H = 108;    // lugar de cada candelabro o vitral dentro de una sala

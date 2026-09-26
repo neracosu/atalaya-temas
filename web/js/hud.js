@@ -1,7 +1,7 @@
 // HUD tipo Grafana: KPIs, agentes, graficas, procesos y ticker de eventos
-import { animate, stagger } from '/vendor/anime.esm.min.js';
+import { animate, stagger } from '../vendor/anime.esm.min.js';
 import { px } from './pixicons.js';
-import uPlot from '/vendor/uPlot.esm.js';
+import uPlot from '../vendor/uPlot.esm.js';
 
 const $ = id => document.getElementById(id);
 const esc = s => String(s ?? '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));

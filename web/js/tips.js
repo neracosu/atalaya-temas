@@ -1,6 +1,6 @@
 // Fichas flotantes al pasar el mouse y leyenda de iconos.
 // Todo elemento con data-tip (HTML) o con .tip (objeto del mundo) explica que es.
-import { animate } from '/vendor/anime.esm.min.js';
+import { animate } from '../vendor/anime.esm.min.js';
 import { px } from './pixicons.js';
 import { signCanvas, robotCanvas, iconCanvas } from './sprites.js';
 import { esc } from './hud.js';

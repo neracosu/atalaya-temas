@@ -10,11 +10,11 @@
 //  - cada sesion de Claude Code es un ROBOT OBRERO que lleva cajas; si espera su permiso, se detiene en
 //    la barrera con luz ambar
 // Regla de oro: todo fluye por cintas; los cuellos de botella y la chatarra se ven sin leer un numero.
-import { Stage3D, THREE, color, clamp, billboard, groupsOf, layoutKeyOf, packRows, iconURL, plaqueList } from '/js/stage3d.js';
-import { signCanvas, robotCanvas } from '/js/sprites.js';
-import { esc, fmtBytes } from '/js/hud.js';
-import { accountCaption } from '/js/accounts.js';
-import { healthLine } from '/js/layout.js';
+import { Stage3D, THREE, color, clamp, billboard, groupsOf, layoutKeyOf, packRows, iconURL, plaqueList } from '../../js/stage3d.js';
+import { signCanvas, robotCanvas } from '../../js/sprites.js';
+import { esc, fmtBytes } from '../../js/hud.js';
+import { accountCaption } from '../../js/accounts.js';
+import { healthLine } from '../../js/layout.js';
 
 // PICO-8
 const K = { black: '#000000', navy: '#1d2b53', plum: '#7e2553', green: '#008751', brown: '#ab5236', dgray: '#5f574f', lgray: '#c2c3c7', white: '#fff1e8', red: '#ff004d', orange: '#ffa300', yellow: '#ffec27', lime: '#00e436', blue: '#29adff', lav: '#83769c', pink: '#ff77a8', peach: '#ffccaa' };

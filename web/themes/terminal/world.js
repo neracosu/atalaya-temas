@@ -8,10 +8,10 @@
 //  - cada intento de acceso aparece en el registro de sshd; si la IP cae, BLOQUEADA
 //  - cada sesion de Claude Code es un proceso con cursor parpadeante; si espera su permiso pregunta [s/N]
 // Regla de oro: solo texto; el color significa estado (verde bien, ambar a medias, rojo caido).
-import { signCanvas } from '/js/sprites.js';
-import { groupsOf, layoutKeyOf, iconURL } from '/js/layout.js';
-import { esc, fmtBytes } from '/js/hud.js';
-import { accountCaption } from '/js/accounts.js';
+import { signCanvas } from '../../js/sprites.js';
+import { groupsOf, layoutKeyOf, iconURL } from '../../js/layout.js';
+import { esc, fmtBytes } from '../../js/hud.js';
+import { accountCaption } from '../../js/accounts.js';
 
 const clamp = (v, a, b) => Math.max(a, Math.min(b, v));
 const SPARK = '.:-=+*#@'; // grafica de visitas con caracteres ASCII (de poco a mucho)

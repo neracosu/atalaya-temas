@@ -1,5 +1,5 @@
 // Mundo isometrico de Atalaya (PixiJS v8)
-import { Application, Container, Graphics, Text, Sprite, Rectangle, Polygon } from '/vendor/pixi.csp.mjs';
+import { Application, Container, Graphics, Text, Sprite, Rectangle, Polygon } from '../vendor/pixi.csp.mjs';
 import { px } from './pixicons.js';
 import { robotTextures, monoTextures, iconTexture, signTexture, INVADER, ENVELOPE } from './sprites.js';
 import { STATION_TIPS } from './tips.js';

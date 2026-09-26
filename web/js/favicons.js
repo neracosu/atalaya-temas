@@ -12,7 +12,7 @@ function load(key) {
   im.decoding = 'async';
   im.onload = () => { imgs.set(key, im.naturalWidth ? im : 'fail'); onNew(key); };
   im.onerror = () => imgs.set(key, 'fail');
-  im.src = '/api/favicon/' + key;
+  im.src = 'api/favicon/' + key;
 }
 // cambia el icono de cada item por su favicon si ya esta listo (y pide los que faltan)
 export function withFavicons(list) {

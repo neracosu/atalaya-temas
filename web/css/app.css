@@ -486,3 +486,7 @@ html body.compact #menu { z-index: 30 !important; position: fixed !important; to
 /* salud del servidor junto al servidor del mundo (temas con etiquetas HTML) */
 .w3-label .hl { display: block; font-style: normal; font-weight: 700; font-size: .78rem; letter-spacing: .02em; text-shadow: 0 1px 4px rgba(0, 0, 0, .9); }
 .w3-label .hl:empty { display: none; }
+
+/* Atalaya Cloud: no hay maquina propia; fuera CPU, memoria, disco, red, procesos, salud e instalar en otro servidor */
+body.ed-cloud .sysonly, body.ed-cloud #kpi-cpu, body.ed-cloud #kpi-mem, body.ed-cloud #kpi-disk, body.ed-cloud #kpi-load,
+body.ed-cloud #kpi-rx, body.ed-cloud #kpi-tx, body.ed-cloud #instDlg .itabs, body.ed-cloud .nocloud-sec { display: none !important; }
