@@ -33,6 +33,33 @@ function label(text, size, color = 0xe6edf7, font = PIXEL_FONT) {
 }
 
 // ------------------------------------------------------------ edificio (app PM2)
+// caja isometrica con el mismo estilo de los edificios (caras con luz y sombra, techo con borde); para la
+// carcel, la oficina de correos y lo que venga. opts: bars (rejas en las caras), windows (ventanas), roof (color).
+function isoBox(g, hw, hh, h, color, opts = {}) {
+  const top = opts.roof != null ? opts.roof : mix(color, 0xffffff, 0.15);
+  const left = mix(color, 0x000000, 0.35), right = mix(color, 0x000000, 0.12);
+  g.poly([0, -hh + 6, hw + 6, 6, 0, hh + 6, -hw - 6, 6]).fill({ color: 0x000000, alpha: 0.35 });
+  g.poly([-hw, 0, 0, hh, 0, hh - h, -hw, -h]).fill(left);
+  g.poly([0, hh, hw, 0, hw, -h, 0, hh - h]).fill(right);
+  g.poly([0, -hh - h, hw, -h, 0, hh - h, -hw, -h]).fill(top).stroke({ width: 1, color: mix(top, 0xffffff, 0.3), alpha: 0.6 });
+  if (opts.windows) for (let r = 0; r < opts.windows; r++) for (let c = 0; c < 3; c++) for (const side of [-1, 1]) {
+    const t0 = 0.16 + c * 0.26, t1 = t0 + 0.14, yy = -h + 8 + r * 10;
+    const x0 = side * hw * (1 - t0), x1 = side * hw * (1 - t1), y0 = yy + hh * t0, y1 = yy + hh * t1;
+    g.poly([x0, y0, x1, y1, x1, y1 + 5, x0, y0 + 5]).fill({ color: opts.lit ? 0xfff3c4 : 0x67e8f9, alpha: 0.85 });
+  }
+  if (opts.bars) for (const side of [-1, 1]) for (let k = 1; k < 8; k++) {
+    const t = k / 8, x = side * hw * (1 - t), y = hh * t;
+    g.moveTo(x, y - 4).lineTo(x, y - h + 6);
+  }
+  if (opts.bars) g.stroke({ width: 2, color: 0xcbd5e1, alpha: 0.9 });
+}
+// parcela chica (mini distrito) bajo un edificio especial
+function isoPlate(g, hw, hh, color) {
+  g.poly([0, -hh, hw, 0, 0, hh, -hw, 0]).fill({ color: mix(color, 0x060a14, 0.86) }).stroke({ width: 2, color, alpha: 0.55 });
+  g.poly([-hw, 0, 0, hh, 0, hh + 8, -hw, 8]).fill(mix(color, 0x000000, 0.8));
+  g.poly([0, hh, hw, 0, hw, 8, 0, hh + 8]).fill(mix(color, 0x000000, 0.7));
+}
+
 class Building extends Container {
   constructor(app, color, isSite = false) {
     super();
@@ -425,43 +452,46 @@ export class World {
   // Carcel, junto a la autopista antes del peaje: las IPs bloqueadas (a mano en el firewall y por la defensa de
   // Atalaya). Rejas y un auto oscuro por preso; hasta 6 a la vista y el total en el cartel.
   buildJail(toll) {
-    const c = new Container(); c.x = 118; c.y = toll - 150;
+    const c = new Container(); c.x = 124; c.y = toll - 150;
     const g = new Graphics();
-    g.rect(-46, -8, 92, 58).fill(0x1e293b).stroke({ width: 1.5, color: 0x475569 });      // muros
-    g.rect(-52, -16, 104, 9).fill(0x334155);                                             // techo
-    g.rect(-38, 2, 76, 40).fill(0x070b14);                                               // patio interior
+    isoPlate(g, 78, 42, 0x94a3b8);
+    // patio cercado adelante (donde quedan los presos) y el edificio con rejas atras
+    const yard = new Graphics();
+    yard.poly([6, 2, 52, 22, 6, 42, -40, 22]).stroke({ width: 1.5, color: 0x94a3b8, alpha: 0.7 });
+    for (let k = 0; k <= 6; k++) { const t = k / 6; yard.moveTo(6 + 46 * t, 2 + 20 * t).lineTo(6 + 46 * t, 2 + 20 * t - 7); yard.moveTo(6 - 46 * t, 2 + 20 * t).lineTo(6 - 46 * t, 2 + 20 * t - 7); }
+    yard.stroke({ width: 1.5, color: 0x94a3b8, alpha: 0.7 });
+    const box = new Graphics(); box.x = -18; box.y = -8;
+    isoBox(box, 30, 16, 38, 0x475569, { bars: true, roof: 0x64748b });
     const cars = new Container();
-    const bars = new Graphics();
-    for (let x = -36; x <= 36; x += 8) bars.rect(x - 1, 2, 2, 40).fill(0x94a3b8);           // rejas
-    bars.rect(-38, 1, 76, 3).fill(0x94a3b8).rect(-38, 40, 76, 3).fill(0x94a3b8);
-    const sign = label('CÁRCEL', 12, 0xfca5a5, UI_FONT); sign.y = -30;
-    const count = label('0', 11, 0x94a3b8, UI_FONT); count.y = 58;
-    c.addChild(g, cars, bars, sign, count);
+    const sign = label('CÁRCEL', 12, 0xfca5a5, UI_FONT); sign.y = -78;
+    const count = label('', 11, 0x94a3b8, UI_FONT); count.y = 58;
+    c.addChild(g, box, yard, cars, sign, count);
     this.labels.addChild(c);
     this.jail = { c, cars, sign, count, n: -1 };
     this.drawJail(0);
-    this.tappable(c, new Rectangle(-56, -44, 112, 112), () => this.pick('jail', 'all'));
+    this.tappable(c, new Rectangle(-80, -90, 160, 160), () => this.pick('jail', 'all'));
     this.hoverTip(c, () => ({ title: 'Cárcel', body: 'Las IPs <b>bloqueadas</b>: las que se bloquearon a mano en el firewall y las que bloqueó la defensa de Atalaya. Las patrullas traen aquí a cada una.', meta: `${Math.max(0, this.jail.n)} preso(s)`, hint: 'Clic para ver cada una' }));
   }
   // Oficina de correos, frente a la carcel: por aqui pasa todo el correo. Buzon, contador del ultimo minuto y
   // una pila de sobres si la cola de correo se atasca.
   buildPost(toll) {
-    const c = new Container(); c.x = -118; c.y = toll - 150;
+    const c = new Container(); c.x = -124; c.y = toll - 150;
     const g = new Graphics();
-    g.rect(-44, -6, 88, 54).fill(0x1e293b).stroke({ width: 1.5, color: 0x475569 });     // edificio
-    g.poly([-50, -6, 0, -30, 50, -6]).fill(0x334155);                                   // techo a dos aguas
-    g.rect(-10, 22, 20, 26).fill(0x0b1020);                                             // puerta
-    g.rect(-34, 8, 16, 12).fill(0x67e8f9).rect(18, 8, 16, 12).fill(0x67e8f9);           // ventanas
-    // buzon rojo al costado
-    g.rect(50, 18, 14, 18).fill(0xdc2626).rect(52, 22, 10, 2).fill(0x111827).rect(55, 36, 4, 12).fill(0x475569);
-    const env = new Sprite(monoTextures([ENVELOPE], '#fbbf24')[0]); env.anchor.set(0.5); env.scale.set(1.6); env.y = -40;
+    isoPlate(g, 78, 42, 0xfbbf24);
+    const box = new Graphics(); box.y = -4;
+    isoBox(box, 34, 18, 34, 0x9a3412, { windows: 2, lit: true, roof: 0xfbbf24 });
+    // buzon rojo en el frente
+    const mb = new Graphics(); mb.x = 40; mb.y = 14;
+    isoBox(mb, 6, 3, 14, 0xdc2626, { roof: 0xef4444 });
+    mb.rect(-1, 0, 2, 8).fill(0x475569);
+    const env = new Sprite(monoTextures([ENVELOPE], '#fde68a')[0]); env.anchor.set(0.5); env.scale.set(1.8); env.y = -58;
     const pile = new Container();
-    const sign = label('CORREO', 12, 0xfde68a, UI_FONT); sign.y = -58;
+    const sign = label('CORREO', 12, 0xfde68a, UI_FONT); sign.y = -84;
     const count = label('', 10, 0x94a3b8, UI_FONT); count.y = 58;
-    c.addChild(g, pile, env, sign, count);
+    c.addChild(g, box, mb, pile, env, sign, count);
     this.labels.addChild(c);
     this.post = { c, pile, count, env, log: [], queue: -1 };
-    this.tappable(c, new Rectangle(-56, -70, 128, 140), () => this.onSelect && this.onSelect('mail', 'all'));
+    this.tappable(c, new Rectangle(-80, -100, 160, 170), () => this.onSelect && this.onSelect('mail', 'all'));
     this.hoverTip(c, () => ({ title: 'Oficina de correos', body: 'Por aquí pasa el correo del servidor: <b>ámbar</b> sale de una cuenta hacia internet, <b>violeta</b> entra y va a su cuenta, <b>rojo</b> rebotó y vuelve roto a quien lo envió. La pila de sobres es la cola de correo esperando salir.', meta: this.postLine(), hint: 'Clic para ver el correo' }));
   }
   postLine() {
@@ -482,7 +512,7 @@ export class World {
     P.pile.removeChildren().forEach(x => x.destroy());
     for (let i = 0; i < want; i++) {
       const e = new Sprite(monoTextures([ENVELOPE], q > 1000 ? '#f87171' : '#fbbf24')[0]); e.anchor.set(0.5); e.scale.set(1.3);
-      e.x = -64 - (i % 3) * 3; e.y = 40 - i * 7 - (i % 2) * 2; e.rotation = (i % 2 ? 0.12 : -0.1);
+      e.x = -50 - (i % 3) * 3; e.y = 22 - i * 6 - (i % 2) * 2; e.rotation = (i % 2 ? 0.12 : -0.1);
       P.pile.addChild(e);
     }
   }
@@ -493,7 +523,7 @@ export class World {
     J.cars.removeChildren().forEach(x => x.destroy());
     for (let i = 0; i < Math.min(6, n); i++) {
       const sp = new Sprite(suspectTexture()); sp.anchor.set(0.5); sp.scale.set(1.1);
-      sp.x = -22 + (i % 3) * 22; sp.y = 14 + Math.floor(i / 3) * 16;
+      sp.x = -10 + (i % 3) * 20 - Math.floor(i / 3) * 10; sp.y = 16 + (i % 3) * 5 + Math.floor(i / 3) * 12;
       J.cars.addChild(sp);
     }
     J.count.text = n ? `${n} preso${n === 1 ? '' : 's'}` : 'vacía';
@@ -1054,9 +1084,9 @@ export class World {
           torn = true; this.spark(s.x, s.y, 0xef4444); s.rotation = 0.5; s.tint = 0xfca5a5;
           tag = label(SHORT[e.cat] || 'REBOTADO', 10, 0xfca5a5, UI_FONT); tag.x = s.x; tag.y = s.y - 22; this.labels.addChild(tag);
         }
-        if (leg === 1 && this.post) this.post.env.scale.set(2.1); // la oficina «recibe» el sobre
+        if (leg === 1 && this.post) this.post.env.scale.set(2.3); // la oficina «recibe» el sobre
       }
-      if (this.post && this.post.env.scale.x > 1.6) this.post.env.scale.set(Math.max(1.6, this.post.env.scale.x - dt * 2));
+      if (this.post && this.post.env.scale.x > 1.8) this.post.env.scale.set(Math.max(1.8, this.post.env.scale.x - dt * 2));
       return true;
     });
     this.drawPost(this.lastQueue);
