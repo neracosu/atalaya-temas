@@ -82,6 +82,25 @@ export class Drawer {
         if (r.error) { up.insertAdjacentHTML('afterend', `<span class="dmuted"> ${esc(r.error)}</span>`); up.disabled = false; } else { up.textContent = 'Revisando…'; setTimeout(() => this.load(), 12000); }
         return;
       }
+      // activar o apagar la actividad de bases: el ayudante crea o borra el usuario de solo PROCESS
+      const dm = e.target.closest('[data-dbmon]');
+      if (dm) {
+        e.preventDefault();
+        const on = dm.dataset.dbmon === 'on';
+        if (!on && !confirm('¿Apagar la actividad de bases? Se borra el usuario de monitoreo de MySQL.')) return;
+        dm.disabled = true; dm.textContent = on ? 'Activando…' : 'Apagando…';
+        const post = (u, b) => fetch(u, { method: 'POST', headers: { 'Content-Type': 'application/json', 'X-Atalaya': '1' }, body: JSON.stringify(b) }).then(x => x.json()).catch(() => ({ error: 'Sin conexión' }));
+        const r = await post('api/setup/action', { action: on ? 'mysql-monitor' : 'mysql-monitor-off' });
+        let res = r.error ? r : null;
+        for (let i = 0; !res && i < 40; i++) {
+          await new Promise(k => setTimeout(k, 1500));
+          const x = await fetch('api/setup/result?id=' + encodeURIComponent(r.id)).then(y => y.json()).catch(() => ({}));
+          if (!x.pending) res = x;
+        }
+        if (!res || res.error || res.ok === false) { dm.insertAdjacentHTML('afterend', `<span class="dmuted"> ${esc((res && res.error) || 'El ayudante no respondió')}</span>`); dm.disabled = false; dm.textContent = on ? 'Activar' : 'Apagar'; return; }
+        setTimeout(() => this.load(), on ? 6000 : 500);
+        return;
+      }
       const au = e.target.closest('[data-audit-db]');
       if (au) {
         au.disabled = true;
@@ -709,7 +728,8 @@ export class Drawer {
     if (!d.available) return this.content('<p class="dmuted">No se encontró el directorio de datos de MySQL/MariaDB en este servidor.</p>');
     const shown = d.dbs.reduce((n, x) => n + x.size, 0);
     const max = d.dbs.reduce((n, x) => Math.max(n, x.size), 1);
-    this.content(`<div class="dstats">${stat('Bases', d.account ? d.dbs.length : d.count)}${stat('Espacio', fmtBytes(d.account ? shown : d.total))}${stat('La más grande', d.dbs[0] ? fmtBytes(d.dbs[0].size) : '–')}</div>
+    this.content(`${dbActivity(d.activity)}
+      <div class="dstats">${stat('Bases', d.account ? d.dbs.length : d.count)}${stat('Espacio', fmtBytes(d.account ? shown : d.total))}${stat('La más grande', d.dbs[0] ? fmtBytes(d.dbs[0].size) : '–')}</div>
       ${jobLine(d.job)}
       <p class="hint">La lista se lee de los archivos del servidor de bases, sin conectarse ni ejecutar consultas. Toque una base para auditarla: tablas, qué sitio la usa, qué creció y hallazgos.</p>
       <section class="dsec"><ul class="dlist">${d.dbs.map(x => dbRow(x, max)).join('')}</ul></section>`);
@@ -721,10 +741,15 @@ export class Drawer {
     const priv = !!d.findings;
     const when = d.audited ? `Última auditoría hace ${ago(Date.now() - d.audited)}` : 'Todavía no se auditó esta base.';
     const btn = d.running ? '' : priv ? `<button class="btn small" data-audit-db="${esc(d.name)}"${d.job ? ' disabled' : ''}>${d.audited ? 'Auditar de nuevo' : 'Analizar ahora'}</button>` : '';
-    const head = `<div class="dstats">${stat('Tamaño', fmtBytes(d.size))}${stat('Tablas', d.tables)}${stat('Última escritura', d.lastWrite ? 'hace ' + ago(Date.now() - d.lastWrite) : '–')}</div>
+    let head = `<div class="dstats">${stat('Tamaño', fmtBytes(d.size))}${stat('Tablas', d.tables)}${stat('Última escritura', d.lastWrite ? 'hace ' + ago(Date.now() - d.lastWrite) : '–')}</div>
       <section class="dsec"><div class="row dmrow"><span class="grow dmuted">${d.running ? '⏳ Auditando…' : when}</span>${btn}</div>
       ${d.job && !d.running ? jobLine(d.job) : ''}
       ${priv || d.audited ? '' : '<p class="dmuted">Active el modo privado para auditar la base y ver sus tablas.</p>'}</section>`;
+    const act = d.activity && d.activity.available && d.activity.db;
+    if (act) head += `<section class="dsec"><h4>Actividad ahora</h4><div class="dstats">${stat('Conexiones', act.conns)}${stat('Consultas en curso', act.active)}${stat('Ocupada', act.busy + '%', act.busy >= 50 ? 'warn' : '')}</div>
+      ${dbQuery(act.longest, 'La más larga ahora')}${act.peak && (!act.longest || act.peak.time > act.longest.time) ? dbQuery(act.peak, `La más lenta de la última hora (hace ${ago(Date.now() - act.peak.at)})`) : ''}
+      <p class="hint">«Ocupada»: en qué parte de los últimos 15 minutos tuvo al menos una consulta corriendo (una muestra cada 5 s).</p></section>`;
+    else if (d.activity && d.activity.available) head += '<section class="dsec"><p class="dmuted">Sin conexiones ni consultas en los últimos 15 minutos.</p></section>';
     if (!d.audited) return this.content(head);
     const LV = { warn: px('warn'), info: px('info'), ok: px('ok') };
     if (!priv) {
@@ -753,6 +778,42 @@ const KIND_ICON = { vercel: px('triangle'), supabase: px('bolt'), app: px('gear'
 const LEVEL_ICON = { ok: px('ok'), info: px('info'), warn: px('warn'), bad: px('bad'), unknown: px('unknown') };
 const scoreCls = s => s >= 85 ? 'ok' : s >= 60 ? 'warn' : 'bad';
 function projJob(j) { return j ? `<p class="dmuted">⏳ En curso: ${esc(j.label)} (hace ${ago(Date.now() - j.startedAt)}).</p>` : ''; }
+
+// actividad de las bases: lo que importa (conexiones contra el maximo, consultas por segundo) y las bases mas
+// ocupadas; el texto de las consultas solo en privado y sin valores
+function dbQuery(q, label) {
+  if (!q) return '';
+  return `<div class="dbq"><span class="dmuted">${esc(label)}: <b class="${q.time >= 10 ? 'bad' : q.time >= 3 ? 'warn' : ''}">${q.time} s</b>${q.state ? ` · ${esc(q.state)}` : ''}</span>${q.query ? `<code>${esc(q.query)}</code>` : ''}</div>`;
+}
+function spark(hist, key, max) {
+  if (!hist || hist.length < 2) return '';
+  const w = 240, h = 34, m = Math.max(max || 0, ...hist.map(x => x[key]), 1);
+  const pts = hist.map((x, i) => `${(i / (hist.length - 1) * w).toFixed(1)},${(h - x[key] / m * (h - 2) - 1).toFixed(1)}`).join(' ');
+  return `<svg class="spark" viewBox="0 0 ${w} ${h}" preserveAspectRatio="none" aria-hidden="true"><polyline points="${pts}"/></svg>`;
+}
+function dbActivity(a) {
+  if (!a) return '';
+  if (!a.available) return a.canEnable ? `<section class="dsec dbact off"><h4>${px('db')} Actividad de las bases</h4>
+      <p class="lhelp">Vea qué base está trabajando ahora, qué consultas tardan y qué tan cerca está el servidor de quedarse sin conexiones.
+        Se crea un usuario de MySQL con un único permiso (<b>PROCESS</b>: ver las consultas en curso), que no puede leer ni cambiar datos.</p>
+      <button class="btn small" data-dbmon="on">Activar</button></section>` : '';
+  if (a.error && !a.lastOk) return `<section class="dsec"><h4>Actividad de las bases</h4><p class="msg bad">${esc(a.error)}</p>${a.priv ? '<button class="btn small ghost" data-dbmon="on">Activar de nuevo</button>' : ''}</section>`;
+  const pct = a.max ? a.conns / a.max : 0, peak = a.max ? a.maxUsed / a.max : 0;
+  const cls = pct >= 0.8 ? 'bad' : pct >= 0.6 || peak >= 0.9 ? 'warn' : '';
+  const rows = a.dbs.map(x => `<li class="bar link" data-go="database:${esc(x.id)}"><span class="grow"><span class="mono">${esc(x.name)}</span>${x.accountLabel ? ` <span class="dmuted">· ${esc(x.accountLabel)}</span>` : ''}
+      <br><span class="dmuted">${x.conns} conexión(es)${x.active ? ` · <b>${x.active} en curso</b>` : ''}${x.longest && x.longest.time >= 1 ? ` · la más larga ${x.longest.time} s` : ''}</span></span>
+      <span class="bw" title="Ocupada el ${x.busy}% de los últimos 15 min"><i style="width:${Math.max(x.busy, x.active ? 4 : 0)}%"></i></span><span class="mono pct">${x.busy}%</span></li>`).join('');
+  return `<section class="dsec dbact"><h4>${px('db')} Actividad ahora</h4>
+    <div class="dstats">${stat('Conexiones', `${a.conns} / ${a.max}`, cls)}${stat('Consultas por segundo', a.rates ? a.rates.qps : '…')}${stat('En curso', a.running)}${stat('Pico histórico', `${a.maxUsed} / ${a.max}`, peak >= 0.9 ? 'warn' : '')}</div>
+    <div class="connbar ${cls}" title="Conexiones abiertas contra el máximo"><i style="width:${Math.min(100, pct * 100).toFixed(1)}%"></i><s style="left:${Math.min(100, peak * 100).toFixed(1)}%"></s></div>
+    ${a.history.length > 1 ? `<div class="sparks"><div><span class="dmuted">Conexiones · 1 h</span>${spark(a.history, 'conns', a.max)}</div><div><span class="dmuted">Consultas/s · 1 h</span>${spark(a.history, 'qps')}</div></div>` : ''}
+    ${a.rates ? `<p class="dmuted">Por segundo: ${a.rates.select} lecturas · ${a.rates.insert} altas · ${a.rates.update} cambios · ${a.rates.delete} borrados${a.rates.slow ? ` · <b>${a.rates.slow} lenta(s)</b> en 30 s` : ''}</p>` : ''}
+    ${a.refused ? `<p class="msg bad">${a.refused} conexión(es) rechazadas por falta de lugar desde el último arranque de MySQL.</p>` : ''}
+    ${rows ? `<ul class="dlist">${rows}</ul>` : '<p class="dmuted">Ninguna base con conexiones en los últimos 15 minutos.</p>'}
+    ${a.noDbConns ? `<p class="dmuted">${a.noDbConns} conexión(es) sin base elegida (paneles, respaldos o el propio servidor).</p>` : ''}
+    <p class="hint">Una muestra cada 5 s con un usuario de MySQL que solo ve las consultas en curso. Toque una base para ver su consulta más larga${a.dbs.some(x => x.longest && x.longest.query) ? ' (sin sus valores)' : ' (en modo privado)'}.
+      ${a.priv ? '<a href="#" data-dbmon="off" class="dmuted">Apagar</a>' : ''}</p></section>`;
+}
 
 // fila de una base en listas (distrito y panel de bases)
 function dbRow(x, max) {

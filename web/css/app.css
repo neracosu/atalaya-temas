@@ -552,3 +552,15 @@ body.ed-equipo .sysonly, body.sys-lite .sysprocs, body.sys-lite #kpi-rx, body.sy
   .ulist .grow { grid-column: 1 / -1; }
   .uform .urow, .uform .upins { grid-template-columns: minmax(0, 1fr); }
 }
+
+/* actividad de bases */
+.dbact .connbar { position: relative; height: .5rem; border-radius: 999px; background: rgba(148, 163, 184, .15); overflow: visible; margin: .2rem 0 .6rem; }
+.dbact .connbar i { position: absolute; inset: 0 auto 0 0; border-radius: 999px; background: #22d3ee; }
+.dbact .connbar.warn i { background: #fbbf24; } .dbact .connbar.bad i { background: #f87171; }
+.dbact .connbar s { position: absolute; top: -.2rem; bottom: -.2rem; width: 2px; background: var(--ink-2); text-decoration: none; }
+.dbact .sparks { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: .8rem; margin-bottom: .5rem; }
+.dbact .sparks > div { display: grid; gap: .2rem; font-size: .72rem; }
+.spark { width: 100%; height: 2.2rem; } .spark polyline { fill: none; stroke: #22d3ee; stroke-width: 1.5; vector-effect: non-scaling-stroke; }
+.dbq { display: grid; gap: .25rem; margin: .4rem 0; font-size: .8rem; }
+.dbq code { display: block; font-family: var(--mono); font-size: .75rem; white-space: pre-wrap; overflow-wrap: anywhere; background: #050912; border: 1px solid var(--line); border-radius: 8px; padding: .5rem .6rem; color: #cffafe; }
+.dbq b.warn { color: #fcd34d; } .dbq b.bad { color: #f87171; }

@@ -262,6 +262,10 @@ export function tickerEvent(e, accounts, priv) {
     case 'keysvc':
       addTicker(e.action === 'down' ? 'siren' : 'ok', 'Torre de control', e.action === 'down' ? `${e.label} FALLÓ` : `${e.label} volvió a funcionar`, e.action === 'down' ? '#ef4444' : '#4ade80', 'system:root');
       return;
+    case 'db':
+      if (e.action !== 'slow') return;
+      addTicker('db', e.label || '', `Consulta lenta en ${e.db}: ${e.secs} s`, '#fbbf24', 'database:' + e.db);
+      return;
     case 'account':
       addTicker(e.action === 'added' ? 'city' : 'ruin', e.label || '', e.action === 'added' ? 'Nueva cuenta en el servidor: aparece un distrito nuevo' : 'Una cuenta fue eliminada del servidor', e.action === 'added' ? '#4ade80' : '#f87171', e.action === 'added' ? 'district:' + e.account : null);
       return;
