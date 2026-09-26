@@ -4,20 +4,23 @@ Un tema cambia **el mundo** (cómo se dibujan el servidor, las cuentas, los serv
 los ataques y los agentes) **y el HUD** (cómo se ven y dónde van los paneles). No es una paleta de
 colores: es otra forma de mirar el mismo servidor.
 
-Atalaya trae seis temas que sirven de ejemplo:
+Atalaya trae nueve temas que sirven de ejemplo:
 
-| Tema | Mundo | HUD |
-|---|---|---|
-| `ciudad` | Ciudad isométrica: distritos, edificios, robots | Paneles a los lados, cinta abajo |
-| `villa` | RPG de casillas desde arriba: castillo, pueblos, aldeanos, slimes, magos | Marcos de madera, barras de estado a la derecha, registro tipo chat |
-| `raid` | Arena de MMO: grupos de héroes con vida y maná, jefe, números de combate | Barra de acción abajo, registro de combate, medidor |
-| `ops` | Radar táctico polar: base, sectores, contactos | Lecturas arriba, parte de operaciones en columna, esquinas de mira |
-| `acuario` | Acuario de costado: peceras, peces, medusas, buzos | Franja inferior con tres placas |
-| `planta` | Fábrica con cintas (paleta PICO-8): naves, máquinas, piezas, drones | Sala de control con pantallas LCD y tickets impresos |
+| Tema | Técnica | Mundo | HUD |
+|---|---|---|---|
+| `ciudad` | 2D, PixiJS | Ciudad isométrica: distritos, edificios, robots | Paneles a los lados, cinta abajo |
+| `villa` | 2D, PixiJS | RPG de casillas: castillo, pueblos, aldeanos, slimes, magos | Marcos de madera, barras de estado, registro tipo chat |
+| `raid` | 2D, PixiJS | Arena de MMO: héroes con vida y maná, jefe, números de combate | Barra de acción abajo, registro de combate, medidor |
+| `oficina` | 2D, PixiJS | Piso de oficina isométrico estilo hotel virtual: salas, escritorios, globos de diálogo | Intranet corporativa, directorio bajo cada sala |
+| `ciudad3d` | 3D, three.js | La ciudad de noche: torres, calles, portal «Internet» | El de la Ciudad clásica |
+| `acuario` | 3D, three.js | Pared de peceras: una por cuenta, con su placa | Franja inferior con tres placas |
+| `ops` | 3D, three.js | Mesa táctica holográfica: sectores, columnas, misiles, drones | Lecturas arriba, fichas de sector con línea guía |
+| `planta` | 3D, three.js | Fábrica (paleta PICO-8): naves, máquinas, cintas, drones | Sala de control con pantallas LCD |
+| `terminal` | Solo HTML | Consola de fósforo: ventanas de texto, `tail -f`, `sshd` | Todo en texto |
 
-`villa` es el ejemplo más completo de **arte hecho en código**: todas las texturas (pasto, caminos,
-murallas, casas, castillo, personajes) se pintan con funciones o matrices de caracteres, sin
-archivos de imagen.
+Buenos puntos de partida: `villa` para **arte hecho en código** (todas las texturas se pintan con
+funciones o matrices de caracteres, sin archivos de imagen), `oficina` para **isométrico con muebles y
+personajes**, `acuario` o `planta` para **3D**, y `terminal` para un tema **sin lienzo**, solo HTML.
 
 ## 1. La carpeta
 
@@ -150,7 +153,9 @@ export default class MiTema extends Stage3D {
   - En cada cuadro, `sizePlaques([[placa, anchoEnUnidades]])` ajusta ancho y letra al zoom, y
     `refitPlaques(grupos, k)` mide las placas reales y rearma la distribución si alguna no cabe (en
     pantallas chicas las deja compactas). `distToFit(w, h)` da la distancia de cámara exacta.
-  - Villa, Raid, Planta y Acuario son ejemplos completos.
+  - Acuario, Planta, Ciudad 3D y Ops son ejemplos completos en 3D.
+  - Los temas 2D usan las mismas piezas desde `/js/layout.js` (`groupsOf`, `layoutKeyOf`,
+    `packRows`, `plaqueList`, `iconURL`); la Oficina es el ejemplo.
 
 ### El estado (`update(state)`)
 
@@ -159,8 +164,8 @@ export default class MiTema extends Stage3D {
   priv: false,                       // modo privado: si es true, hay nombres reales
   system: { cpu, cores, load: [1, 5, 15], mem: { total, used, pct }, uptime, ... },
   accounts: [{ id, label, color, reqMin, sites, claudeProcs }],     // 'root' = el servidor
-  apps:  [{ id, account, name, kind, icon, source, status, cpu, mem, reqMin, instances, online }],
-  sites: [{ id, account, name, kind, icon, type, status, reqMin, lastSeen }],
+  apps:  [{ id, account, name, kind, icon, favicon, source, status, cpu, mem, reqMin, instances, online }],
+  sites: [{ id, account, name, kind, icon, favicon, type, status, reqMin, lastSeen }],
   sessions: [{ id, account, state, station, activity, waitKind, subagents: [...], tokensOut, tools }],
   keys: [{ label, unit, state }],    // servicios clave: 'active' | 'failed' | 'inactive'
   security: { ... }, mail: { ... }, traffic: [...], top: [...]
@@ -170,7 +175,13 @@ export default class MiTema extends Stage3D {
 - `status`: `online`, `degraded` o `down`.
 - `source`: `pm2`, `systemd`, `docker`, `vercel` o `supabase`. `type` (sitios): `wordpress`,
   `php`, `static`, `proxy` o `wip`.
-- `icon`: nombre de un cartel pixel (`shop`, `hotel`, `calendar`, `card`, `wp`, `db`, …).
+- `icon`: nombre de un cartel pixel (`shop`, `hotel`, `calendar`, `card`, `wp`, `db`, …). Cada
+  proyecto trae uno: el de su categoría o uno propio elegido al azar (fijo para ese proyecto).
+- **Favicons**: en modo privado, cuando el favicon real del proyecto ya está cargado, `icon` llega
+  como `fav:<clave>`. Dibujen los íconos siempre con `signCanvas(icon, escala)` (canvas) o
+  `signTexture(icon)` (textura de Pixi) de `/js/sprites.js`: ya saben dibujar ambos, con el mismo
+  tamaño que un cartel. Incluyan `icon` en la huella de su distribución (`layoutKeyOf` ya lo hace)
+  para rearmar el cartel cuando llega el favicon.
 - `state` de una sesión: `working`, `thinking` o `idle`. `waitKind` (`permission`, `question`,
   `idle`) si espera al usuario.
 - En **modo público** los nombres ya vienen reemplazados por categorías y alias: el tema no
@@ -223,9 +234,26 @@ body[data-theme="villa"] #worldArea { display: block; top: 6.4rem; bottom: 1.2re
 
 Fuentes: dentro de la carpeta del tema, con `@font-face` y ruta relativa (`url(mi-fuente.woff2)`).
 
+**Si la columna derecha no entra en el alto**, Atalaya achica las gráficas lo justo para que se vea
+todo: no hace falta resolverlo en el tema.
+
+### Teléfonos y tablets
+
+Con pantallas de hasta 1100 px de ancho (o 560 px de alto) Atalaya pone `body.compact` y **acomoda el
+HUD por su cuenta** en todos los temas: barra fina arriba, tira de indicadores, el mundo en el centro,
+la última novedad y pestañas abajo (con el teléfono acostado, a la derecha). Esas reglas pisan la
+posición que el tema le dio a cada panel, pero conservan sus colores y su letra. Lo que sí le toca al
+tema:
+
+- **Que el mundo quepa en un área vertical**: `setInsets` puede traer un área más alta que ancha. Los
+  temas 3D ya alejan la cámara solos; en 2D, encuadren con el ancho y el alto del área.
+- **Achicar sus textos** cuando el área es angosta (Villa y Raid los escalan con el ancho del área).
+- Probar con la ventana angosta, o en el simulador con las herramientas de teléfono del navegador.
+
 ## 5. Reglas de Atalaya
 
-- **Pixel art.** Sprites, íconos y mundo en pixel art. **Nada de emojis**, en ningún lado.
+- **Pixel art como acento, textos nítidos.** Sprites e íconos en pixel art; los textos y las formas
+  grandes, nítidos. Nunca se baja la resolución de todo el lienzo. **Nada de emojis**, en ningún lado.
 - **Inspirado, no copiado.** Se puede tomar un género (RPG de casillas, raid de MMO, operaciones
   tácticas, terminal), nunca nombres, logos, sprites, fuentes ni marcos de un juego existente.
 - **Licencias claras.** Arte propio, CC0 (Kenney, parte de OpenGameArt) o fuentes SIL OFL. Cada
@@ -234,12 +262,15 @@ Fuentes: dentro de la carpeta del tema, con `@font-face` y ruta relativa (`url(m
   Todo lo que el tema use va dentro de su carpeta.
 - **Colores con significado.** El verde, el ámbar y el rojo dicen algo; no se usan de adorno.
 - **Legible en una TV a tres metros.** Pocas cifras grandes; el resto, en forma y movimiento.
+- **Cada proyecto se ubica sin hacer clic.** Una placa o lista por cuenta, o nombres visibles al acercarse.
 
 ## 6. Probar
 
-1. Copie `web/themes/ops` a `web/themes/<id>` y cambie el `id` en `theme.json`.
+1. Copie el tema más parecido al que quiere (`web/themes/<otro>` a `web/themes/<id>`) y cambie el
+   `id` en `theme.json`.
 2. Abra `https://SU-ATALAYA/?theme=<id>` y recargue al guardar.
 3. Revise con la consola del navegador abierta que no haya errores, que el cambio con la tecla
-   **T** vaya y vuelva sin dejar nada colgado, y que en modo público no aparezca nada privado.
+   **T** vaya y vuelva sin dejar nada colgado, que en modo público no aparezca nada privado, y que se
+   vea bien en una TV (1920×1080), en un monitor ultra ancho y en un teléfono.
 4. `npm test` revisa que el manifiesto sea válido y que `world.js` exporte una clase con la
    interfaz completa.
