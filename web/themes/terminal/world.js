@@ -79,12 +79,15 @@ export default class TerminalWorld {
     for (let k = 0; k < 9; k++) {
       const mid = (lo + hi) / 2;
       this.root.style.fontSize = mid + 'px';
-      if (this.grid.scrollHeight <= this.root.clientHeight + 1 && this.grid.scrollWidth <= this.root.clientWidth + 1) lo = mid; else hi = mid;
+      if (this.grid.scrollHeight <= this.root.clientHeight + 1 && this.grid.scrollWidth <= this.root.clientWidth + 1 && !this.overflowing()) lo = mid; else hi = mid;
     }
     this.baseFont = lo;
     this.root.style.fontSize = (lo * this.zoom).toFixed(2) + 'px';
     this.root.classList.toggle('zoomed', this.zoom > 1.01);
   }
+
+  // alguna linea mas ancha que su ventana?
+  overflowing() { for (const p of this.panes.values()) if (p.body.scrollWidth > p.body.clientWidth + 1) return true; return false; }
 
   // ------------------------------------------------------------------ estado
   update(state) {

@@ -85,13 +85,28 @@ function buildCharts() {
   ]), reqData, e2);
 }
 // al cambiar de tema: mismas series, colores nuevos
-export function rethemeCharts() { if (chCpu) buildCharts(); }
+export function rethemeCharts() { if (chCpu) { fitRight(); buildCharts(); } }
+// si la columna derecha no cabe en su alto, las dos graficas se achican lo justo (hasta 3 rem) para que se vea todo
+function fitRight() {
+  const r = $('right'); if (!r) return;
+  const charts = [...r.querySelectorAll('.chart')];
+  charts.forEach(c => { c.style.height = ''; });
+  const over = r.scrollHeight - r.clientHeight;
+  if (over > 0 && charts.length) {
+    const min = parseFloat(getComputedStyle(document.documentElement).fontSize) * 3;
+    charts.forEach(c => { c.style.height = Math.max(min, c.clientHeight - Math.ceil(over / charts.length)) + 'px'; });
+  }
+  if (chCpu) { const e1 = $('chCpu'), e2 = $('chReq'); chCpu.setSize({ width: e1.clientWidth, height: e1.clientHeight }); chReq.setSize({ width: e2.clientWidth, height: e2.clientHeight }); }
+}
+let fitRightT = 0;
+function fitRightSoon() { clearTimeout(fitRightT); fitRightT = setTimeout(fitRight, 120); }
 export function initCharts(history) {
   for (const p of history.system) { cpuData[0].push(p.t / 1000); cpuData[1].push(p.cpu); cpuData[2].push(p.mem); }
   for (const p of history.traffic) { reqData[0].push(p.t / 1000); reqData[1].push(p.req); reqData[2].push(p.err); }
   buildCharts();
   const e1 = $('chCpu'), e2 = $('chReq');
-  new ResizeObserver(() => { chCpu.setSize({ width: e1.clientWidth, height: e1.clientHeight }); chReq.setSize({ width: e2.clientWidth, height: e2.clientHeight }); }).observe($('right'));
+  new ResizeObserver(() => { chCpu.setSize({ width: e1.clientWidth, height: e1.clientHeight }); chReq.setSize({ width: e2.clientWidth, height: e2.clientHeight }); fitRightSoon(); }).observe($('right'));
+  fitRightSoon();
 }
 function pushPoint(data, chart, t, vals, max) {
   if (data[0].length && t <= data[0][data[0].length - 1]) return;
@@ -256,6 +271,7 @@ export function renderState(st) {
   renderAgents(st.sessions, st.accounts, st.priv);
   renderProcs(st.top, sys);
   renderMini(st);
+  const r = $('right'); if (r && r.scrollHeight > r.clientHeight + 2) fitRightSoon();
 }
 
 export function resetAgents() { for (const el of cards.values()) el.remove(); cards.clear(); }
