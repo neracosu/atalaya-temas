@@ -5,6 +5,7 @@ import { withFavicons } from './favicons.js';
 import { px } from './pixicons.js';
 import uPlot from '../vendor/uPlot.esm.js';
 import { signCanvas, robotCanvas, iconCanvas } from './sprites.js';
+import { ask } from './ask.js';
 import { esc, fmtBytes, fmtNum, ago } from './hud.js';
 
 // version de las definiciones (que se detecta y como resolverlo), que se actualizan solas como un antivirus
@@ -66,8 +67,8 @@ export class Drawer {
       if (pa) {
         const act = pa.dataset.proj, body = { id: pa.dataset.id };
         if (act === 'merge') { body.into = this.body.querySelector('#projInto')?.value; if (!body.into) return; }
-        if (act === 'rename') { const n = prompt('Nuevo nombre del proyecto', pa.dataset.name || ''); if (n == null) return; body.name = n; }
-        if (act === 'hide' && !confirm('¿Ocultar este proyecto del mapa? (se puede volver a mostrar editando settings.json)')) return;
+        if (act === 'rename') { const n = await ask({ title: 'Cambiar el nombre del proyecto', icon: 'folder', ok: 'Guardar', input: { label: 'Nuevo nombre', value: pa.dataset.name || '' } }); if (n == null || !n) return; body.name = n; }
+        if (act === 'hide' && !(await ask({ title: 'Ocultar este proyecto del mapa', body: 'Deja de verse en el mapa y en la lista de proyectos. Se puede volver a mostrar editando <code>settings.json</code>.', ok: 'Ocultar', icon: 'folder' }))) return;
         pa.disabled = true;
         const r = await fetch('api/projects/' + act, { method: 'POST', headers: { 'Content-Type': 'application/json', 'X-Atalaya': '1' }, body: JSON.stringify(body) }).then(x => x.json()).catch(() => ({}));
         if (r.error) { pa.insertAdjacentHTML('afterend', `<span class="dmuted"> ${esc(r.error)}</span>`); pa.disabled = false; return; }
@@ -87,7 +88,7 @@ export class Drawer {
       const rel = e.target.closest('[data-release-ip]');
       if (rel) {
         const perm = rel.dataset.perm === '1';
-        if (!confirm(perm ? `¿Liberar ${rel.dataset.releaseIp}? Se quita su bloqueo permanente del firewall y podrá volver a entrar a todos los sitios.` : `¿Liberar ${rel.dataset.releaseIp} antes de tiempo?`)) return;
+        if (!(await ask({ title: `Liberar ${rel.dataset.releaseIp}`, icon: 'jail', ok: 'Liberar', body: perm ? 'Se quita su bloqueo <b>permanente</b> del firewall y podrá volver a entrar a todos los sitios del servidor.' : 'Sale de la cárcel antes de que venza su bloqueo y podrá volver a entrar a todos los sitios.' }))) return;
         rel.disabled = true; rel.textContent = 'Liberando…';
         const r = await fetch('api/defense/release', { method: 'POST', headers: { 'Content-Type': 'application/json', 'X-Atalaya': '1' }, body: JSON.stringify({ ip: rel.dataset.releaseIp }) }).then(x => x.json()).catch(() => ({ error: 'Sin conexión' }));
         if (r.error) { rel.insertAdjacentHTML('afterend', `<span class="dmuted"> ${esc(r.error)}</span>`); rel.disabled = false; rel.textContent = 'Liberar'; return; }
@@ -100,7 +101,7 @@ export class Drawer {
         const post = (u, b) => fetch(u, { method: 'POST', headers: { 'Content-Type': 'application/json', 'X-Atalaya': '1' }, body: JSON.stringify(b) }).then(x => x.json()).catch(() => ({ error: 'Sin conexión' }));
         let r;
         if (bl.dataset.blockIp) {
-          if (!confirm(`¿Bloquear ${bl.dataset.blockIp}? No podrá entrar a ningún sitio del servidor hasta que venza el bloqueo.`)) return;
+          if (!(await ask({ title: `Bloquear ${bl.dataset.blockIp}`, danger: true, icon: 'jail', ok: 'Bloquear y llevar a la cárcel', body: 'No podrá entrar a <b>ningún sitio</b> del servidor hasta que venza el bloqueo; después sale sola. Puede liberarla antes desde la cárcel.' }))) return;
           bl.disabled = true; bl.textContent = 'Bloqueando…'; r = await post('api/defense/block', { ip: bl.dataset.blockIp });
         } else if (bl.dataset.unblockIp) { bl.disabled = true; r = await post('api/defense/unblock', { ip: bl.dataset.unblockIp }); }
         else {
@@ -116,7 +117,7 @@ export class Drawer {
       if (dm) {
         e.preventDefault();
         const on = dm.dataset.dbmon === 'on';
-        if (!on && !confirm('¿Apagar la actividad de bases? Se borra el usuario de monitoreo de MySQL.')) return;
+        if (!on && !(await ask({ title: 'Apagar la actividad de las bases', icon: 'db', ok: 'Apagar', body: 'Se borra el usuario de monitoreo de MySQL y la ficha deja de mostrar conexiones y consultas. Se puede volver a activar cuando quiera.' }))) return;
         dm.disabled = true; dm.textContent = on ? 'Activando…' : 'Apagando…';
         const post = (u, b) => fetch(u, { method: 'POST', headers: { 'Content-Type': 'application/json', 'X-Atalaya': '1' }, body: JSON.stringify(b) }).then(x => x.json()).catch(() => ({ error: 'Sin conexión' }));
         const r = await post('api/setup/action', { action: on ? 'mysql-monitor' : 'mysql-monitor-off' });

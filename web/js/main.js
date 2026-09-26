@@ -10,6 +10,7 @@ import { Drawer } from './drawer.js';
 import { withFavicons, clearFavicons } from './favicons.js';
 import { showTip, hideTip, openLegend } from './tips.js';
 import { CommFx } from './commfx.js';
+import { ask } from './ask.js';
 import { Director } from './director.js';
 
 const $ = id => document.getElementById(id);
@@ -312,7 +313,7 @@ async function renderHosting(created) {
     if (r.error) flash(r.error); else renderHosting(r);
   }));
   $('instBody').querySelectorAll('[data-remove]').forEach(b => b.addEventListener('click', async () => {
-    if (!confirm(`¿Quitar el hosting «${b.dataset.remove}»? Dejará de aceptar sus envíos (el agente seguirá en el hosting hasta que lo desinstale).`)) return;
+    if (!(await ask({ title: `Quitar el hosting «${b.dataset.remove}»`, danger: true, icon: 'house', ok: 'Quitar', body: 'Dejará de aceptar sus envíos. El agente seguirá en el hosting hasta que lo desinstale.' }))) return;
     const r = await ipost('api/agents/remove', { id: b.dataset.remove });
     if (r.error) flash(r.error); else renderHosting();
   }));
@@ -424,7 +425,7 @@ $('usersBody').addEventListener('click', async e => {
   if (e.target.id === 'ucancel') { uMode = { action: 'add' }; return openUsers(); }
   if (pinB) { uMode = { action: 'pin', name: pinB.dataset.upin }; const r = await ipost('api/users/list'); if (!r.error) renderUsers(r.users); return; }
   if (delB) {
-    if (!confirm(`¿Borrar a ${delB.dataset.udel}? Sus pantallas se cierran al instante.`)) return;
+    if (!(await ask({ title: `Borrar a ${delB.dataset.udel}`, danger: true, icon: 'lock', ok: 'Borrar usuario', body: 'Sus pantallas se cierran al instante y ya no podrá entrar.' }))) return;
     const r = await uCall('del', { name: delB.dataset.udel });
     if (r) { renderUsers(r.users); flash(`${delB.dataset.udel} fue borrado`); }
   }
