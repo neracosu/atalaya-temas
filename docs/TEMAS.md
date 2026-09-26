@@ -141,8 +141,16 @@ export default class MiTema extends Stage3D {
   si se pisan en pantalla. Con `data-go="kind:id"` la etiqueta se puede tocar.
 - **Pixel art como acento**: `billboard(rowsCanvas(filas, paleta, escala), tamaño)` hace un sprite
   nítido que siempre mira a la cámara (carteles, robots, invasores). El resto, formas limpias.
-- **Que se ubique todo sin hacer clic**: nombres visibles al acercarse, o una placa que liste lo que
-  hay adentro (así lo hacen Ciudad 3D y Acuario).
+- **Que se ubique todo sin hacer clic**: nombres visibles al acercarse y una placa que liste lo que
+  hay adentro. El motor trae las piezas:
+  - `groupsOf(state)`: las cuentas con sus servicios y sitios; `layoutKeyOf(state)` dice si cambió algo.
+  - `packRows(grupos, { w, h, gap, aspect, lead, extraH })`: reparte los grupos en filas para que se
+    vean lo más grandes posible.
+  - `plaqueList(items, iconoDe)`: la lista HTML de una placa (con `data-go` para abrir cada uno).
+  - En cada cuadro, `sizePlaques([[placa, anchoEnUnidades]])` ajusta ancho y letra al zoom, y
+    `refitPlaques(grupos, k)` mide las placas reales y rearma la distribución si alguna no cabe (en
+    pantallas chicas las deja compactas). `distToFit(w, h)` da la distancia de cámara exacta.
+  - Villa, Raid, Planta y Acuario son ejemplos completos.
 
 ### El estado (`update(state)`)
 

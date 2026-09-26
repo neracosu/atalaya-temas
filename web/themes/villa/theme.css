@@ -56,7 +56,7 @@ body[data-theme="villa"] .agent::before { background: var(--c, var(--accent)); w
 body[data-theme="villa"] .agent.waiting { box-shadow: inset 0 0 0 2px var(--warn); animation: none; }
 
 /* el mapa va entre la columna izquierda (magos + registro) y la derecha (barras y lecturas) */
-body[data-theme="villa"] #worldArea { display: block; top: 6.4rem; bottom: 1.2rem; left: calc(clamp(240px, 19vw, 480px) + 2.6rem); right: calc(clamp(270px, 22vw, 560px) + 2.6rem); }
+body[data-theme="villa"] #worldArea { display: block; top: 6.4rem; bottom: 5rem; left: calc(clamp(240px, 19vw, 480px) + 2.6rem); right: calc(clamp(270px, 22vw, 560px) + 2.6rem); }
 
 /* registro del reino: la cinta como chat abajo a la izquierda, lo mas nuevo abajo */
 body[data-theme="villa"] #ticker { left: 1.2rem; right: auto; bottom: 1.2rem; width: clamp(240px, 19vw, 480px); height: calc(100vh - 38vh - 10.6rem); min-height: 9rem; padding: .6rem .8rem;
@@ -82,3 +82,18 @@ body[data-theme="villa"] .btn { background: #5e3b1c; border: 2px solid #a07b4c; 
 body[data-theme="villa"] .btn.ghost { background: none; }
 body[data-theme="villa"] .pill, body[data-theme="villa"] .chip, body[data-theme="villa"] .keysvc { border-width: 2px; }
 body[data-theme="villa"] .cc { font-family: var(--font); background: #3a2a1a; border-color: #8b5a2b; }
+
+/* mundo 3D: tablones de los pueblos como pergamino sobre madera */
+body[data-theme="villa"] .w3-plaque { background: #f4e7c5; border: 0; box-shadow: 0 0 0 2px #3a2718, 0 0 0 4px #8b5a2b; color: #3a2718; }
+body[data-theme="villa"] .w3-plaque > b { font-family: var(--font); font-weight: 700; color: #3a2718; }
+body[data-theme="villa"] .w3-plaque > small { color: #6b4a2b; }
+body[data-theme="villa"] .w3-plaque .fishlist span { color: #3a2718; }
+body[data-theme="villa"] .w3-plaque .fishlist span:hover { color: #000; }
+body[data-theme="villa"] .w3-plaque .fishlist span.down { color: #b02a1a; }
+body[data-theme="villa"] .w3-plaque .fishlist img { width: 1.1em; height: 1.1em; }
+body[data-theme="villa"] .w3-castle > b { border-color: #e0b04a; }
+body[data-theme="villa"] .w3-item { font-family: var(--font); color: #3a2718; background: rgba(244, 231, 197, .92); border-left-color: #8b5a2b; }
+body[data-theme="villa"] .w3-item.down { color: #b02a1a; border-left-color: #d9412b; }
+body[data-theme="villa"] .w3-agent { color: #f4e7c5; }
+body[data-theme="villa"] .w3-agent em { background: #f0b43c; }
+body[data-theme="villa"] .w3-float { font-family: var(--font); background: rgba(58, 39, 24, .9); }

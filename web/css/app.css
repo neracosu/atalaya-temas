@@ -370,7 +370,7 @@ button.ev:hover { background: rgba(255, 255, 255, .06); }
 .w3-agent { translate: -50% -100%; font-size: .72rem; color: var(--ink-2); text-shadow: 0 1px 4px #000; }
 .w3-agent em { font-style: normal; color: #111; background: var(--warn); padding: 0 .3rem; margin-left: .25rem; font-weight: 700; }
 /* placas: una tarjeta que cuelga bajo un objeto 3D y nombra todo lo que contiene (se ubica sin hacer clic) */
-.w3-plaque { pointer-events: auto; cursor: pointer; translate: -50% 0; min-width: 7rem; padding: .35em .5em .45em; background: rgba(5, 9, 18, .86); border: 1px solid var(--line-strong); font-size: 12px; line-height: 1.25; white-space: normal; }
+.w3-plaque { box-sizing: border-box; pointer-events: auto; cursor: pointer; translate: -50% 0; min-width: 7rem; padding: .35em .5em .45em; background: rgba(5, 9, 18, .86); border: 1px solid var(--line-strong); font-size: 12px; line-height: 1.25; white-space: normal; }
 .w3-plaque > b { display: block; font-family: var(--pixel); font-weight: 400; font-size: 1.15em; letter-spacing: .04em; color: var(--ink); border-left: 4px solid; padding-left: .4em; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .w3-plaque > small { display: block; font-size: .8em; color: var(--ink-3); margin: .1em 0 .3em; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .w3-plaque .fishlist { display: grid; grid-template-columns: repeat(auto-fill, minmax(10em, 1fr)); column-gap: .6em; }
@@ -381,3 +381,4 @@ button.ev:hover { background: rgba(255, 255, 255, .06); }
 .w3-plaque .fishlist img { width: 1.8em; height: 1em; flex: none; image-rendering: pixelated; }
 .w3-fish { translate: -50% -100%; font-size: .74rem; font-weight: 600; color: var(--ink); background: rgba(5, 9, 18, .72); padding: 0 .3rem; }
 .w3-fish.down { color: var(--bad); }
+.w3-plaque.compact .fishlist { display: none; }
