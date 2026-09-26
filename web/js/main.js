@@ -112,6 +112,7 @@ function applyMode(h) {
   document.body.classList.toggle('ed-equipo', h.edition === 'equipo');
   document.querySelectorAll('.nocloud').forEach(b => { b.hidden = b.hidden || h.edition === 'cloud' || h.edition === 'equipo'; });
   document.querySelectorAll('.noequipo').forEach(b => { b.hidden = b.hidden || h.edition === 'equipo'; });
+  $('maestroBtn').hidden = !h.maestro;
   $('version').textContent = `${h.title} v${h.version}`;
   // tras una actualizacion, las novedades se muestran una vez
   let seen = null; try { seen = localStorage.getItem('atalaya_seen_version'); localStorage.setItem('atalaya_seen_version', h.version); } catch { }
@@ -175,6 +176,8 @@ $('menu').addEventListener('click', async e => {
   if (act === 'hosting') openInstall('hosting');
   if (act === 'director') document.dispatchEvent(new KeyboardEvent('keydown', { key: 'd' }));
   if (act === 'lockall') { await post('api/public-all').catch(() => { }); flash('Todas las pantallas pasaron a modo público'); }
+  if (act === 'users') openUsers();
+  if (act === 'maestro') openMaestro();
   if (act === 'logout') { await post('api/logout').catch(() => { }); location.href = 'login'; }
 });
 function toggleFs() { document.fullscreenElement ? document.exitFullscreen() : document.documentElement.requestFullscreen().catch(() => { }); }
@@ -349,6 +352,91 @@ async function refreshProjects() {
     ${worst.map(x => `<div class="projrow"><span class="score s${x.score >= 85 ? 'ok' : x.score >= 60 ? 'warn' : 'bad'}">${x.score}</span><span class="grow">${ie(x.name)}</span></div>`).join('')}`;
 }
 refreshProjects(); setInterval(refreshProjects, 60000);
+
+// ---------------------------------------------------------------- usuarios (solo duenos con el modo privado activo)
+const usersDlg = $('usersDlg');
+usersDlg.querySelector('.uclose').addEventListener('click', () => usersDlg.close());
+let uMode = { action: 'add' }, uPin = null, uPin2 = null;
+function needPrivate(what) {
+  if (hello?.priv) return false;
+  flash(`Active el modo privado para ${what}`);
+  openPrivate();
+  return true;
+}
+async function openUsers() {
+  if (needPrivate('gestionar usuarios')) return;
+  const r = await ipost('api/users/list');
+  if (r.error) { flash(r.error); return; }
+  uMode = { action: 'add' };
+  renderUsers(r.users);
+  if (!usersDlg.open) usersDlg.showModal();
+}
+function renderUsers(list) {
+  const opt = (v, cur, l) => `<option value="${v}"${v === cur ? ' selected' : ''}>${l}</option>`;
+  $('usersBody').innerHTML = `
+    <p class="lead"><b>Dueño</b>: activa el modo privado, configura y gestiona usuarios. <b>Solo ver</b>: para el TV o para quien mira la pantalla sin ver nombres, dominios ni IPs.</p>
+    <ul class="dlist ulist">${list.map(u => `<li>
+      <span class="grow"><b>${ie(u.name)}</b>${u.me ? ' <span class="pill ok">usted</span>' : ''}<small>${u.sessions ? `${u.sessions} sesión(es) abierta(s)` : 'sin sesiones abiertas'}</small></span>
+      <select data-urole="${ie(u.name)}" aria-label="Rol de ${ie(u.name)}"${u.me ? ' disabled' : ''}>${opt('owner', u.role, 'Dueño')}${opt('viewer', u.role, 'Solo ver')}</select>
+      <button class="btn small ghost" type="button" data-upin="${ie(u.name)}">Cambiar PIN</button>
+      ${u.me ? '<span class="uspacer"></span>' : `<button class="btn small ghost" type="button" data-udel="${ie(u.name)}">Borrar</button>`}
+    </li>`).join('')}</ul>
+    <form id="uform" class="uform" autocomplete="off">
+      <h4>${uMode.action === 'pin' ? `Nuevo PIN para ${ie(uMode.name)}` : 'Agregar usuario'}</h4>
+      ${uMode.action === 'pin' ? `<p class="lhelp">${uMode.name === hello.user ? 'Su sesión actual sigue abierta; las demás se cierran.' : 'Sus sesiones abiertas se cierran al instante.'}</p>` : `
+      <div class="urow"><label>Nombre<input id="uname" type="text" maxlength="32" autocapitalize="none" spellcheck="false" placeholder="ej. tv-oficina" required></label>
+        <label>Rol<select id="urole">${opt('viewer', 'viewer', 'Solo ver')}${opt('owner', '', 'Dueño')}</select></label></div>`}
+      <div class="upins"><div><label id="upl">PIN de 6 dígitos</label><div class="pin-row" id="upin" role="group" aria-labelledby="upl"></div></div>
+        <div><label id="upl2">Repita el PIN</label><div class="pin-row" id="upin2" role="group" aria-labelledby="upl2"></div></div></div>
+      <p class="error" id="uerr" role="alert"></p>
+      <div class="actions${uMode.action === 'pin' ? '' : ' one'}">${uMode.action === 'pin' ? '<button type="button" class="btn" id="ucancel">Cancelar</button>' : ''}
+        <button class="btn primary" id="ugo">${uMode.action === 'pin' ? 'Guardar PIN' : 'Agregar usuario'}</button></div>
+    </form>`;
+  uPin = buildPin($('upin'), () => uPin2.focus());
+  uPin2 = buildPin($('upin2'), () => $('ugo').focus());
+  if (uMode.action === 'pin') uPin.focus();
+}
+async function uCall(action, body) {
+  const r = await ipost('api/users/' + action, body);
+  if (r.error) { const e = $('uerr'); if (e) e.textContent = r.error; else flash(r.error); return null; }
+  return r;
+}
+$('usersBody').addEventListener('change', async e => {
+  const s = e.target.closest('[data-urole]'); if (!s) return;
+  const r = await uCall('role', { name: s.dataset.urole, role: s.value });
+  if (r) { renderUsers(r.users); flash(`${s.dataset.urole} ahora es ${s.value === 'owner' ? 'dueño' : 'solo ver'}`); } else openUsers();
+});
+$('usersBody').addEventListener('click', async e => {
+  const pinB = e.target.closest('[data-upin]'), delB = e.target.closest('[data-udel]');
+  if (e.target.id === 'ucancel') { uMode = { action: 'add' }; return openUsers(); }
+  if (pinB) { uMode = { action: 'pin', name: pinB.dataset.upin }; const r = await ipost('api/users/list'); if (!r.error) renderUsers(r.users); return; }
+  if (delB) {
+    if (!confirm(`¿Borrar a ${delB.dataset.udel}? Sus pantallas se cierran al instante.`)) return;
+    const r = await uCall('del', { name: delB.dataset.udel });
+    if (r) { renderUsers(r.users); flash(`${delB.dataset.udel} fue borrado`); }
+  }
+});
+$('usersBody').addEventListener('submit', async e => {
+  e.preventDefault();
+  const err = $('uerr'); err.textContent = '';
+  if (uPin.value().length !== 6) { err.textContent = 'Complete los 6 dígitos del PIN'; return uPin.focus(); }
+  if (uPin.value() !== uPin2.value()) { err.textContent = 'Los PIN no coinciden'; uPin2.clear(); return uPin2.focus(); }
+  const body = uMode.action === 'pin' ? { name: uMode.name, pin: uPin.value() } : { name: $('uname').value.trim(), role: $('urole').value, pin: uPin.value() };
+  const r = await uCall(uMode.action, body);
+  if (!r) { uPin.clear(); uPin2.clear(); return; }
+  flash(uMode.action === 'pin' ? `PIN de ${body.name} cambiado` : `Usuario ${body.name} agregado`);
+  uMode = { action: 'add' };
+  renderUsers(r.users);
+});
+
+// panel maestro de la nube (solo si en este servidor corre Atalaya Cloud): pase firmado de un solo uso
+async function openMaestro() {
+  if (needPrivate('abrir el panel maestro')) return;
+  const w = window.open('', '_blank');
+  const r = await ipost('api/maestro');
+  if (r.error || !r.url) { if (w) w.close(); flash(r.error || 'No se pudo abrir el panel'); return; }
+  if (w) { w.opener = null; w.location.href = r.url; } else location.href = r.url;
+}
 
 // ---------------------------------------------------------------- novedades (CHANGELOG)
 const newsDlg = $('news');

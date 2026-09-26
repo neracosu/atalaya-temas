@@ -247,7 +247,7 @@ button.ev:hover { background: rgba(255, 255, 255, .06); }
 .tip .thint { font-size: .7rem; color: var(--accent); margin-top: .35rem; }
 
 /* ---------------- leyenda */
-.legend { width: min(760px, calc(100vw - 32px)); max-height: min(86vh, 900px); padding: 0; display: flex; flex-direction: column; }
+.legend { width: min(48rem, calc(100vw - 32px)); max-height: min(86vh, 56rem); padding: 0; display: flex; flex-direction: column; }
 .legend:not([open]) { display: none; }
 .legend header { display: flex; justify-content: space-between; align-items: center; padding: 1rem 1.2rem; border-bottom: 1px solid var(--line); }
 .legend h3 { margin: 0; }
@@ -521,3 +521,28 @@ body.ed-equipo .sysonly, body.sys-lite .sysprocs, body.sys-lite #kpi-rx, body.sy
 /* defensa web en el bloque Defensa: expuestos en rojo, sospechosos en ambar */
 .mini .link.bad b { color: #f87171; } .mini .link.warn b { color: #fbbf24; }
 .mini .link { cursor: pointer; } .mini .link:hover span { color: var(--ink); }
+
+/* usuarios */
+.users .lbody { display: grid; gap: 1rem; }
+.users .lead { margin: 0; color: var(--ink-2); }
+.ulist li { display: grid; grid-template-columns: minmax(0, 1fr) 7.5rem auto 5.5rem; gap: .5rem; padding: .55rem .7rem; font-size: .88rem; }
+.ulist li b { color: var(--ink); }
+.ulist li > .btn { justify-self: stretch; }
+.ulist .grow { display: flex; flex-wrap: wrap; align-items: center; gap: .2rem .5rem; white-space: normal; }
+.ulist .grow small { flex-basis: 100%; color: var(--ink-3); font-size: .78rem; }
+.ulist .uspacer { display: block; }
+.users select, .uform input { background: var(--bg-2); border: 1px solid var(--line-strong); border-radius: 8px; color: var(--ink); padding: .45rem .6rem; font: inherit; font-size: .88rem; }
+.uform { display: grid; gap: .8rem; border-top: 1px solid var(--line); padding-top: 1rem; }
+.uform h4 { margin: 0; }
+.uform label { display: grid; gap: .35rem; font-size: .78rem; letter-spacing: .06em; text-transform: uppercase; color: var(--ink-3); }
+.uform .urow { display: grid; grid-template-columns: minmax(0, 1.6fr) minmax(0, 1fr); gap: .7rem; }
+.uform .upins { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 1rem; }
+.uform .upins > div { display: grid; gap: .35rem; }
+.uform .pin-row input { max-height: none; height: 2.8rem; aspect-ratio: auto; font-size: 1.2rem; }
+.uform .error:empty { display: none; }
+.uform .actions.one { grid-template-columns: minmax(0, 1fr); }
+@media (max-width: 600px) {
+  .ulist li { grid-template-columns: minmax(0, 1fr) auto 5rem; }
+  .ulist .grow { grid-column: 1 / -1; }
+  .uform .urow, .uform .upins { grid-template-columns: minmax(0, 1fr); }
+}
