@@ -66,6 +66,12 @@ kbd { font-family: var(--mono); font-size: .7rem; color: var(--ink-3); border: 1
 @keyframes pulseBorder { 50% { box-shadow: 0 0 0 3px rgba(245, 158, 11, .15); } }
 .agent .row1 { display: flex; align-items: center; gap: .5rem; justify-content: space-between; }
 .agent .ttl { font-weight: 600; font-size: .95rem; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.agent .proj { display: flex; align-items: center; gap: .35rem; min-width: 0; margin-top: .15rem; font-size: .8rem; color: var(--ink-2); }
+.agent .proj:empty { display: none; }
+.agent .proj .px { width: 1em; height: 1em; flex: none; }
+.agent .proj b { color: var(--ink); font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; min-width: 0; }
+.agent .proj .acct { color: var(--c, var(--ink-3)); white-space: nowrap; flex: none; }
+.agent .proj b + .acct::before { content: '·'; margin-right: .35rem; color: var(--ink-3); }
 .agent .where { font-size: .72rem; color: var(--ink-3); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; margin-top: .1rem; }
 .agent .act { margin-top: .45rem; font-size: .85rem; color: var(--ink-2); display: flex; gap: .45rem; align-items: baseline; min-width: 0; }
 .agent .act .tool { font-family: var(--mono); font-size: .72rem; color: var(--c, var(--ink-2)); flex: none; }

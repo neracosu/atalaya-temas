@@ -138,7 +138,9 @@ function pushPoint(data, chart, t, vals, max) {
 const cards = new Map();
 function agentHtml(s, acc, priv) {
   const title = priv && s.title ? s.title : `Agente · ${acc?.label || ''}`;
-  const where = priv ? [s.project, s.model].filter(Boolean).join(' · ') : [acc?.label, s.model].filter(Boolean).join(' · ');
+  // que proyecto y que cuenta (lo que importa de un vistazo); abajo, la carpeta exacta y el modelo
+  const proj = s.target ? s.target.name : '';
+  const where = priv ? [s.project, s.model].filter(Boolean).join(' · ') : s.model || '';
   const WAIT = { permission: 'Espera su permiso', question: 'Le hizo una pregunta', idle: 'Espera su respuesta' };
   const act = s.waitKind ? `${WAIT[s.waitKind] || 'Lo espera'} hace ${ago(Date.now() - s.waitSince)}${priv && s.detail && s.waitKind === 'permission' ? ' · ' + s.detail : ''}`
     : s.state === 'idle' ? `Sin actividad hace ${ago(Date.now() - s.lastActivity)}`
@@ -146,7 +148,8 @@ function agentHtml(s, acc, priv) {
   const tool = priv && s.tool && s.state !== 'idle' ? `<span class="tool">${esc(s.tool)}</span>` : '';
   const subs = (s.subagents || []).map(x => `<div class="subag" data-agent="${esc(x.id)}"><span class="st">↳ ${esc(STATE_LABEL[x.state] || x.state)}</span><span>${esc(priv ? (x.title || x.detail || x.activity) : x.activity)}</span></div>`).join('');
   return `<div class="row1"><div class="ttl">${esc(title)}</div><span class="badge ${s.state}" data-tip="${STATE_LABEL[s.state]}|${{ working: 'Está usando una herramienta ahora mismo.', thinking: 'Está razonando su próximo paso.', waiting: 'Necesita que usted responda o dé permiso.', idle: 'Terminó su turno y espera una nueva instrucción.' }[s.state] || ''}">${STATE_LABEL[s.state] || s.state}</span></div>
-    <div class="where">${esc(where)}</div>
+    <div class="proj">${proj ? `${px(s.target.kind === 'app' ? 'rocket' : 'house')}<b>${esc(proj)}</b>` : ''}${acc?.label ? `<span class="acct">${proj ? 'cuenta ' : ''}${esc(acc.label)}</span>` : ''}</div>
+    ${where ? `<div class="where">${esc(where)}</div>` : ''}
     <div class="act">${tool}<span class="det">${esc(act)}</span></div>
     <div class="meta">${s.hooks ? `<span data-tip="En vivo|Esta sesión avisa por hooks: su estado es exacto y al instante.">${px('bolt')} en vivo</span>` : ''}<span>${fmtNum(s.tokensOut)} tokens</span><span>${s.tools} herramientas</span>${s.errors ? `<span>${s.errors} errores</span>` : ''}${s.subagents?.length ? `<span>${s.subagents.length} subagentes</span>` : ''}</div>
     ${subs ? `<div class="subs">${subs}</div>` : ''}`;

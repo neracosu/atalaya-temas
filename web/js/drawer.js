@@ -424,7 +424,7 @@ export class Drawer {
     const priv = d.title !== undefined;
     const title = priv && d.title ? d.title : `Agente · ${d.accountLabel}`;
     this.setHead('session:' + d.id, robotCanvas(d.color, 4), title,
-      `${priv && d.project ? `<span class="mono">${esc(d.project)}</span> · ` : ''}<a data-go="district:${esc(d.account)}">${esc(d.accountLabel)}</a>${d.model ? ' · ' + esc(d.model) : ''}`,
+      `${d.target ? `<a data-go="${esc(d.target.go)}"><b>${esc(d.target.name)}</b></a> · ` : ''}cuenta <a data-go="district:${esc(d.account)}">${esc(d.accountLabel)}</a>${priv && d.project ? ` · <span class="mono">${esc(d.project)}</span>` : ''}${d.model ? ' · ' + esc(d.model) : ''}`,
       `<span class="pill ${d.state}">${STATE_LABEL[d.state] || d.state}</span>`);
     const wait = d.waitKind ? `<div class="dwait">${px('ask')} ${WAIT_LABEL[d.waitKind] || 'Lo espera'} desde hace ${ago(Date.now() - d.waitSince)}${priv && d.tool ? ` · <b>${esc(d.tool)}</b>` : ''}${priv && d.detail ? `: ${esc(d.detail)}` : ''}${priv && d.waitMessage ? `<br><span class="dmuted">${esc(d.waitMessage)}</span>` : ''}</div>` : '';
     const now = d.state === 'idle' ? `Sin actividad hace ${ago(Date.now() - d.lastActivity)}` : (priv && d.detail ? `<b>${esc(d.tool || '')}</b> ${esc(d.detail)}` : esc(d.activity));
