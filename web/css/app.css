@@ -508,7 +508,8 @@ body.ed-cloud #kpi-rx, body.ed-cloud #kpi-tx, body.ed-cloud #instDlg .itabs, bod
    tampoco hay red por interfaz ni lista de procesos, y en Windows no hay carga */
 body.ed-equipo .sysonly, body.sys-lite .sysprocs, body.sys-lite #kpi-rx, body.sys-lite #kpi-tx, body.sys-noload #kpi-load { display: none !important; }
 /* comunicacion entre agentes (web/js/commfx.js): encima del mundo y del HUD, sin atrapar clics */
-.commfx { position: fixed; inset: 0; width: 100vw; height: 100vh; pointer-events: none; z-index: 60; }
+/* encima del mapa y debajo de todo el HUD (paneles 2+, ficha 6, menu 10, tooltips 30, modales): nunca tapa una ficha */
+.commfx { position: fixed; inset: 0; width: 100vw; height: 100vh; pointer-events: none; z-index: 1; }
 /* ficha de correo: tabla por cuenta y movimientos con contexto */
 .dtable { width: 100%; border-collapse: collapse; font-size: .85rem; }
 .dtable th, .dtable td { text-align: left; padding: .35rem .5rem; border-bottom: 1px solid var(--line); }

@@ -48,7 +48,7 @@ export class CommFx {
     if (!this.hud || now - this.hudAt > 500) {
       this.hudAt = now;
       this.hud = ['top', 'left', 'right', 'ticker', 'drawer'].map(id => document.getElementById(id))
-        .filter(el => el && !el.hidden && el.offsetParent !== null).map(el => el.getBoundingClientRect());
+        .filter(el => el && !el.hidden && el.getClientRects().length).map(el => el.getBoundingClientRect());
     }
     return this.hud.some(r => p.x >= r.left && p.x <= r.right && p.y >= r.top && p.y <= r.bottom);
   }

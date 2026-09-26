@@ -101,7 +101,8 @@ Métodos que la pantalla llama:
 | `setDirector(bool)`, `directorOn` | Modo director (cámara automática), tecla D |
 | `resetView()`, `zoomBy(f)` | Botones de navegación |
 | `navChanged()` | Avisar el estado de la cámara con `onNav({ mode: 'director' \| 'fixed' \| 'manual', left })` |
-| `screenOf(kind, id)` | *Opcional.* Dónde está en la ventana una sesión (`'session'`, id de la sesión), un subagente (`'agent'`, `sesión/agente`) o un proyecto (`'app'` o `'site'`): `{ x, y }` en píxeles, o `null`. Con esto la comunicación entre agentes (encargos, resultados, mensajes y el haz al proyecto que se edita) se dibuja sobre su mundo; sin esto, entre las tarjetas del panel de agentes. En Pixi, `pixiScreen(app, objeto)` de `../../js/commfx.js` lo resuelve; los temas sobre `Stage3D` ya lo traen. |
+| `screenOf(kind, id)` | *Opcional, pero muy recomendado.* Dónde está en la ventana una sesión (`'session'`, id de la sesión), un subagente (`'agent'`, `sesión/agente`), un proyecto (`'app'` o `'site'`), la torre del servidor (`'tower'`) o la entrada de Internet (`'gate'`): `{ x, y }` en píxeles, o `null`. Con esto se dibujan **sobre su mundo, sin que usted programe nada**: la comunicación entre agentes (encargos, resultados, mensajes, el haz al proyecto), los autos que buscan rutas vulnerables, el haz de entrada y salida de cada sesión, las **patrullas voladoras** de la vigilancia (salen de `'tower'`; sin ella, del borde de la pantalla), los reflectores de un pico de visitas, el pulso de una consulta lenta y la marca del director. Sin `screenOf`, lo de los agentes va entre las tarjetas del panel y lo demás no se ve. En Pixi, `pixiScreen(app, objeto)` de `../../js/commfx.js` lo resuelve; los temas sobre `Stage3D` ya lo traen. |
+| `t`, `manualUntil` | El reloj del mundo en segundos y hasta cuándo la cámara es del usuario. El **director** (`/js/director.js`) llama a `pick(kind, id)` sin abrir la ficha y pone `manualUntil = t + segundos`: cuando `t` lo pasa, su mundo debe devolver la cámara a su recorrido o vista general. |
 
 Callbacks que la pantalla le asigna al mundo:
 
@@ -208,7 +209,14 @@ export default class MiTema extends Stage3D {
 | `deploy` | `app`, `action`: `building`, `ready`, `error`, `canceled` | Un despliegue |
 | `pm2` | `app`, `action`: `down`, `restart` | Un servicio cayó o se reinició |
 | `domain` | `account`, `action`: `added`, `removed`, `changed` | Cambió un dominio |
-| `claude` | `sid`, `account`, `action`: `permission`, `approved`, `tool`, `prompt`, `done`, `error` | Un agente hizo algo |
+| `claude` | `sid`, `account`, `action`: `start`, `end`, `permission`, `approved`, `tool`, `prompt`, `done`, `error` | Un agente hizo algo (`start` y `end`: la sesión empieza o termina) |
+| `probe` | `app` o `site`, `fam`, `status`, `exposed` | Un robot probó una ruta vulnerable (`exposed`: respondió) |
+| `watch` | `app` o `site`, `action`: `start`, `end`, `reason`: `scan`, `scraping`, `surge`, `n` | Un sitio entra o sale de vigilancia |
+| `db` | `app` o `site` (si se sabe), `action`: `slow`, `secs` | Una consulta lenta a la base de ese sitio |
+
+Además, `state.sites[i].watch` y `state.apps[i].watch` traen `{ reason, n, since }` mientras un sitio esté en
+vigilancia: sirve para que el tema marque el edificio a su manera (las patrullas de la capa de efectos ya
+aparecen solas si el tema tiene `screenOf`).
 
 ## 4. `theme.css`: el HUD
 
