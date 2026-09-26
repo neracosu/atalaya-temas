@@ -35,6 +35,45 @@ export function rowsCanvas(rows, pal, scale = 1) {
   return cv;
 }
 
+// ------------------------------------------------------------------ piezas comunes de los temas
+// cuentas con lo que tienen (servicios primero, luego sitios), de la mas grande a la mas chica; sin 'root'
+export function groupsOf(state) {
+  const by = {};
+  for (const a of state.apps) (by[a.account] = by[a.account] || []).push({ ...a, _k: 'app' });
+  for (const x of state.sites || []) (by[x.account] = by[x.account] || []).push({ ...x, _k: 'site' });
+  return state.accounts.filter(a => a.id !== 'root' && (by[a.id] || []).length)
+    .map(a => ({ a, items: by[a.id].sort((x, y) => (x._k === y._k ? 0 : x._k === 'app' ? -1 : 1)) }))
+    .sort((x, y) => y.items.length - x.items.length);
+}
+// huella de la distribucion: si no cambia, no hace falta rearmar el mundo
+export function layoutKeyOf(state) {
+  return groupsOf(state).map(g => g.a.id + ':' + g.a.label + ':' + (g.a.cpanel || '') + ':' + g.items.map(x => x.id + x.name).join(',')).join('|');
+}
+// reparte grupos en 1 a 4 filas y se queda con la que deja todo mas grande en pantalla.
+// w(g) y h(g) en unidades del mundo; gap entre grupos; aspect = ancho/alto del area libre;
+// lead = ancho reservado al inicio de la primera fila; extraH = alto fijo que ocupa otra cosa (ej. el jefe)
+export function packRows(list, { w, h, gap = 1.5, aspect = 1.7, lead = 0, extraH = 0 }) {
+  let best = null;
+  for (let n = 1; n <= Math.min(4, Math.max(1, list.length)); n++) {
+    const target = (list.reduce((k, g) => k + w(g) + gap, lead)) / n;
+    const rows = [[]]; let used = lead;
+    for (const g of list) { if (used + w(g) / 2 > target && rows[rows.length - 1].length && rows.length < n) { rows.push([]); used = 0; } rows[rows.length - 1].push(g); used += w(g) + gap; }
+    const widths = rows.map((r, i) => r.reduce((k, g) => k + w(g), 0) + (r.length - 1) * gap + (i === 0 ? lead : 0));
+    const heights = rows.map(r => Math.max(...r.map(h)));
+    const W = Math.max(...widths), H = heights.reduce((k, x) => k + x, 0);
+    const score = Math.min(aspect / W, 1 / (H + extraH));
+    if (!best || score > best.score) best = { rows, widths, heights, W, H, score };
+  }
+  return best;
+}
+// lista de una placa: cada proyecto con su dibujo pixel y su nombre; un clic lo abre
+const iconCache = new Map();
+export function iconURL(key, paint) { if (!iconCache.has(key)) iconCache.set(key, paint().toDataURL()); return iconCache.get(key); }
+export function plaqueList(items, iconOf, isDown = it => it.status === 'down') {
+  const e = v => String(v).replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
+  return items.map(it => `<span data-go="${it._k === 'site' ? 'site' : 'app'}:${e(it.id)}"${isDown(it) ? ' class="down"' : ''}><img alt="" src="${iconOf(it)}"><em>${e(it.name)}</em></span>`).join('');
+}
+
 export class Stage3D {
   constructor(el, { manifest } = {}) {
     this.el = el; this.manifest = manifest || {};
@@ -210,6 +249,51 @@ export class Stage3D {
   navChanged() { if (this.onNav) this.onNav(this.navState()); }
   manual() { this.manualUntil = this.t + 90; this.navChanged(); }
   resetView() { this.manualUntil = 0; this.resetGoal(); this.shotT = 12; this.navChanged(); }
+  // distancia de camara para que un rectangulo de w x h unidades (visto de frente) entre en el area libre del HUD
+  distToFit(w, h) {
+    if (!this.W || !this.H) return 40;
+    const aw = Math.max(200, this.W - this.insets.left - this.insets.right), ah = Math.max(200, this.H - this.insets.top - this.insets.bottom);
+    const k = 2 * Math.tan(this.fov * Math.PI / 360) / (this.fitZoom || 1);
+    return Math.max(h * this.H / (k * ah), w * this.H / (k * aw));
+  }
+  areaAspect() { return this.W && this.H ? Math.max(0.4, (this.W - this.insets.left - this.insets.right) / Math.max(1, this.H - this.insets.top - this.insets.bottom)) : 1.6; }
+  // placas medidas de verdad (la letra de cada tema ocupa distinto): alto en unidades del mundo por cuenta.
+  // Si alguna no cabe en lo que se le reservo, se rearma la distribucion (como mucho 3 veces por cambio real)
+  plaqueUnits(id, estimate) { return Math.max(estimate, (this.measured && this.measured.get(id)) || 0); }
+  // Si la pantalla es chica (la letra de la lista quedaria ilegible), las placas pasan a modo compacto:
+  // nombre, cuenta y cantidad; los nombres se ven al acercarse. En pantallas grandes, la lista completa.
+  refitPlaques(groups, k = 1, fontK = 0.36) {
+    this.measured = this.measured || new Map();
+    if ((this.refits || 0) >= 4 || (this.nextMeasure || 0) > this.t) return;
+    this.nextMeasure = this.t + 1.5;
+    // solo con la camara quieta en la vista general
+    if (Math.abs(this.orbit.zoom - 1) > 0.05 || Math.abs(this.orbit.dist - this.view.dist) > this.view.dist * 0.05) return;
+    const ppu = this.pxPerUnit(new THREE.Vector3(this.orbit.tx, 0, this.orbit.tz));
+    const compact = this.compactPlaques ? ppu * fontK < 10 : ppu * fontK < 7.5;
+    let off = compact !== !!this.compactPlaques;
+    if (off) { this.compactPlaques = compact; this.measured.clear(); }
+    else for (const g of groups) {
+      if (!g.plaque || !g.plaque.d.offsetHeight) continue;
+      const u = g.plaque.d.offsetHeight / ppu / k + 0.4;
+      if (u > (g.plaqueU || 0) * 1.08) { this.measured.set(g.a.id, u); off = true; }
+    }
+    if (off && this.state) { this.refits = (this.refits || 0) + 1; this.layoutKey = ''; this.layout(this.state); }
+  }
+  // lineas de texto que ocupa una placa: titulo y cuenta, mas la lista en columnas (si no esta compacta)
+  plaqueLines(n, wUnits, fontK = 0.36) { return 2.8 + (this.compactPlaques ? 0 : Math.ceil(n / Math.max(1, Math.floor(wUnits / (fontK * 10.5))))); }
+  // lo comun a cada cuadro: ancho y letra de cada placa segun el zoom, y su modo compacto
+  sizePlaques(list, fontK = 0.36) {
+    const ppu = this.pxPerUnit(new THREE.Vector3(this.orbit.tx, 0, this.orbit.tz));
+    const fs = clamp(ppu * fontK, 11, 17).toFixed(1) + 'px';
+    for (const [pl, w, min] of list) { pl.d.style.width = Math.round(Math.max(w * ppu, min || 130)) + 'px'; pl.d.style.fontSize = fs; pl.d.classList.toggle('compact', !!this.compactPlaques && this.orbit.zoom < 1.5); }
+  }
+  // cuantos pixeles mide una unidad del mundo en pantalla alrededor de un punto (para escalar placas)
+  pxPerUnit(p) {
+    p = p || new THREE.Vector3(this.orbit.tx, this.orbit.ty, this.orbit.tz);
+    const right = new THREE.Vector3().setFromMatrixColumn(this.camera.matrixWorld, 0);
+    const a = this.toScreen(p), b = this.toScreen(p.clone().add(right));
+    return Math.max(2, Math.hypot(b.x - a.x, b.y - a.y));
+  }
   zoomBy(f) { this.manual(); this.goal.zoom = clamp(this.goal.zoom * f, 0.5, 6); }
   pick(kind, id) {
     this.selected = { kind, id };

@@ -17,8 +17,6 @@ const FISH_COLORS = ['#ff8a3d', '#ffd23f', '#ff5e8a', '#7be0ff', '#b48cff', '#7b
 function hash(s) { let h = 2166136261; for (const c of String(s)) { h ^= c.charCodeAt(0); h = Math.imul(h, 16777619); } return h >>> 0; }
 const TH = 3.6, TD = 2.6, GAP = 1.6; // alto y fondo de cada pecera, espacio entre peceras
 const FONT_K = 0.36; // la letra de las placas mide 0.36 unidades del mundo: crece y se achica con la camara
-// alto de una placa en unidades del mundo: titulo, cuenta y la lista en columnas de ~10 letras
-const plaqueUnits = t => FONT_K * 1.3 * (2.8 + Math.ceil(t.items.length / Math.max(1, Math.floor(t.w / (FONT_K * 10.5))))) + 0.6;
 
 // el dibujo del pez en la placa: 9x5 pixeles con sus dos colores (el acento pixel de la interfaz)
 const FISH_PX = ['..aaaa..b', '.aaaaaabb', 'aakaaaabb', '.aaaaaabb', '..aaaa..b'];
@@ -62,6 +60,7 @@ export default class Acuario3D extends Stage3D {
     for (const x of state.sites || []) (by[x.account] = by[x.account] || []).push({ ...x, _k: 'site' });
     const key = accounts.map(a => a.id + ':' + a.label + ':' + (a.cpanel || '') + ':' + (by[a.id] || []).map(x => x.id + x.name).join(',')).join('|');
     if (key === this.layoutKey) return;
+    if (key !== this.realKey) { this.realKey = key; this.refits = 0; }
     this.layoutKey = key;
     this.rack.clear();
     for (const t of this.tanks.values()) t.plaque.remove();
@@ -82,7 +81,7 @@ export default class Acuario3D extends Stage3D {
       const rows = [[]]; let used = FW + GAP;
       for (const t of list) { if (used + t.w / 2 > target && rows[rows.length - 1].length && rows.length < n) { rows.push([]); used = 0; } rows[rows.length - 1].push(t); used += t.w + GAP; }
       const widths = rows.map((r, i) => r.reduce((k, t) => k + t.w, 0) + (r.length - 1) * GAP + (i === 0 ? FW + GAP : 0));
-      const heights = rows.map(r => TH + 0.6 + Math.max(...r.map(t => plaqueUnits(t))));
+      const heights = rows.map(r => TH + 0.6 + Math.max(...r.map(t => (t.plaqueU = this.plaqueUnits(t.a.id, FONT_K * 1.3 * this.plaqueLines(t.items.length, t.w, FONT_K) + 0.6)))));
       const w = Math.max(...widths) + 3, h = heights.reduce((k, x) => k + x, 0) + 1;
       const score = Math.min(this.areaAspect() / w, 1 / h);
       if (!best || score > best.score) best = { rows, widths, heights, w, h, score };
@@ -100,12 +99,10 @@ export default class Acuario3D extends Stage3D {
     this.extent = { w: best.w, h: best.h, top: TH + 0.8, bottom: y + 0.4 };
     this.fit(true);
   }
-  // proporcion ancho/alto del area libre del HUD
-  areaAspect() { return this.W && this.H ? Math.max(0.5, (this.W - this.insets.left - this.insets.right) / Math.max(1, this.H - this.insets.top - this.insets.bottom)) : 1.7; }
   // encuadre: que entren todas las peceras y sus placas (fov 30: se ve 0.536 x distancia de alto)
   fit(snap) {
     const E = this.extent; if (!E) return;
-    const dist = Math.max(E.w / this.areaAspect(), E.h) / 0.536 * 1.03;
+    const dist = this.distToFit(E.w, E.h) * 1.03;
     this.setView({ dist, ty: (E.top + E.bottom) / 2 + E.h * 0.05 }, snap); // la camara mira un poco desde arriba: se sube el centro
   }
   setInsets(ins) { super.setInsets(ins); if (this.extent) this.fit(false); }
@@ -377,17 +374,15 @@ export default class Acuario3D extends Stage3D {
       F.water.scale.y += (lvl - F.water.scale.y) * Math.min(1, dt * 2);
       if (Math.random() < dt * (1 + (F.load || 0.2) * 8)) this.bubble(F.x + (Math.random() - 0.5) * (F.w - 0.6), F.y + 0.3, (Math.random() - 0.5) * 0.8, F.y + 0.1 + F.water.scale.y, 0x7be0ff);
     }
-    const ppu = this.pxPerUnit();
     for (const t of this.tanks.values()) {
       t.plants.forEach(p => { p.rotation.z = Math.sin(this.t * 1.1 + p.userData.ph) * 0.12; });
       t.lidFlash = Math.max(0, (t.lidFlash || 0) - dt * 1.2);
       t.lid.material.emissiveIntensity = t.lidFlash * 1.6;
       if (Math.random() < dt * 0.7) this.bubble(t.x - t.w / 2 + 0.45, t.y + 0.4, -TD / 2 + 0.35, t.y + TH - 0.4);
-      // la placa ocupa el ancho de su pecera y su letra crece al acercarse
-      t.plaque.d.style.width = Math.round(t.w * ppu) + 'px';
-      t.plaque.d.style.fontSize = clamp(ppu * FONT_K, 11, 17).toFixed(1) + 'px';
     }
-    if (this.filterLabel && F) { this.filterLabel.d.style.width = Math.round(Math.max(F.w * ppu, 130)) + 'px'; this.filterLabel.d.style.fontSize = clamp(ppu * FONT_K, 11, 17).toFixed(1) + 'px'; }
+    // la placa ocupa el ancho de su pecera y su letra crece al acercarse
+    this.refitPlaques([...this.tanks.values()], 1);
+    this.sizePlaques([...this.tanks.values()].map(t => [t.plaque, t.w]).concat(this.filterLabel && F ? [[this.filterLabel, F.w]] : []), FONT_K);
     for (const f of this.fish.values()) {
       const a = f.data;
       if (f.dead) {
@@ -425,11 +420,6 @@ export default class Acuario3D extends Stage3D {
       d.g.position.set(clamp(-half + 0.4 + d.slot * 1.0 + (waiting ? 0 : (Math.sin(this.t * 0.2 + d.walk) + 1) * 0.5), -half, half), 0.3, TD / 2 - 0.5);
       if (d.s.state === 'working' && Math.random() < dt * 3) this.bubble(d.tank.x + d.g.position.x, d.tank.y + 1.05, d.g.position.z, d.tank.y + TH - 0.4, 0xffe0a8);
     }
-  }
-  // cuantos pixeles de pantalla mide una unidad del mundo a la altura de las peceras
-  pxPerUnit() {
-    const a = this.toScreen(new THREE.Vector3(this.orbit.tx, this.orbit.ty, TD / 2)), b = this.toScreen(new THREE.Vector3(this.orbit.tx + 1, this.orbit.ty, TD / 2));
-    return Math.max(4, Math.hypot(b.x - a.x, b.y - a.y));
   }
 
   // ------------------------------------------------------------------ camara, avisos y enfoque
