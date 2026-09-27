@@ -260,11 +260,18 @@ async function renderHosting(created) {
       <span class="grow"><b>${ie(a.label || a.id)}</b>${a.user ? ` <span class="dmuted mono">${ie(a.user)}@${ie(a.host)}</span>` : ''}</span>
       <span class="dmuted">${a.lastPush ? 'hace ' + Math.max(1, Math.round((Date.now() - a.lastPush) / 60000)) + ' min' : ''}</span>
       <button class="btn small ghost" data-recode="${ie(a.id)}">Nuevo código</button><button class="btn small ghost" data-remove="${ie(a.id)}">Quitar</button></li>`).join('');
-  const got = created ? `<section class="newagent"><h4>${px('ok')} Listo: ahora instale el agente en el hosting «${ie(created.id)}»</h4>
+  // codigo para pegar en el plugin de WordPress (Ajustes › Atalaya): la direccion y el codigo, cada uno con su boton
+  const wpCode = c => `<div class="lrow"><div class="lico">${px('wp', 'big')}</div><div><b>En WordPress</b> (wp-admin › Ajustes › <b>Atalaya</b>)<p>Pegue estos dos datos y pulse <b>Conectar</b>:</p>
+      <p class="dmuted">Dirección de Atalaya</p>${copyBox('wpurl', c.url || location.origin)}<p class="dmuted">Código</p>${copyBox('wpcode', c.code)}</div></div>`;
+  const got = created && created.wp ? `<section class="newagent"><h4>${px('ok')} Listo: conecte el WordPress «${ie(created.id)}»</h4>
+      <p class="lhelp">El código vale <b>24 horas</b> y sirve <b>una sola vez</b>.</p>${wpCode(created)}
+      <p class="lhelp">En uno o dos minutos aparecerá en el mapa con su versión, plugins y avisos.</p></section>`
+    : created ? `<section class="newagent"><h4>${px('ok')} Listo: ahora instale el agente en el hosting «${ie(created.id)}»</h4>
       <p class="lhelp">El código vale <b>24 horas</b> y sirve <b>una sola vez</b>. Elija la forma que permita el hosting:</p>
       <div class="lrow"><div class="lico">${px('terminal', 'big')}</div><div><b>Con Terminal</b> (cPanel › Avanzado › <b>Terminal</b>, o SSH)<p>Pegue y pulse Enter:</p>${copyBox('term', created.command)}</div></div>
       <div class="lrow"><div class="lico">${px('clock', 'big')}</div><div><b>Sin Terminal</b> (cPanel › <b>Trabajos de cron</b>, hPanel › Avanzado › <b>Cron Jobs</b>)
         <p>Cree una tarea <b>cada minuto</b> (<code>* * * * *</code>) con este comando. En su primera ejecución el agente se instala y esa tarea se borra sola.</p>${copyBox('cron', created.cron)}</div></div>
+      ${created.code ? `<details><summary class="dmuted">¿Es un WordPress con el plugin ya instalado? Use la dirección y el código</summary>${wpCode(created)}</details>` : ''}
       <p class="lhelp">En uno o dos minutos aparecerá un distrito nuevo en el mapa con sus sitios y visitas.</p></section>` : '';
   $('instBody').innerHTML = `
     <p class="lead"><b>Atalaya Hosting</b>: para cuentas de hosting compartido (cPanel, Hostinger, GoDaddy, Namecheap…) donde no hay root.
@@ -274,9 +281,9 @@ async function renderHosting(created) {
       <p class="lhelp">Descargue el plugin <b>ya configurado</b> para este Atalaya, súbalo en <b>wp-admin › Plugins › Añadir nuevo › Subir plugin</b> y actívelo: se conecta solo.
         Además de lo del hosting, ve lo que solo se sabe desde adentro: versión de WordPress, plugins y temas por actualizar, PHP sin soporte, errores visibles, usuario «admin» y más.</p>
       <form id="wpForm" class="agform"><input name="id" placeholder="nombre-corto (ej. blog-ana)" pattern="[a-z0-9][a-z0-9-]{0,30}" required>
-        <input name="label" placeholder="Descripción (ej. Blog de Ana)"><button class="btn small">Descargar plugin</button></form>
+        <input name="label" placeholder="Descripción (ej. Blog de Ana)"><button class="btn small" value="zip">Descargar plugin</button><button class="btn small ghost" value="code">Ya lo tengo instalado: ver código</button></form>
       <p class="dmuted" id="wpErr"></p>
-      <p class="lhelp">El .zip trae un código de un solo uso que vence en 24 horas. ¿Prefiere pegar el código a mano? Use el <a href="install/atalaya-wp.zip">plugin genérico</a> y el código del formulario de abajo (Ajustes › Atalaya).</p></section>
+      <p class="lhelp">El .zip trae un código de un solo uso que vence en 24 horas. Si ya instaló el plugin (el <a href="install/atalaya-wp.zip">genérico</a> o uno cuyo código venció), escriba un nombre y pulse <b>Ya lo tengo instalado: ver código</b>: le da la dirección y el código para pegar en wp-admin › Ajustes › Atalaya.</p></section>
     <section><h4>Conectar un hosting</h4>
       <form id="agForm" class="agform"><input name="id" placeholder="nombre-corto (ej. cliente-godaddy)" pattern="[a-z0-9][a-z0-9-]{0,30}" required>
         <input name="label" placeholder="Descripción (ej. Tienda de Ana · GoDaddy)"><button class="btn small">Generar código</button></form>
@@ -295,6 +302,12 @@ async function renderHosting(created) {
   $('wpForm').addEventListener('submit', async ev => {
     ev.preventDefault();
     const f = new FormData(ev.target);
+    if (ev.submitter && ev.submitter.value === 'code') {
+      const c = await ipost('api/agents/create', { id: f.get('id'), label: f.get('label') || f.get('id') });
+      if (c.error && /existe/i.test(c.error)) { const rc = await ipost('api/agents/recode', { id: f.get('id') }); if (!rc.error) return renderHosting({ ...rc, wp: true }); }
+      if (c.error) { $('wpErr').textContent = c.error; return; }
+      return renderHosting({ ...c, wp: true });
+    }
     const r = await fetch('api/agents/wp-plugin', { method: 'POST', headers: { 'Content-Type': 'application/json', 'X-Atalaya': '1' }, body: JSON.stringify({ id: f.get('id'), label: f.get('label') || f.get('id') }) }).catch(() => null);
     if (!r || !r.ok) { const j = r ? await r.json().catch(() => ({})) : {}; $('wpErr').textContent = j.error || 'No se pudo generar el plugin'; return; }
     const url = URL.createObjectURL(await r.blob());
