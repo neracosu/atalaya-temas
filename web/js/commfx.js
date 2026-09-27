@@ -183,7 +183,10 @@ export class CommFx {
   }
   // cuarentena: la patrulla baja desde la torre, encierra los bichos en una capsula verde y la lleva a la carcel
   capsule(kind, id) {
-    const b = this.pos(kind, id); if (!b || this.still) return;
+    // arranca aunque el edificio este tapado por un panel (la ficha se cierra sola): se usa su posicion en el mundo
+    let b = this.pos(kind, id);
+    if (!b) { const w = this.getWorld(); try { b = w && w.screenOf ? w.screenOf(kind, id) : null; } catch { b = null; } }
+    if (!b || this.still) return;
     // los bichos de ese edificio dejan de dibujarse ya (van dentro de la capsula)
     for (const [k, P] of this.patrols) if (P.w.reason === 'phpbad' && P.w.id === id) this.patrols.delete(k);
     this.fx.push({ type: 'capsule', kind, id, last: b, t: 0, dur: 16 });
@@ -191,7 +194,9 @@ export class CommFx {
   }
   drawCapsule(f) {
     const { cx } = this, t = f.t;
-    const b = this.pos(f.kind, f.id) || f.last; f.last = b;
+    let b = this.pos(f.kind, f.id);
+    if (!b) { const w = this.getWorld(); try { b = w && w.screenOf ? w.screenOf(f.kind, f.id) : null; } catch { b = null; } }
+    b = b || f.last; f.last = b;
     const home = this.home(b) || { x: b.x, y: -60 }, jail = this.jailPos() || home;
     const ease = u => (u < 0.5 ? 2 * u * u : 1 - (-2 * u + 2) ** 2 / 2);
     const arc = (a, c, u, lift) => { const k = ease(Math.min(1, Math.max(0, u))), mx = (a.x + c.x) / 2, my = Math.min(a.y, c.y) - lift;

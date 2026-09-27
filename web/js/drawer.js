@@ -94,6 +94,7 @@ export class Drawer {
         pq.disabled = true;
         const r = await fetch(q ? 'api/phpfiles/quarantine' : 'api/phpfiles/ack', { method: 'POST', headers: { 'Content-Type': 'application/json', 'X-Atalaya': '1' }, body: JSON.stringify({ path: file }) }).then(x => x.json()).catch(() => ({ error: 'Sin conexión' }));
         if (r.error) { pq.insertAdjacentHTML('afterend', `<span class="dmuted"> ${esc(r.error)}</span>`); pq.disabled = false; return; }
+        if (q) { this.close(); return; } // la ficha se cierra: la patrulla se lleva la capsula a la vista
         this.load();
         return;
       }
