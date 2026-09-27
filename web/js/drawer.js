@@ -669,6 +669,17 @@ export class Drawer {
       body.insertAdjacentHTML('afterbegin', `<section class="dsec"><h4>Archivos PHP sospechosos</h4>${rows}
         <p class="hint">Cuarentena: el archivo sale del sitio (deja de funcionar) y se guarda aparte, sin borrarse. Si no lo subió usted, cambie además las contraseñas de cPanel, FTP y WordPress y actualice plugins y temas.</p>${d.phpSus.some(x => x.path) ? '' : '<p class="dmuted">Active el modo privado para ver las rutas y actuar.</p>'}</section>`);
     }
+    // certificado SSL: aviso arriba si vence pronto o es autofirmado; si no, una linea con su fecha
+    if (d.cert) {
+      const c = d.cert, when = new Date(c.until).toLocaleDateString('es-VE', { day: 'numeric', month: 'long', year: 'numeric' });
+      const who = c.domain ? ` de <b>${esc(c.domain)}</b>` : '';
+      if (c.level !== 'ok') {
+        const title = c.days < 0 ? `El certificado SSL${who} venció hace ${-c.days} día${c.days === -1 ? '' : 's'}` : c.days <= 20 ? `El certificado SSL${who} vence en ${c.days} día${c.days === 1 ? '' : 's'}` : `El certificado SSL${who} es autofirmado`;
+        const fix = c.self && c.days > 20 ? 'Los navegadores lo marcan como inseguro, salvo que el dominio pase por Cloudflare en modo Full. Active AutoSSL para la cuenta en WHM › SSL/TLS › Manage AutoSSL.'
+          : 'La renovación automática suele hacerse unos 30 días antes: está fallando. En WHM › SSL/TLS › Manage AutoSSL › Logs vea el motivo (lo usual: el dominio ya no apunta aquí o Cloudflare bloquea la validación) y pulse «Run AutoSSL» para la cuenta.';
+        body.insertAdjacentHTML('afterbegin', `<section class="dsec"><div class="afind ${c.level}"><h5>${px(c.level)} ${title}</h5><p class="dmuted">Emitido por ${esc(c.issuer)} · vence el ${when}</p><p class="fix">${fix}</p></div></section>`);
+      } else body.insertAdjacentHTML('beforeend', `<section class="dsec"><h4>Certificado SSL</h4><p class="dmuted">${esc(c.issuer)} · vence el ${when} (en ${c.days} días)${c.n > 1 ? ` · el más próximo de sus ${c.n} dominios` : ''}. Se renueva solo.</p></section>`);
+    }
     if (d.secHistory && d.secHistory.length) {
       const EV = { watch: { start: 'Vigilancia', end: 'Fin de la vigilancia' }, defense: { block: 'IP a la cárcel', unblock: 'IP liberada', expire: 'Venció un bloqueo' }, phpfile: { hit: 'Buscaron la puerta trasera', suspect: 'Puerta trasera detectada', quarantine: 'Puerta trasera en cuarentena' }, probe: { undefined: 'Ruta expuesta' } };
       const dt = t => new Date(t).toLocaleString('es-VE', { hour12: false, day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' });
