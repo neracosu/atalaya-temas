@@ -5,7 +5,7 @@
 <h1 align="center">Kit de temas</h1>
 
 <p align="center">
-  <img alt="Interfaz de Atalaya" src="https://img.shields.io/badge/interfaz-0.67.0-22d3ee?style=flat-square&labelColor=0b1530">
+  <img alt="Interfaz de Atalaya" src="https://img.shields.io/badge/interfaz-0.68.0-22d3ee?style=flat-square&labelColor=0b1530">
   <img alt="Node 20+" src="https://img.shields.io/badge/node-20%2B-34d399?style=flat-square&labelColor=0b1530">
   <img alt="Sin instalar nada" src="https://img.shields.io/badge/sin-dependencias-a78bfa?style=flat-square&labelColor=0b1530">
   <img alt="10 temas" src="https://img.shields.io/badge/temas-10-f472b6?style=flat-square&labelColor=0b1530">
@@ -108,7 +108,7 @@ La capa queda entre su mundo y la interfaz: nunca tapa una ficha, un menú ni un
 mostrarlo a su manera, el estado y los eventos traen lo mismo (`watch`, `probe`, `db`, `claude`, `defense`, `phpfile`, `saturation`):
 está todo en la [guía](docs/TEMAS.md). La ciudad clásica dibuja además la cárcel, la oficina de correos, los
 silos de datos y la torre al límite con `state.jail`, `state.silos` y `state.saturation`; la Ciudad 3D hace lo mismo en
-tres dimensiones (vea cómo responde `screenOf('jail')`, `'mail'`, `'gate'` y `'tower'`). Su tema puede hacer lo
+tres dimensiones, y Villa a su manera (calabozo, palomar, graneros y castillo asediado) (vea cómo responde `screenOf('jail')`, `'mail'`, `'gate'` y `'tower'`). Su tema puede hacer lo
 mismo a su manera. El simulador trae una cárcel y silos inventados si la grabación no los tiene, y escenarios para
 el servidor al límite, una cuota al límite, una IP a la cárcel y un archivo a cuarentena.
 
