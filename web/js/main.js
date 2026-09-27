@@ -189,6 +189,7 @@ $('menu').addEventListener('click', async e => {
   if (act === 'setup') location.href = 'setup';
   if (act === 'install') openInstall('vps');
   if (act === 'hosting') openInstall('hosting');
+  if (act === 'equipo') openInstall('equipo');
   if (act === 'director') document.dispatchEvent(new KeyboardEvent('keydown', { key: 'd' }));
   if (act === 'lockall') { await post('api/public-all').catch(() => { }); flash('Todas las pantallas pasaron a modo público'); }
   if (act === 'users') openUsers();
@@ -233,8 +234,27 @@ async function openInstall(tab = instTab) {
   instTab = tab;
   instDlg.querySelectorAll('[data-itab]').forEach(b => b.setAttribute('aria-selected', b.dataset.itab === tab ? 'true' : 'false'));
   if (document.body.classList.contains('ed-cloud')) tab = instTab = 'hosting';
-  if (tab === 'hosting') await renderHosting(); else await renderVps();
+  if (tab === 'hosting') await renderHosting(); else if (tab === 'equipo') await renderEquipo(); else await renderVps();
   if (!instDlg.open) instDlg.showModal();
+}
+// Atalaya Equipo: el ejecutable para Windows, macOS o Linux, descargado desde este servidor
+async function renderEquipo() {
+  const r = await fetch('api/downloads').then(x => x.json()).catch(() => ({ error: 'Sin conexión' }));
+  const mb = n => (n / 1048576).toFixed(1) + ' MB';
+  const guess = /Windows/.test(navigator.userAgent) ? 'win-x64' : /Mac/.test(navigator.userAgent) ? 'darwin-arm64' : /Linux/.test(navigator.userAgent) ? 'linux-x64' : '';
+  const rows = (r.files || []).map(f => `<li class="${f.plat === guess ? 'mine' : ''}"><span class="grow"><b>${ie(f.label)}</b>${f.plat === guess ? ' <span class="pill ok">su sistema</span>' : ''}<br><span class="dmuted mono">${ie(f.file)} · ${mb(f.size)}</span>
+      ${f.sha256 ? `<br><span class="dmuted mono sha" title="Huella SHA-256 para verificar la descarga">${ie(f.sha256)}</span>` : ''}</span><a class="btn small${f.plat === guess ? '' : ' ghost'}" href="download/${encodeURIComponent(f.file)}" download>Descargar</a></li>`).join('');
+  $('instBody').innerHTML = `
+    <p class="lead"><b>Atalaya Equipo</b>: un solo archivo que trae todo. Muestra esa computadora (CPU, memoria, disco), sus sesiones de Claude Code y los conectores de nube que agregue.
+      Solo se abre desde ese equipo: nadie más en la red puede verla.</p>
+    ${r.error ? `<p class="dmuted">${ie(r.error)}</p>` : rows ? `<section><h4>Versión ${ie((r.files[0] || {}).version || r.version)}</h4><ul class="dlist dl-files">${rows}</ul></section>`
+      : '<p class="dmuted">Todavía no hay ejecutables armados en este servidor.</p>'}
+    <section><h4>Cómo se usa</h4>
+      <div class="lrow"><div class="lico">${px('laptop', 'big')}</div><div><b>Windows</b><p>Descomprima el .zip y haga doble clic en <code>atalaya.exe</code>. Si aparece «Windows protegió su PC», pulse <b>Más información</b> y <b>Ejecutar de todas formas</b> (el archivo aún no tiene firma de un certificado comercial).</p></div></div>
+      <div class="lrow"><div class="lico">${px('laptop', 'big')}</div><div><b>macOS</b><p>Descomprima, y en una Terminal dentro de la carpeta ejecute <code>./atalaya</code>. Si macOS no lo deja abrir: Ajustes del Sistema › Privacidad y seguridad › <b>Abrir de todas formas</b>.</p></div></div>
+      <div class="lrow"><div class="lico">${px('terminal', 'big')}</div><div><b>Linux</b><p><code>tar xzf</code> el archivo y ejecute <code>./atalaya</code>.</p></div></div>
+      <p class="lhelp">Se abre el navegador en el asistente con el código ya puesto: cree su usuario y su PIN. Deje la ventana abierta mientras lo use; para volver a entrar, abra el archivo de nuevo. Sus datos quedan en esa computadora.
+        Para ver además sus hostings y sitios WordPress use esta pantalla (VPS) o Atalaya Cloud: necesitan una dirección pública.</p></section>`;
 }
 async function renderVps() {
   const r = await ipost('api/setup/install-command');
