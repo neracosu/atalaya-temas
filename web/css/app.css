@@ -602,3 +602,8 @@ body.ed-equipo .sysonly, body.sys-lite .sysprocs, body.sys-lite #kpi-rx, body.sy
 .alerts .urow { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: .7rem; }
 .alerts .urow label { display: grid; gap: .3rem; font-size: .78rem; color: var(--ink-3); }
 @media (max-width: 600px) { .alerts .urow { grid-template-columns: minmax(0, 1fr); } }
+.alerts .achan { border: 1px solid var(--line); border-radius: 12px; padding: .8rem .9rem; background: rgba(255, 255, 255, .02); }
+.alerts .achan h4 { display: flex; align-items: center; gap: .45rem; }
+.alerts .achan h4 .px { width: 1.2em; height: 1.2em; }
+.alerts .achan p { margin: .3rem 0; color: var(--ink-2); }
+.alerts .uform input { width: 100%; box-sizing: border-box; }

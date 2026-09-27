@@ -459,29 +459,45 @@ async function openAlerts() {
 }
 function renderAlerts(st, code) {
   const b = $('alertsBody'); clearInterval(alertsPoll);
-  if (!st.connected) {
-    b.innerHTML = `<p class="lead">Reciba en su teléfono lo importante aunque nadie esté mirando la pantalla: puertas traseras, caídas, el servidor al límite y más.</p>
-      <ol class="asteps"><li>En Telegram, abra <b>@BotFather</b> y escríbale <code>/newbot</code>. Elija un nombre (por ejemplo «Atalaya de mi servidor»).</li>
-      <li>BotFather le da un <b>token</b> que se ve así: <code>123456789:AAE...</code>. Cópielo y péguelo aquí:</li></ol>
-      <form id="atok" class="uform"><label>Token del bot<input id="atokv" type="text" autocomplete="off" spellcheck="false" placeholder="123456789:AAE..."></label>
-      <p class="error" id="aerr"></p><div class="actions one"><button class="btn primary">Conectar el bot</button></div></form>`;
-    return;
+  // Telegram
+  let tg;
+  if (!st.connected) tg = `<ol class="asteps"><li>En Telegram, abra <b>@BotFather</b> y escríbale <code>/newbot</code>. Elija un nombre (por ejemplo «Atalaya de mi servidor»).</li>
+      <li>Le da un <b>token</b> (<code>123456789:AAE...</code>). Péguelo aquí:</li></ol>
+    <form id="atok" class="uform" data-form="tg"><label>Token del bot<input id="atokv" type="text" autocomplete="off" spellcheck="false" placeholder="123456789:AAE..."></label>
+    <div class="actions one"><button class="btn primary">Conectar el bot</button></div></form>`;
+  else {
+    const chats = st.chats.map(c => `<li><span class="grow"><b>${ie(c.name)}</b></span><button class="btn small ghost" type="button" data-aunlink="${ie(c.id)}">Quitar</button></li>`).join('');
+    const linking = code ? `<div class="alink"><p>Abra su bot <b>@${ie(code.bot)}</b> y envíele:</p><div class="copy"><pre class="cmd">/start ${ie(code.code)}</pre></div>
+        <p class="dmuted">Esperando su mensaje… (el código vale 15 minutos)</p><p class="row"><a class="btn small" href="https://t.me/${encodeURIComponent(code.bot)}?start=${encodeURIComponent(code.code)}" target="_blank" rel="noopener">Abrir el bot en Telegram</a></p></div>` : '';
+    tg = `<p>Bot <b>@${ie(st.bot || '')}</b>. ${chats ? '' : 'Todavía ningún chat: enganche el suyo.'}</p>${chats ? `<ul class="dlist">${chats}</ul>` : ''}
+      ${linking || '<p class="row"><button class="btn small" type="button" id="alinkb">Enganchar un chat</button><button class="btn small ghost" type="button" id="adisc">Desconectar</button></p>'}`;
   }
-  const chats = st.chats.map(c => `<li><span class="grow"><b>${ie(c.name)}</b></span><button class="btn small ghost" data-aunlink="${ie(c.id)}">Quitar</button></li>`).join('');
-  const linking = code ? `<div class="alink"><p>Abra su bot <b>@${ie(code.bot)}</b> en Telegram y envíele este mensaje:</p><div class="copy"><pre class="cmd">/start ${ie(code.code)}</pre></div>
-      <p class="dmuted">Esperando su mensaje… (el código vale 15 minutos)</p><p class="row"><a class="btn small" href="https://t.me/${encodeURIComponent(code.bot)}?start=${encodeURIComponent(code.code)}" target="_blank" rel="noopener">Abrir el bot en Telegram</a></p></div>` : '';
+  // Correo
+  const E = st.email, P = st.presets;
+  const presetOpts = cur => Object.entries(P).map(([k, v]) => `<option value="${k}"${k === cur ? ' selected' : ''}>${ie(v.label)}</option>`).join('');
+  const mailForm = x => `<form class="uform" data-form="mail">
+      <div class="urow"><label>Proveedor<select id="mprov">${presetOpts(x.preset || 'gmail')}</select></label><label>Servidor<input id="mhost" value="${ie(x.host || P.gmail.host)}"></label><label>Puerto<input id="mport" type="number" value="${ie(x.port || 465)}"></label></div>
+      <div class="urow"><label>Cifrado<select id="msec">${[['ssl', 'SSL (465)'], ['starttls', 'STARTTLS (587)'], ['none', 'Ninguno']].map(([v, l]) => `<option value="${v}"${v === (x.secure || 'ssl') ? ' selected' : ''}>${l}</option>`).join('')}</select></label><label>Usuario<input id="muser" autocomplete="off" value="${ie(x.user || '')}" placeholder="usted@gmail.com"></label><label>Contraseña<input id="mpass" type="password" autocomplete="new-password" placeholder="${x.hasPass ? '(guardada)' : 'contraseña de aplicación'}"></label></div>
+      <p class="hint" id="mhelp">${ie(P[x.preset || 'gmail'].help)} ${P[x.preset || 'gmail'].helpUrl ? `<a href="${P[x.preset || 'gmail'].helpUrl}" target="_blank" rel="noopener">Crearla</a>` : ''}</p>
+      <div class="urow"><label>Remitente<input id="mfrom" value="${ie(x.from || '')}" placeholder="(el mismo usuario)"></label><label style="grid-column: span 2">Enviar a (uno o varios, separados por coma)<input id="mto" value="${ie((x.to || []).join(', '))}" placeholder="usted@ejemplo.com, socio@ejemplo.com"></label></div>
+      <div class="actions one"><button class="btn primary">Guardar y enviar una prueba</button></div></form>`;
+  const mail = E && !code?.editMail ? `<p>Desde <b>${ie(E.from)}</b> por ${ie(E.host)} a <b>${ie((E.to || []).join(', '))}</b>.</p><p class="row"><button class="btn small" type="button" id="medit">Cambiar</button><button class="btn small ghost" type="button" id="moff">Quitar el correo</button></p>`
+    : mailForm(E || {});
   const C = st.conf, cats = Object.entries(st.cats).map(([k, l]) => `<label class="check"><input type="checkbox" data-acat="${k}" ${C.cats[k] ? 'checked' : ''}><span>${ie(l)}</span></label>`).join('');
   const hours = sel => Array.from({ length: 24 }, (_, h) => `<option value="${h}"${h === sel ? ' selected' : ''}>${String(h).padStart(2, '0')}:00</option>`).join('');
-  b.innerHTML = `<p class="lead">Bot conectado: <b>@${ie(st.bot || '')}</b>.</p>
-    <section><h4>Chats que reciben las alertas</h4>${chats ? `<ul class="dlist">${chats}</ul>` : '<p class="dmuted">Todavía ningún chat. Enganche el suyo:</p>'}
-      ${linking || '<p class="row"><button class="btn small" id="alinkb">Enganchar un chat</button></p>'}</section>
-    <section><h4>Qué me avisa</h4><div class="acats">${cats}</div></section>
+  const any = (st.connected && st.chats.length) || E;
+  b.innerHTML = `<p class="lead">Reciba lo importante aunque nadie mire la pantalla: puertas traseras, caídas, el servidor al límite. Por Telegram, por correo o por los dos.</p>
+    <section class="achan"><h4>${px('phone')} Telegram</h4>${tg}</section>
+    <section class="achan"><h4>${px('mail')} Correo</h4>${mail}</section>
+    <p class="error" id="aerr"></p>
+    ${any ? `<section><h4>Qué me avisa</h4><div class="acats">${cats}</div></section>
     <section><h4>Horario</h4><div class="urow"><label>Silencio desde<select id="aqf">${hours(C.quiet ? C.quiet.from : 23)}</select></label><label>hasta<select id="aqt">${hours(C.quiet ? C.quiet.to : 7)}</select></label><label>Resumen a las<select id="ash">${hours(C.summaryHour)}</select></label></div>
       <p class="hint">En el horario de silencio solo llega lo grave (seguridad, caídas y saturación). El mismo aviso no se repite en 30 minutos. Los mensajes no llevan IPs ni rutas: el sitio, el motivo y un enlace a su ficha.</p></section>
-    <p class="error" id="aerr"></p>
-    <div class="actions"><button class="btn" id="atest">Enviar prueba</button><button class="btn primary" id="asave">Guardar</button></div>
-    <p class="row"><button class="btn small ghost" id="asum">Enviar el resumen ahora</button><button class="btn small ghost" id="adisc">Desconectar el bot</button></p>`;
-  if (code) alertsPoll = setInterval(async () => {
+    <div class="actions"><button class="btn" type="button" id="atest">Enviar prueba</button><button class="btn primary" type="button" id="asave">Guardar</button></div>
+    <p class="row"><button class="btn small ghost" type="button" id="asum">Enviar el resumen ahora</button></p>` : ''}`;
+  const prov = $('mprov');
+  if (prov) prov.addEventListener('change', () => { const x = P[prov.value]; $('mhost').value = x.host; $('mport').value = x.port; $('msec').value = x.secure; $('mhelp').innerHTML = `${ie(x.help)} ${x.helpUrl ? `<a href="${x.helpUrl}" target="_blank" rel="noopener">Crearla</a>` : ''}`; });
+  if (code && code.code) alertsPoll = setInterval(async () => {
     const r = await ipost('api/alerts/check');
     if (r.error) { clearInterval(alertsPoll); const e = $('aerr'); if (e) e.textContent = r.error; return; }
     if (r.linked) { clearInterval(alertsPoll); flash(`Chat enganchado: ${r.chat.name}`); openAlerts(); }
@@ -489,6 +505,13 @@ function renderAlerts(st, code) {
 }
 $('alertsBody').addEventListener('submit', async e => {
   e.preventDefault();
+  const form = e.target.dataset.form, btn = e.target.querySelector('button');
+  if (form === 'mail') {
+    btn.disabled = true; btn.textContent = 'Probando el envío…';
+    const r = await ipost('api/alerts/email', { preset: $('mprov').value, host: $('mhost').value, port: +$('mport').value, secure: $('msec').value, user: $('muser').value, pass: $('mpass').value, from: $('mfrom').value || $('muser').value, to: $('mto').value });
+    if (r.error) { $('aerr').textContent = r.error; btn.disabled = false; btn.textContent = 'Guardar y enviar una prueba'; return; }
+    flash('Correo configurado: revise su bandeja'); return openAlerts();
+  }
   const r = await ipost('api/alerts/token', { token: $('atokv').value });
   if (r.error) { $('aerr').textContent = r.error; return; }
   const st = await ipost('api/alerts/state'); renderAlerts(st, r);
@@ -504,6 +527,8 @@ $('alertsBody').addEventListener('click', async e => {
     if (r.error) return err(r.error);
     if (id === 'atest') { const t = await ipost('api/alerts/test'); if (t.error) return err(t.error); flash('Prueba enviada: revise Telegram'); } else flash('Alertas guardadas');
   }
+  if (id === 'medit') { const st = await ipost('api/alerts/state'); return renderAlerts(st, { editMail: true }); }
+  if (id === 'moff') { if (!(await ask({ title: 'Quitar el correo', icon: 'warn', ok: 'Quitar', body: 'Atalaya deja de enviar alertas por correo y olvida la contraseña.' }))) return; await ipost('api/alerts/emailoff'); return openAlerts(); }
   if (id === 'asum') { const r = await ipost('api/alerts/summary'); if (r.error) return err(r.error); flash('Resumen enviado'); }
   if (id === 'adisc') { if (!(await ask({ title: 'Desconectar el bot', danger: true, ok: 'Desconectar', body: 'Atalaya deja de enviar alertas y olvida el token y los chats.' }))) return; await ipost('api/alerts/disconnect'); openAlerts(); }
 });
