@@ -176,6 +176,9 @@ export default class MiTema extends Stage3D {
   sites: [{ id, account, name, kind, icon, favicon, type, status, reqMin, lastSeen }],
   sessions: [{ id, account, state, station, activity, waitKind, subagents: [...], tokensOut, tools }],
   keys: [{ label, unit, state }],    // servicios clave: 'active' | 'failed' | 'inactive'
+  saturation: { level, causes: [{ id, level, label }], since },   // 'ok' | 'warn' | 'bad' (servidor al límite)
+  silos: { accounts: [{ account, size, n, conns, active, sleep, busy, slow, links: [{ kind, id, active, busy }] }], sb: [{ from, to }] },
+  jail: { n, atalaya, quarantine },  // presos (IPs bloqueadas), cuántos puso Atalaya y archivos en cuarentena
   security: { ... }, mail: { ... }, traffic: [...], top: [...]
 }
 ```
@@ -192,6 +195,12 @@ export default class MiTema extends Stage3D {
   para rearmar el cartel cuando llega el favicon.
 - `health`: la salud del servidor, `[{ id, title, icon, status, bad, warn }]`. `healthLine(state)` de
   `/js/layout.js` la resume en una línea con su color para ponerla junto al servidor del mundo.
+- `accounts[i].quota` (VPS con cPanel): `{ what, pct, level }` cuando una cuenta pasa del 85 % de disco, inodos o
+  ancho de banda; la ciudad lo marca con una línea bajo su distrito.
+- `saturation`: la ciudad pone la torre en rojo («SERVIDOR AL LÍMITE») y un atasco en el peaje cuando `level` es
+  `bad`. `silos`: un silo de datos por cuenta con tuberías a los sitios que usan sus bases (`links`); `sb` une
+  cada proyecto de Supabase con su app. `jail`: la cárcel y sus cápsulas de cuarentena. Los tres son opcionales:
+  si su tema no los dibuja, el detalle igual está en las fichas.
 - `state` de una sesión: `working`, `thinking` o `idle`. `waitKind` (`permission`, `question`,
   `idle`) si espera al usuario.
 - En **modo público** los nombres ya vienen reemplazados por categorías y alias: el tema no
@@ -213,6 +222,9 @@ export default class MiTema extends Stage3D {
 | `probe` | `app` o `site`, `fam`, `status`, `exposed` | Un robot probó una ruta vulnerable (`exposed`: respondió) |
 | `watch` | `app` o `site`, `action`: `start`, `end`, `reason`: `scan`, `scraping`, `surge`, `n` | Un sitio entra o sale de vigilancia |
 | `db` | `app` o `site` (si se sabe), `action`: `slow`, `secs` | Una consulta lenta a la base de ese sitio |
+| `defense` | `app` o `site`, `action`: `block`, `unblock`, `expire`, `reason`, `by`: `auto` o `manual`, `ip` (solo en privado) | Una IP va a la cárcel o sale |
+| `phpfile` | `site`, `action`: `suspect`, `hit`, `quarantine`, `why`, `path` e `ip` (solo en privado) | Una posible puerta trasera, alguien la buscó o se puso en cuarentena |
+| `saturation` | `action`: `start`, `end`, `causes` | El servidor llega al límite o vuelve a tener margen |
 
 Además, `state.sites[i].watch` y `state.apps[i].watch` traen `{ reason, n, since }` mientras un sitio esté en
 vigilancia: sirve para que el tema marque el edificio a su manera (las patrullas de la capa de efectos ya

@@ -95,11 +95,18 @@ su mundo** una capa de efectos compartida por todos los temas. Usted no programa
     <td valign="top"><img src="docs/img/icons/invader.svg" width="36"><br><b>Robots que sondean</b><br><sub>El auto con sirena que busca rutas vulnerables y el cartel «EXPUESTO» si una respondió.</sub></td>
     <td valign="top"><img src="docs/img/icons/db.svg" width="36"><br><b>Consultas lentas</b><br><sub>Un pulso con un cilindro y un reloj de arena sobre el sitio cuya base tarda.</sub></td>
   </tr>
+  <tr>
+    <td valign="top"><img src="docs/img/icons/shield.svg" width="36"><br><b>Escolta a la cárcel</b><br><sub>Cuando se bloquea una IP, las patrullas se llevan el auto sospechoso a la cárcel (<code>'jail'</code>, o hacia el borde si su tema no la tiene).</sub></td>
+    <td valign="top"><img src="docs/img/icons/warn.svg" width="36"><br><b>Cápsulas de cuarentena</b><br><sub>Una puerta trasera en cuarentena: la patrulla encierra los bichos del edificio en una cápsula verde y la lleva a la cárcel.</sub></td>
+    <td valign="top"><img src="docs/img/icons/lock.svg" width="36"><br><b>Fichas nuevas</b><br><sub>Expediente de cada IP, analítica sin cookies de cada sitio, certificados, accesos a los paneles: todo en las fichas, sin que el tema haga nada.</sub></td>
+  </tr>
 </table>
 
 La capa queda entre su mundo y la interfaz: nunca tapa una ficha, un menú ni un cuadro. Si prefiere
-mostrarlo a su manera, el estado y los eventos traen lo mismo (`watch`, `probe`, `db`, `claude`):
-está todo en la [guía](docs/TEMAS.md).
+mostrarlo a su manera, el estado y los eventos traen lo mismo (`watch`, `probe`, `db`, `claude`, `defense`, `phpfile`, `saturation`):
+está todo en la [guía](docs/TEMAS.md). La ciudad clásica dibuja además la cárcel, la oficina de correos, los
+silos de datos y la torre al límite con `state.jail`, `state.silos` y `state.saturation`: su tema puede hacer lo
+mismo a su manera.
 
 ---
 
