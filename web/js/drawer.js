@@ -162,6 +162,8 @@ export class Drawer {
         if (r.error) { au.insertAdjacentHTML('afterend', `<span class="dmuted"> ${esc(r.error)}</span>`); au.disabled = false; } else this.load();
         return;
       }
+      const ar = e.target.closest('[data-ana-range]');
+      if (ar) { this.anaRange = +ar.dataset.anaRange; this.body.querySelectorAll('[data-ana-range]').forEach(b => b.classList.toggle('on', b === ar)); this.load(); return; }
       const a = e.target.closest('[data-go]');
       if (!a) return;
       const [kind, ...rest] = a.dataset.go.split(':');
@@ -181,7 +183,7 @@ export class Drawer {
     }
     clearInterval(this.timer);
     this.load();
-    this.timer = setInterval(() => this.load(), 2500);
+    this.timer = setInterval(() => this.load(), kind === 'analytics' ? 60000 : 2500); // la analitica cambia despacio
   }
 
   close() {
@@ -197,7 +199,7 @@ export class Drawer {
     if (kind === 'events') { if (this.eventsProvider) this.renderEvents(this.eventsProvider()); return; }
     let d;
     try {
-      const extra = this.params && this.params.path ? `&path=${encodeURIComponent(this.params.path)}` : '';
+      const extra = (this.params && this.params.path ? `&path=${encodeURIComponent(this.params.path)}` : '') + (kind === 'analytics' ? `&range=${this.anaRange || 30}` : '');
       const r = await fetch(`api/detail?kind=${encodeURIComponent(kind)}&id=${encodeURIComponent(id)}${extra}`);
       if (r.status === 401) { location.href = 'login'; return; }
       d = r.ok ? await r.json() : null;
@@ -405,6 +407,7 @@ export class Drawer {
       case 'webdef': return this.renderWebdef(d);
       case 'jail': return this.renderJail(d);
       case 'prisoner': return this.renderPrisoner(d);
+      case 'analytics': return this.renderAnalytics(d);
       case 'mail': return this.renderMail(d);
       case 'databases': return this.renderDatabases(d);
       case 'database': return this.renderDatabase(d);
@@ -432,7 +435,53 @@ export class Drawer {
         <span class="grow">${r.path ? `<span class="mono">${esc(r.path)}</span>` : esc(r.ua || (r.bot ? 'Robot' : 'Visita'))}${r.domain ? `<br><span class="dmuted">${esc(r.domain)}${r.ref ? ' · desde ' + esc(r.ref.replace(/^https?:\/\//, '').slice(0, 60)) : ''}</span>` : ''}</span>
         <span class="vua">${px(r.bot ? 'bot' : r.mobile ? 'phone' : 'laptop')} ${esc(r.ua || '')}${r.ip ? `<br><span class="mono dmuted">${esc(r.ip)}</span>` : ''}</span></li>`).join('')
       : '<li class="dmuted">Sin visitas desde que se abrió este panel o se reinició Atalaya.</li>';
-    return { hour, rank, recent: `<section class="dsec"><h4>Últimas visitas</h4><ul class="dlist">${recent}</ul></section>` };
+    return { hour: anaCard(d) + hour, rank, recent: `<section class="dsec"><h4>Últimas visitas</h4><ul class="dlist">${recent}</ul></section>` };
+  }
+
+  // analitica completa de un sitio o app: periodo, cifras con comparacion, grafica por dia y de donde llegan
+  renderAnalytics(d) {
+    this.setHead('analytics:' + d.id, iconCanvas('chart', 4), 'Analítica', `${esc(d.name || '')}${d.go ? ` · <a data-go="${esc(d.go)}">volver a la ficha</a>` : ''}`, '');
+    const T = d.totals, P = d.prev, range = d.range;
+    const RANGES = [[1, 'Hoy'], [7, '7 días'], [30, '30 días'], [90, '90 días'], [365, '12 meses']];
+    const delta = (a, b, inverse) => {
+      if (b == null || a == null || !d.comparable) return '';
+      if (!b) return a ? '<small class="up">nuevo</small>' : '';
+      const p = Math.round((a - b) / b * 100); if (!p) return '<small class="dmuted">igual</small>';
+      const good = inverse ? p < 0 : p > 0;
+      return `<small class="${good ? 'up' : 'down'}">${p > 0 ? '+' : ''}${p}%</small>`;
+    };
+    const pct = x => x == null ? '–' : Math.round(x * 100) + '%';
+    const vs = range === 1 ? 'que ayer' : `que los ${range} días anteriores`;
+    const kpis = `<div class="anakpi">
+      <div><span>Visitantes</span><b>${fmtNum(T.visitors)}</b>${delta(T.visitors, P.visitors)}</div>
+      <div><span>Páginas vistas</span><b>${fmtNum(T.pv)}</b>${delta(T.pv, P.pv)}</div>
+      <div><span>Páginas por visita</span><b>${T.pagesPerVisit == null ? '–' : T.pagesPerVisit.toFixed(1)}</b>${delta(T.pagesPerVisit, P.pagesPerVisit)}</div>
+      <div><span>Rebote</span><b>${pct(T.bounce)}</b>${delta(T.bounce, P.bounce, true)}</div></div>
+      <p class="hint">${d.comparable ? `Comparado con ${vs}.` : range === 1 ? `Hoy hasta las ${new Date().toLocaleTimeString('es-VE', { hour: '2-digit', minute: '2-digit', hour12: false })}.` : `Sin comparación todavía: Atalaya empezó a medir ${d.since ? 'el ' + new Date(d.since + 'T12:00:00').toLocaleDateString('es-VE', { day: 'numeric', month: 'short' }) : 'hoy'}.`} Robots aparte: ${fmtNum(T.bots)} peticiones${T.hits ? ` (${Math.round(T.bots / T.hits * 100)}% del total)` : ''}.</p>`;
+    const tabs = `<div class="anatabs" role="tablist">${RANGES.map(([n, l]) => `<button class="${n === range ? 'on' : ''}" data-ana-range="${n}">${l}</button>`).join('')}</div>`;
+    const list = (arr, fmt, total, empty) => arr && arr.length ? `<ul class="dlist">${bars(arr.map(x => ({ key: x.name, n: x.n })), fmt, total)}</ul>` : `<p class="dmuted">${empty || 'Sin datos en este período.'}</p>`;
+    const SRC = { search: 'Buscadores', social: 'Redes sociales', ai: 'Asistentes de IA', referral: 'Otros sitios', direct: 'Directo o sin referencia' };
+    const srcTotal = d.sources.reduce((a, x) => a + x.n, 0);
+    const devTotal = d.dev.reduce((a, x) => a + x.n, 0);
+    const maxH = Math.max(1, ...T.hours);
+    const hours = `<div class="anahours">${T.hours.map((n, h) => `<i style="height:${Math.max(2, Math.round(n / maxH * 100))}%" title="${h}:00 · ${fmtNum(n)} páginas"></i>`).join('')}</div><div class="anahlab"><span>0 h</span><span>6 h</span><span>12 h</span><span>18 h</span><span>23 h</span></div>`;
+    const priv = !d.private;
+    this.content(`${tabs}${kpis}<section class="dsec"><h4>Visitantes por ${range === 1 ? 'hora' : 'día'}</h4>${range === 1 ? hours : anaChart(d.series)}</section>
+      <section class="dsec"><h4>De dónde llegan</h4>${list(d.sources, k => esc(SRC[k] || k), srcTotal)}
+        ${d.search.length ? `<h5 class="anasub">Buscadores</h5>${list(d.search, k => esc(k))}` : ''}
+        ${d.social.length ? `<h5 class="anasub">Redes sociales</h5>${list(d.social, k => esc(k))}` : ''}
+        ${priv && d.refs.length ? `<h5 class="anasub">Sitios que lo enlazan</h5>${list(d.refs, k => `<span class="mono">${esc(k)}</span>`)}` : ''}</section>
+      ${priv ? `<section class="dsec"><h4>Páginas más vistas</h4>${list(d.pages, k => `<span class="mono">${esc(k)}</span>`, T.pv)}</section>
+      <section class="dsec"><h4>Páginas de entrada</h4><p class="hint">La primera página que ve cada visitante: por donde lo encuentran.</p>${list(d.entries, k => `<span class="mono">${esc(k)}</span>`, T.visitors)}</section>
+      ${d.campaigns.length ? `<section class="dsec"><h4>Campañas (utm)</h4>${list(d.campaigns, k => esc(k), T.visitors)}</section>` : ''}` : ''}
+      <section class="dsec"><h4>Países</h4>${list(d.cc, k => `${flag(k)} ${esc(countryName(k))}`, T.visitors)}</section>
+      <section class="dsec"><h4>Dispositivos</h4>${list(d.dev, k => `${px(k === 'movil' ? 'phone' : 'laptop')} ${k === 'movil' ? 'Celular o tableta' : 'Computadora'}`, devTotal)}
+        <h5 class="anasub">Navegadores</h5>${list(d.browsers, k => esc(k), T.visitors)}<h5 class="anasub">Sistemas</h5>${list(d.os, k => esc(k), T.visitors)}</section>
+      ${range > 1 ? `<section class="dsec"><h4>A qué hora llegan</h4>${hours}</section>` : ''}
+      ${priv && d.notFound.length ? `<section class="dsec"><h4>Páginas que no existen</h4><p class="hint">Personas (no robots) que llegaron a un error 404: enlaces rotos o páginas que se movieron. Una redirección las recupera.</p>${list(d.notFound, k => `<span class="mono">${esc(k)}</span>`)}</section>` : ''}
+      ${d.botNames.length ? `<section class="dsec"><h4>Robots que más la visitan</h4>${list(d.botNames, k => esc(k))}</section>` : ''}
+      ${d.private ? '<p class="dmuted">Active el modo privado para ver las páginas, los sitios que la enlazan, las campañas y los errores 404.</p>' : ''}
+      <p class="hint">${d.since ? `Se mide desde el ${new Date(d.since + 'T12:00:00').toLocaleDateString('es-VE', { day: 'numeric', month: 'long', year: 'numeric' })}. ` : ''}Sin cookies ni código en el sitio: sale de los registros del servidor, por eso cuenta también a quien usa bloqueador de anuncios. Un visitante es la misma IP y navegador en el día; rebote, quien vio una sola página.</p>`);
   }
 
   renderApp(d) {
@@ -986,6 +1035,31 @@ function defenseSection(D, priv) {
 function dbQuery(q, label) {
   if (!q) return '';
   return `<div class="dbq"><span class="dmuted">${esc(label)}: <b class="${q.time >= 10 ? 'bad' : q.time >= 3 ? 'warn' : ''}">${q.time} s</b>${q.state ? ` · ${esc(q.state)}` : ''}</span>${q.query ? `<code>${esc(q.query)}</code>` : ''}</div>`;
+}
+// tarjeta de analitica en la ficha de un sitio o app: visitantes de 7 dias, comparacion y barras por dia
+function anaCard(d) {
+  const a = d.analytics; if (!a) return '';
+  const p = a.prevVisitors ? Math.round((a.visitors - a.prevVisitors) / a.prevVisitors * 100) : null;
+  const max = Math.max(1, ...a.series);
+  const go = `analytics:${d.kind}:${d.id}`;
+  return `<section class="dsec anacard link" data-go="${esc(go)}"><h4>${px('chart')} Analítica · 7 días</h4>
+    <div class="anarow"><div><b>${fmtNum(a.visitors)}</b> visitantes${p != null && p ? ` <small class="${p > 0 ? 'up' : 'down'}">${p > 0 ? '+' : ''}${p}%</small>` : ''}<br><span class="dmuted">${fmtNum(a.pv)} páginas vistas${a.bounce != null ? ` · rebote ${Math.round(a.bounce * 100)}%` : ''}</span></div>
+    <div class="anamini">${a.series.map(n => `<i style="height:${Math.max(3, Math.round(n / max * 100))}%"></i>`).join('')}</div></div>
+    <p class="row"><button class="btn small" data-go="${esc(go)}">Ver analítica completa</button>${!a.since ? '<span class="dmuted">empieza a medir desde hoy</span>' : ''}</p></section>`;
+}
+// grafica por dia: barras de visitantes y linea de paginas vistas, en SVG nitido que se adapta al ancho
+function anaChart(series) {
+  if (!series.length) return '';
+  const W = 600, H = 150, pad = 18, n = series.length;
+  const maxV = Math.max(1, ...series.map(x => x.visitors)), maxP = Math.max(1, ...series.map(x => x.pv));
+  const bw = (W - pad) / n;
+  const bars = series.map((x, i) => { const h = Math.round(x.visitors / maxV * (H - 30)); return `<rect x="${(pad + i * bw + bw * 0.15).toFixed(1)}" y="${H - 16 - h}" width="${Math.max(1, bw * 0.7).toFixed(1)}" height="${h}" rx="1"><title>${x.date}: ${x.visitors} visitantes · ${x.pv} páginas</title></rect>`; }).join('');
+  const line = series.map((x, i) => `${(pad + i * bw + bw / 2).toFixed(1)},${(H - 16 - x.pv / maxP * (H - 30)).toFixed(1)}`).join(' ');
+  const lab = i => { const d = new Date(series[i].date + 'T12:00:00'); return d.toLocaleDateString('es-VE', n > 60 ? { month: 'short' } : { day: 'numeric', month: 'short' }); };
+  const ticks = [0, Math.floor(n / 2), n - 1].filter((v, i, a) => a.indexOf(v) === i).map(i => `<text x="${(pad + i * bw + bw / 2).toFixed(1)}" y="${H - 3}" text-anchor="${i === 0 ? 'start' : i === n - 1 ? 'end' : 'middle'}">${lab(i)}</text>`).join('');
+  return `<svg class="anachart" viewBox="0 0 ${W} ${H}" preserveAspectRatio="none" role="img" aria-label="Visitantes por día">
+    <text x="0" y="10" class="ymax">${fmtNum(maxV)}</text><g class="vb">${bars}</g>${n > 1 ? `<polyline class="pvl" points="${line}"/>` : ''}${ticks}</svg>
+    <p class="analeg"><span class="k1"></span> visitantes <span class="k2"></span> páginas vistas</p>`;
 }
 function spark(hist, key, max) {
   if (!hist || hist.length < 2) return '';

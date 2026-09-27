@@ -8,7 +8,7 @@ import { initKpis, initCharts, rethemeCharts, renderState, tickerEvent, resetAge
 import { buildPin } from './pin.js';
 import { Drawer } from './drawer.js';
 import { withFavicons, clearFavicons } from './favicons.js';
-import { showTip, hideTip, openLegend } from './tips.js';
+import { showTip, showWorldTip, hideTip, openLegend } from './tips.js';
 import { CommFx } from './commfx.js';
 import { ask } from './ask.js';
 import { Director } from './director.js';
@@ -26,7 +26,7 @@ let world = null;
 const tm = new ThemeManager($('world'), w => {
   world = w;
   w.onSelect = (kind, id) => { hideTip(); drawer.open(kind, id); };
-  w.onTip = (t, x, y) => (t ? showTip({ ...t, title: forEdition(t.title), body: forEdition(t.body) }, x, y) : hideTip()); // en la edicion Equipo, «este equipo»
+  w.onTip = (t, x, y) => (t ? showWorldTip({ ...t, title: forEdition(t.title), body: forEdition(t.body) }, x, y) : hideTip()); // en la edicion Equipo, «este equipo»
   w.onNav = onNav;
   window.atalaya = { world: w, drawer, themes: tm, comm }; // referencia para depurar desde la consola
 });

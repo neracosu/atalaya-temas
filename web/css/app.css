@@ -627,3 +627,34 @@ body.ed-equipo .sysonly, body.sys-lite .sysprocs, body.sys-lite #kpi-rx, body.sy
 .qfile .dlist li { flex-wrap: wrap; row-gap: .15rem; }
 .qfile .dlist li > .mono { margin-left: auto; }
 .drawer .row { flex-wrap: wrap; }
+
+/* analitica: tarjeta en la ficha y vista completa */
+.anacard { cursor: pointer; margin-top: .7rem; }
+.anacard .anarow { display: flex; align-items: flex-end; justify-content: space-between; gap: .8rem; }
+.anacard .anarow b { font-size: 1.5rem; font-variant-numeric: tabular-nums; }
+.anamini { display: flex; align-items: flex-end; gap: 3px; height: 38px; flex: 0 0 42%; }
+.anamini i { flex: 1; background: #22d3ee; border-radius: 2px 2px 0 0; min-height: 3px; opacity: .85; }
+small.up { color: var(--good); font-weight: 700; margin-left: .3rem; }
+small.down { color: var(--bad); font-weight: 700; margin-left: .3rem; }
+.anatabs { display: flex; flex-wrap: wrap; gap: .3rem; margin: .2rem 0 .6rem; }
+.anatabs button { font: inherit; font-size: .78rem; padding: .3rem .7rem; border-radius: 999px; border: 1px solid var(--line); background: transparent; color: var(--ink-2); cursor: pointer; }
+.anatabs button.on { background: rgba(34, 211, 238, .15); border-color: #22d3ee; color: var(--ink); font-weight: 700; }
+.anakpi { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: .45rem; }
+.anakpi > div { border: 1px solid var(--line); border-radius: 10px; padding: .5rem .6rem; background: rgba(255, 255, 255, .02); min-width: 0; }
+.anakpi span { display: block; font-size: .7rem; color: var(--ink-3); }
+.anakpi b { font-size: 1.25rem; font-variant-numeric: tabular-nums; }
+.anakpi small { display: block; margin-left: 0 !important; font-size: .72rem; }
+@media (max-width: 520px) { .anakpi { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
+.anachart { width: 100%; height: 150px; display: block; }
+.anachart .vb rect { fill: #22d3ee; opacity: .75; }
+.anachart .vb rect:hover { opacity: 1; }
+.anachart .pvl { fill: none; stroke: #a78bfa; stroke-width: 2; vector-effect: non-scaling-stroke; }
+.anachart text { fill: var(--ink-3); font: 10px ui-monospace, monospace; }
+.analeg { font-size: .72rem; color: var(--ink-3); margin: .2rem 0 0; }
+.analeg span { display: inline-block; width: 10px; height: 10px; border-radius: 2px; vertical-align: -1px; margin: 0 .2rem 0 .6rem; }
+.analeg .k1 { background: #22d3ee; margin-left: 0; }
+.analeg .k2 { background: #a78bfa; height: 3px; vertical-align: 2px; }
+.anahours { display: flex; align-items: flex-end; gap: 2px; height: 70px; }
+.anahours i { flex: 1; background: #22d3ee; opacity: .75; border-radius: 2px 2px 0 0; }
+.anahlab { display: flex; justify-content: space-between; font: 10px ui-monospace, monospace; color: var(--ink-3); margin-top: .15rem; }
+.anasub { margin: .7rem 0 .2rem; font-size: .78rem; color: var(--ink-2); }

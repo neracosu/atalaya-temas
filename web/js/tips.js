@@ -43,6 +43,7 @@ export function hideTip() {
 document.addEventListener('mouseover', e => {
   const el = e.target.closest('[data-tip]');
   if (!el) return;
+  worldTip = false;
   const [title, body, hint] = el.dataset.tip.split('|');
   showTip({ title, body: body ? esc(body) : '', hint }, e.clientX, e.clientY);
 });
@@ -50,7 +51,15 @@ document.addEventListener('mouseout', e => {
   const el = e.target.closest('[data-tip]');
   if (el && !el.contains(e.relatedTarget)) hideTip();
 });
-document.addEventListener('mousemove', e => moveTip(e.clientX, e.clientY));
+// las fichas del mundo (edificios, autos) se cierran apenas el mouse pasa a un panel encima del mapa: si no,
+// quedaban pegadas sobre la ficha lateral o el HUD
+let worldTip = false, overWorld = true;
+export function showWorldTip(t, x, y) { if (!overWorld) return; worldTip = true; showTip(t, x, y); }
+document.addEventListener('mousemove', e => {
+  overWorld = !!(e.target && e.target.closest && e.target.closest('#world'));
+  if (worldTip && !overWorld) { worldTip = false; hideTip(); return; }
+  moveTip(e.clientX, e.clientY);
+});
 
 // ---------------------------------------------------------------- textos del mundo
 export const STATION_TIPS = {
