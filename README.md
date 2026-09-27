@@ -5,7 +5,7 @@
 <h1 align="center">Kit de temas</h1>
 
 <p align="center">
-  <img alt="Interfaz de Atalaya" src="https://img.shields.io/badge/interfaz-0.75.0-22d3ee?style=flat-square&labelColor=0b1530">
+  <img alt="Interfaz de Atalaya" src="https://img.shields.io/badge/interfaz-0.76.0-22d3ee?style=flat-square&labelColor=0b1530">
   <img alt="Node 20+" src="https://img.shields.io/badge/node-20%2B-34d399?style=flat-square&labelColor=0b1530">
   <img alt="Sin instalar nada" src="https://img.shields.io/badge/sin-dependencias-a78bfa?style=flat-square&labelColor=0b1530">
   <img alt="10 temas" src="https://img.shields.io/badge/temas-10-f472b6?style=flat-square&labelColor=0b1530">
