@@ -556,14 +556,25 @@ export class World {
   drawQuarantine(n) {
     const J = this.jail; if (!J || J.qn === n) return;
     J.qn = n;
-    if (!J.caps) { J.caps = new Container(); J.c.addChild(J.caps); }
-    J.caps.removeChildren().forEach(x => x.destroy());
-    for (let i = 0; i < Math.min(4, n); i++) {
-      const g = new Graphics(), x = 40 - i * 9, y = 10 + i * 4;
-      g.ellipse(x, y, 5, 8).fill({ color: 0x4ade80, alpha: 0.25 }).stroke({ width: 1.5, color: 0x4ade80 });
-      g.rect(x - 2, y - 2, 4, 3).fill(0xef4444).rect(x - 2, y - 10, 4, 2).fill(0xbbf7d0);
-      J.caps.addChild(g);
+    if (!J.caps) {
+      J.caps = new Container(); J.capsGlow = new Graphics(); J.capsLabel = label('', 10, 0x86efac, UI_FONT);
+      J.caps.addChild(J.capsGlow); J.c.addChild(J.caps, J.capsLabel);
+      this.tappable(J.caps, new Rectangle(34, -30, 70, 70), () => this.onSelect && this.onSelect('jail', 'all'));
+      this.hoverTip(J.caps, () => ({ title: 'Archivos en cuarentena', body: 'Cada cápsula es un <b>archivo PHP malicioso</b> que se sacó de un sitio: ya no puede ejecutarse. En la ficha, dónde estaba, qué era, cuándo y quién lo buscó.', meta: `${J.qn} archivo(s)`, hint: 'Clic para ver su historia' }));
     }
+    for (const x of J.caps.children.slice(1)) x.destroy();
+    J.capsGlow.clear();
+    // capsulas: tubo verde con tapa y un bicho rojo adentro, junto al patio
+    for (let i = 0; i < Math.min(4, n); i++) {
+      const g = new Graphics(), x = 62 + (i % 2) * 18, y = -6 + Math.floor(i / 2) * 22 + (i % 2) * 6;
+      g.roundRect(x - 7, y - 11, 14, 24, 7).fill({ color: 0x14532d, alpha: 0.85 }).stroke({ width: 2, color: 0x4ade80 });
+      g.rect(x - 5, y - 15, 10, 4).fill(0xbbf7d0);
+      g.rect(x - 4, y - 1, 8, 6).fill(0xef4444).rect(x - 2, y + 1, 1, 1).fill(0xfde68a).rect(x + 1, y + 1, 1, 1).fill(0xfde68a); // bicho
+      g.rect(x - 5, y - 5, 2, 6).fill({ color: 0xffffff, alpha: 0.35 }); // brillo del vidrio
+      J.caps.addChild(g);
+      J.capsGlow.ellipse(x, y + 1, 14, 18).fill({ color: 0x4ade80, alpha: 0.12 });
+    }
+    J.capsLabel.text = n ? `CUARENTENA · ${n}` : ''; J.capsLabel.x = 71; J.capsLabel.y = n > 2 ? 44 : 24;
   }
   drawJail(n) {
     const J = this.jail; if (!J || J.n === n) return;
@@ -1298,6 +1309,7 @@ export class World {
     this.drawBar(dt);
     for (const b of this.buildings.values()) b.tick(dt, t);
     this.drawSilosAndPipes(t);
+    if (this.jail && this.jail.capsGlow) this.jail.capsGlow.alpha = 0.6 + 0.4 * Math.sin(t * 2.4); // las capsulas laten
     for (const r of this.robots.values()) r.tick(dt, t);
     this.drawSelection(t);
     this.navT = (this.navT || 0) + dt;

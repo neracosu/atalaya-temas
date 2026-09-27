@@ -98,6 +98,17 @@ export class Drawer {
         this.load();
         return;
       }
+      const qa = e.target.closest('[data-qdel], [data-qres]');
+      if (qa) {
+        const del = !!qa.dataset.qdel, file = qa.dataset.qdel || qa.dataset.qres, short = file.replace(/^\/home\/[^/]+\//, '~/');
+        if (!(await ask(del ? { title: 'Borrar para siempre', danger: true, icon: 'bad', ok: 'Borrar', body: `<code>${esc(short)}</code> se borra definitivamente. No se puede deshacer.`, input: { label: 'Escriba BORRAR para confirmar', match: 'BORRAR' } }
+          : { title: 'Restaurar el archivo', icon: 'warn', ok: 'Restaurar', body: `<code>${esc(short)}</code> vuelve a su lugar en el sitio y podrá ejecutarse de nuevo. Úselo solo si está seguro de que no era malware.` }))) return;
+        qa.disabled = true;
+        const r = await fetch(del ? 'api/phpfiles/qdelete' : 'api/phpfiles/qrestore', { method: 'POST', headers: { 'Content-Type': 'application/json', 'X-Atalaya': '1' }, body: JSON.stringify({ path: file }) }).then(x => x.json()).catch(() => ({ error: 'Sin conexión' }));
+        if (r.error) { qa.insertAdjacentHTML('afterend', `<span class="dmuted"> ${esc(r.error)}</span>`); qa.disabled = false; return; }
+        this.load();
+        return;
+      }
       const rel = e.target.closest('[data-release-ip]');
       if (rel) {
         const perm = rel.dataset.perm === '1';
@@ -694,7 +705,20 @@ export class Drawer {
         <span class="${x.ip ? 'dmuted' : ''}">${esc(x.why)}${x.site ? ` · ${esc(x.site)}` : ''}</span><br>
         <span class="dmuted">${x.permanent ? 'permanente · firewall' : `${x.by === 'auto' ? 'defensa automática' : 'por ' + esc(x.by)} · sale en ${ago(x.until - now + 60000).replace(/^hace /, '')}`}</span></span>
         ${d.priv && x.ip ? `<button class="btn small ghost" data-release-ip="${esc(x.ip)}" data-perm="${x.permanent ? 1 : 0}">Liberar</button>` : ''}</li>`;
-    this.content(`<div class="dstats">${stat('Presos', fmtNum(d.items.length))}${stat('Del firewall (permanentes)', fmtNum(perm.length))}${stat('De Atalaya (temporales)', fmtNum(temp.length))}</div>
+    // archivos en cuarentena: donde estaban, que eran, cuando, quien y quien los busco
+    const dt = t => t ? new Date(t).toLocaleString('es-VE', { hour12: false, day: 'numeric', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit' }) : '–';
+    const files = (d.files || []).map(f => `<div class="qfile"><h5>${px('bad')} ${f.short ? `<code>${esc(f.short)}</code>` : 'Archivo PHP sospechoso'}</h5>
+        <p>${f.site ? `Estaba en ${f.go ? `<a data-go="${esc(f.go)}">${esc(f.site)}</a>` : esc(f.site)}. ` : ''}${f.why.length ? `<b>Por qué:</b> ${f.why.map(esc).join(' · ')}` : ''}</p>
+        <ul class="dlist qhist">
+          ${f.mtime ? `<li><span class="grow">Creado o modificado por última vez</span><span class="mono">${dt(f.mtime)}</span></li>` : ''}
+          <li><span class="grow">Detectado por Atalaya</span><span class="mono">${f.foundAt ? dt(f.foundAt) : f.existing || f.rebuilt ? 'en la primera revisión' : '–'}</span></li>
+          <li><span class="grow">Puesto en cuarentena${f.by ? ` por ${esc(f.by)}` : ''}</span><span class="mono">${dt(f.at)}</span></li>
+          ${f.size ? `<li><span class="grow">Tamaño</span><span class="mono">${fmtBytes(f.size)}</span></li>` : ''}
+        </ul>
+        ${f.hits.length ? `<p><b>Quién lo buscó</b></p><ul class="dlist">${f.hits.map(h => `<li><span class="grow">${h.ip ? `<span class="mono">${esc(h.ip)}</span> · ` : ''}<span class="dmuted">${dt(h.t)} · respuesta ${h.status}${h.status === 200 ? ' (lo ejecutó)' : ''}</span></span>${h.jailed ? '<span class="pill ok">en la cárcel</span>' : ''}</li>`).join('')}</ul>` : '<p class="dmuted">Nadie lo pidió en los registros disponibles.</p>'}
+        ${f.canAct ? `<p class="row"><button class="btn small danger" data-qdel="${esc(f.path)}">Borrar para siempre</button><button class="btn small ghost" data-qres="${esc(f.path)}">Restaurar</button></p>` : ''}</div>`).join('');
+    this.content(`<div class="dstats">${stat('Presos', fmtNum(d.items.length))}${stat('Del firewall (permanentes)', fmtNum(perm.length))}${stat('De Atalaya (temporales)', fmtNum(temp.length))}${stat('Archivos en cuarentena', fmtNum((d.files || []).length))}</div>
+      ${files ? `<section class="dsec" id="qsec"><h4>Archivos en cuarentena</h4>${files}<p class="hint">Fuera del sitio y sin permisos: ya no pueden ejecutarse. Borrar para siempre cuando esté claro que era malware; restaurar solo si fue un falso positivo (vuelve a su lugar con su dueño y permisos, y queda como revisado).</p></section>` : ''}
       ${temp.length ? `<section class="dsec"><h4>Defensa de Atalaya</h4><ul class="dlist jail">${temp.map(row).join('')}</ul></section>` : ''}
       ${perm.length ? `<section class="dsec"><h4>Bloqueos manuales del firewall</h4><ul class="dlist jail">${perm.map(row).join('')}</ul></section>` : ''}
       ${d.items.length ? '' : '<p class="dmuted">La cárcel está vacía.</p>'}

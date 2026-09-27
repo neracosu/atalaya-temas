@@ -607,3 +607,9 @@ body.ed-equipo .sysonly, body.sys-lite .sysprocs, body.sys-lite #kpi-rx, body.sy
 .alerts .achan h4 .px { width: 1.2em; height: 1.2em; }
 .alerts .achan p { margin: .3rem 0; color: var(--ink-2); }
 .alerts .uform input { width: 100%; box-sizing: border-box; }
+
+/* archivos en cuarentena (ficha de la carcel) */
+.qfile { border: 1px solid rgba(74, 222, 128, .35); background: rgba(74, 222, 128, .05); border-radius: 12px; padding: .7rem .9rem; margin-bottom: .7rem; }
+.qfile h5 { margin: 0 0 .4rem; display: flex; gap: .4rem; align-items: center; }
+.qfile p { margin: .3rem 0; color: var(--ink-2); font-size: .88rem; }
+.qhist li { font-size: .82rem; }
