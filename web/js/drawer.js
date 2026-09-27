@@ -404,6 +404,7 @@ export class Drawer {
       case 'security': return this.renderSecurity(d);
       case 'webdef': return this.renderWebdef(d);
       case 'jail': return this.renderJail(d);
+      case 'prisoner': return this.renderPrisoner(d);
       case 'mail': return this.renderMail(d);
       case 'databases': return this.renderDatabases(d);
       case 'database': return this.renderDatabase(d);
@@ -661,12 +662,17 @@ export class Drawer {
       const rows = d.phpSus.map(x => `<div class="afind bad"><h5>${px('bad')} ${x.short ? `<code>${esc(x.short)}</code>` : 'Archivo PHP sospechoso'}</h5>
         <p>${x.why.map(esc).join(' · ')}</p>
         <p class="dmuted">${fmtBytes(x.size)} · modificado el ${new Date(x.mtime).toLocaleDateString('es-VE')}${x.existing ? ' · ya estaba cuando Atalaya empezó a vigilar' : ` · apareció hace ${ago(Date.now() - x.at)}`}</p>
-        ${x.hits && x.hits.length ? `<p><b>Quién lo buscó</b> <span class="dmuted">(pedir la ruta exacta de un archivo así delata a quien lo puso)</span></p><ul class="dlist">${x.hits.map(h => `<li><span class="grow"><span class="mono">${esc(h.ip)}</span> <span class="dmuted">· ${new Date(h.t).toLocaleString('es-VE', { hour12: false, day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' })} · respuesta ${h.status}${h.status === 200 ? ' (<b>lo ejecutó</b>)' : ''}</span></span>
+        ${x.hits && x.hits.length ? `<p><b>Quién lo buscó</b> <span class="dmuted">(pedir la ruta exacta de un archivo así delata a quien lo puso)</span></p><ul class="dlist">${x.hits.map(h => `<li class="link" data-go="prisoner:${esc(h.ip)}"><span class="grow"><span class="mono">${esc(h.ip)}</span> <span class="dmuted">· ${new Date(h.t).toLocaleString('es-VE', { hour12: false, day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' })} · respuesta ${h.status}${h.status === 200 ? ' (<b>lo ejecutó</b>)' : ''}</span></span>
             ${h.jailed ? '<span class="pill ok">en la cárcel</span>' : h.blockable ? `<button class="btn small danger" data-block-ip="${esc(h.ip)}" data-reason="phpfile">Llevar a la cárcel</button>` : ''}</li>`).join('')}</ul>`
           : x.hitCount ? `<p class="dmuted">${x.hitCount} petición(es) a este archivo en los registros.</p>` : '<p class="dmuted">Nadie lo pidió en los registros de este mes y el anterior.</p>'}
         ${x.path ? `<p class="row"><button class="btn small danger" data-php-q="${esc(x.path)}">Poner en cuarentena</button><button class="btn small ghost" data-php-ack="${esc(x.path)}">Marcar como revisado</button></p>` : ''}</div>`).join('');
       body.insertAdjacentHTML('afterbegin', `<section class="dsec"><h4>Archivos PHP sospechosos</h4>${rows}
         <p class="hint">Cuarentena: el archivo sale del sitio (deja de funcionar) y se guarda aparte, sin borrarse. Si no lo subió usted, cambie además las contraseñas de cPanel, FTP y WordPress y actualice plugins y temas.</p>${d.phpSus.some(x => x.path) ? '' : '<p class="dmuted">Active el modo privado para ver las rutas y actuar.</p>'}</section>`);
+    }
+    if (d.secHistory && d.secHistory.length) {
+      const EV = { watch: { start: 'Vigilancia', end: 'Fin de la vigilancia' }, defense: { block: 'IP a la cárcel', unblock: 'IP liberada', expire: 'Venció un bloqueo' }, phpfile: { hit: 'Buscaron la puerta trasera', suspect: 'Puerta trasera detectada', quarantine: 'Puerta trasera en cuarentena' }, probe: { undefined: 'Ruta expuesta' } };
+      const dt = t => new Date(t).toLocaleString('es-VE', { hour12: false, day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' });
+      body.insertAdjacentHTML('beforeend', `<section class="dsec"><h4>Historial de seguridad</h4><ul class="dlist">${d.secHistory.map(e => `<li class="${e.ip ? 'link' : ''}" ${e.ip ? `data-go="prisoner:${esc(e.ip)}"` : ''}><span class="grow"><b>${esc((EV[e.kind] || {})[e.action] || e.kind)}</b>${e.reason ? ` · ${esc(e.reason)}` : ''}${e.ip ? ` · <span class="mono">${esc(e.ip)}</span>` : ''}${e.path ? `<br><code>${esc(e.path)}</code>` : ''}</span><span class="mono dmuted">${dt(e.t)}</span></li>`).join('')}</ul></section>`);
     }
     if (!d.probes || !d.probes.n) return;
     body.insertAdjacentHTML('beforeend', `<section class="dsec"><h4>Defensa web</h4><p class="${d.probes.exposed ? 'afind bad' : 'dmuted'}">${px(d.probes.exposed ? 'bad' : 'invader')}
@@ -701,7 +707,7 @@ export class Drawer {
     if (!d.available) return this.content('<p class="dmuted">La cárcel necesita la edición VPS con el ayudante de Atalaya.</p>');
     const now = Date.now();
     const perm = d.items.filter(x => x.permanent), temp = d.items.filter(x => !x.permanent);
-    const row = x => `<li><span class="cell">${px(x.permanent ? 'lock' : 'shield')}</span><span class="grow">${x.ip ? `<span class="mono">${esc(x.ip)}</span><br>` : ''}
+    const row = x => `<li class="${x.ip ? 'link' : ''}" ${x.ip ? `data-go="prisoner:${esc(x.ip)}"` : ''}><span class="cell">${px(x.permanent ? 'lock' : 'shield')}</span><span class="grow">${x.ip ? `<span class="mono">${esc(x.ip)}</span> <span class="dmuted">· ver expediente</span><br>` : ''}
         <span class="${x.ip ? 'dmuted' : ''}">${esc(x.why)}${x.site ? ` · ${esc(x.site)}` : ''}</span><br>
         <span class="dmuted">${x.permanent ? 'permanente · firewall' : `${x.by === 'auto' ? 'defensa automática' : 'por ' + esc(x.by)} · sale en ${ago(x.until - now + 60000).replace(/^hace /, '')}`}</span></span>
         ${d.priv && x.ip ? `<button class="btn small ghost" data-release-ip="${esc(x.ip)}" data-perm="${x.permanent ? 1 : 0}">Liberar</button>` : ''}</li>`;
@@ -715,7 +721,7 @@ export class Drawer {
           <li><span class="grow">Puesto en cuarentena${f.by ? ` por ${esc(f.by)}` : ''}</span><span class="mono">${dt(f.at)}</span></li>
           ${f.size ? `<li><span class="grow">Tamaño</span><span class="mono">${fmtBytes(f.size)}</span></li>` : ''}
         </ul>
-        ${f.hits.length ? `<p><b>Quién lo buscó</b></p><ul class="dlist">${f.hits.map(h => `<li><span class="grow">${h.ip ? `<span class="mono">${esc(h.ip)}</span> · ` : ''}<span class="dmuted">${dt(h.t)} · respuesta ${h.status}${h.status === 200 ? ' (lo ejecutó)' : ''}</span></span>${h.jailed ? '<span class="pill ok">en la cárcel</span>' : ''}</li>`).join('')}</ul>` : '<p class="dmuted">Nadie lo pidió en los registros disponibles.</p>'}
+        ${f.hits.length ? `<p><b>Quién lo buscó</b></p><ul class="dlist">${f.hits.map(h => `<li class="${h.ip ? 'link' : ''}" ${h.ip ? `data-go="prisoner:${esc(h.ip)}"` : ''}><span class="grow">${h.ip ? `<span class="mono">${esc(h.ip)}</span> · ` : ''}<span class="dmuted">${dt(h.t)} · respuesta ${h.status}${h.status === 200 ? ' (lo ejecutó)' : ''}</span></span>${h.jailed ? '<span class="pill ok">en la cárcel</span>' : ''}</li>`).join('')}</ul>` : '<p class="dmuted">Nadie lo pidió en los registros disponibles.</p>'}
         ${f.canAct ? `<p class="row"><button class="btn small danger" data-qdel="${esc(f.path)}">Borrar para siempre</button><button class="btn small ghost" data-qres="${esc(f.path)}">Restaurar</button></p>` : ''}</div>`).join('');
     this.content(`<div class="dstats">${stat('Presos', fmtNum(d.items.length))}${stat('Del firewall (permanentes)', fmtNum(perm.length))}${stat('De Atalaya (temporales)', fmtNum(temp.length))}${stat('Archivos en cuarentena', fmtNum((d.files || []).length))}</div>
       ${files ? `<section class="dsec" id="qsec"><h4>Archivos en cuarentena</h4>${files}<p class="hint">Fuera del sitio y sin permisos: ya no pueden ejecutarse. Borrar para siempre cuando esté claro que era malware; restaurar solo si fue un falso positivo (vuelve a su lugar con su dueño y permisos, y queda como revisado).</p></section>` : ''}
@@ -724,6 +730,33 @@ export class Drawer {
       ${d.items.length ? '' : '<p class="dmuted">La cárcel está vacía.</p>'}
       <p class="hint">Aquí no entran los miles de intentos de SSH que frenan fail2ban y cPHulk: esos se ven en Defensa. Defensa automática: <b>${d.auto ? 'encendida' : 'apagada'}</b> · <a data-go="webdef:all">ajustes</a>.</p>
       ${d.priv ? '' : '<p class="dmuted">Active el modo privado para ver las IPs y liberarlas.</p>'}`);
+  }
+
+  // expediente de un preso (o de cualquier IP): quien es, historial de bloqueos, que hizo y sus ultimas peticiones
+  renderPrisoner(d) {
+    const cv = document.createElement('div'); cv.className = 'dswatch'; cv.innerHTML = px(d.inJail ? 'jail' : 'shield', 'big');
+    if (d.private) { this.setHead('prisoner', cv, 'Expediente', 'Solo en modo privado', ''); return this.content('<p class="dmuted">Active el modo privado para ver el expediente de una IP.</p>'); }
+    const dt = t => t ? new Date(t).toLocaleString('es-VE', { hour12: false, day: 'numeric', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit' }) : '–';
+    const where = x => x.name ? (x.go ? `<a data-go="${esc(x.go)}">${esc(x.name)}</a>` : esc(x.name)) : '';
+    const J = d.inJail;
+    this.setHead('prisoner:' + d.id, cv, d.id, `${d.geo ? esc(d.geo.name || d.geo.cc) : 'País desconocido'}${d.reqs.ua ? ` · ${esc(d.reqs.ua.slice(0, 60))}` : ''}`,
+      J ? `<span class="pill bad">${J.permanent ? 'presa (permanente)' : 'presa'}</span>` : '<span class="pill ok">suelta</span>');
+    const EV = { watch: { start: 'Puso un sitio en vigilancia', end: 'Terminó la vigilancia' }, defense: { block: 'Entró a la cárcel', unblock: 'Salió de la cárcel (liberada)', expire: 'Salió de la cárcel (venció)' },
+      phpfile: { hit: 'Pidió una puerta trasera', suspect: 'Puerta trasera detectada', quarantine: 'Puerta trasera en cuarentena' }, probe: { undefined: 'Encontró una ruta expuesta' } };
+    const ev = d.events.map(e => `<li><span class="grow"><b>${esc((EV[e.kind] || {})[e.action] || e.kind)}</b>${e.reason ? ` · ${esc(e.reason)}` : ''}${e.name ? ` · ${where(e)}` : ''}${e.path ? `<br><code>${esc(e.path)}</code>` : ''}${e.status ? ` <span class="dmuted">(respuesta ${e.status})</span>` : ''}</span><span class="mono dmuted">${dt(e.t)}</span></li>`).join('');
+    const rec = d.records.map(r => `<li><span class="grow"><b>${esc(r.why)}</b>${r.name ? ` · ${where(r)}` : ''}<br><span class="dmuted">${r.by === 'auto' ? 'defensa automática' : 'por ' + esc(r.by)} · ${r.status === 'active' ? `sale ${dt(r.until)}` : r.status === 'lifted' ? `liberada ${dt(r.liftedAt)}` : `venció ${dt(r.until)}`}</span></span><span class="mono dmuted">${dt(r.at)}</span></li>`).join('');
+    const R = d.reqs;
+    this.content(`<div class="dstats">${stat('Peticiones vistas', fmtNum(R.total))}${stat('Sitios que tocó', fmtNum(d.sites.length))}${stat('Primera vez', R.first ? dt(R.first) : '–')}${stat('Última vez', R.last ? dt(R.last) : '–')}</div>
+      ${J ? `<section class="dsec"><div class="afind bad"><h5>${px('jail')} En la cárcel</h5><p>${esc(J.why || '')}</p><p class="dmuted">${J.permanent ? 'Bloqueo permanente en el firewall' : `Desde ${dt(J.at)} · sale ${dt(J.until)}`}</p><p class="row"><button class="btn small ghost" data-release-ip="${esc(d.id)}" data-perm="${J.permanent ? 1 : 0}">Liberar</button></p></div></section>`
+        : d.blockable ? `<section class="dsec"><p class="row"><button class="btn small danger" data-block-ip="${esc(d.id)}">Llevar a la cárcel</button></p></section>` : ''}
+      ${rec ? `<section class="dsec"><h4>Historial de bloqueos</h4><ul class="dlist">${rec}</ul></section>` : ''}
+      ${d.php.length ? `<section class="dsec"><h4>Puertas traseras que buscó</h4><ul class="dlist">${d.php.map(x => `<li><span class="grow"><code>${esc(x.path)}</code>${x.name ? `<br>${where(x)}` : ''}</span>${x.quarantined ? '<span class="pill ok">en cuarentena</span>' : '<span class="pill bad">sigue ahí</span>'}</li>`).join('')}</ul></section>` : ''}
+      ${d.sites.length ? `<section class="dsec"><h4>Sitios donde la vio la defensa web</h4><ul class="dlist">${d.sites.map(x => `<li><span class="grow">${where(x)}</span><span class="mono">${fmtNum(x.n)} sondeo(s)</span><span class="mono dmuted">${dt(x.t)}</span></li>`).join('')}</ul></section>` : ''}
+      ${ev ? `<section class="dsec"><h4>Historial de seguridad</h4><ul class="dlist">${ev}</ul></section>` : ''}
+      ${R.topPaths.length ? `<section class="dsec"><h4>Lo que más pidió</h4><ul class="dlist">${R.topPaths.map(x => `<li><code class="grow">${esc(x.path)}</code><span class="dmuted">${x.status}</span><b>${fmtNum(x.n)}</b></li>`).join('')}</ul></section>` : ''}
+      ${R.recent.length ? `<section class="dsec"><h4>Sus últimas peticiones</h4><ul class="dlist">${R.recent.map(x => `<li><span class="grow"><span class="mono dmuted">${dt(x.t)}</span> · ${esc(x.domain)}<br><code>${esc(x.method)} ${esc(x.path)}</code></span><span class="mono ${x.status >= 400 ? 'dmuted' : ''}">${x.status}</span></li>`).join('')}</ul></section>`
+        : '<p class="dmuted">No aparece en los registros de Apache recientes (si está presa, el firewall ya no la deja llegar).</p>'}
+      <p class="hint">El historial crece con el tiempo: Atalaya anota cada episodio de seguridad desde esta versión. Las peticiones salen del final de los registros de cada sitio.</p>`);
   }
 
   renderSecurity(d) {
