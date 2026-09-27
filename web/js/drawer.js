@@ -753,7 +753,8 @@ export class Drawer {
     this.setHead('prisoner:' + d.id, cv, d.id, `${d.geo ? esc(d.geo.name || d.geo.cc) : 'País desconocido'}${d.reqs.ua ? ` · ${esc(d.reqs.ua.slice(0, 60))}` : ''}`,
       J ? `<span class="pill bad">${J.permanent ? 'presa (permanente)' : 'presa'}</span>` : '<span class="pill ok">suelta</span>');
     const EV = { watch: { start: 'Puso un sitio en vigilancia', end: 'Terminó la vigilancia' }, defense: { block: 'Entró a la cárcel', unblock: 'Salió de la cárcel (liberada)', expire: 'Salió de la cárcel (venció)' },
-      phpfile: { hit: 'Pidió una puerta trasera', suspect: 'Puerta trasera detectada', quarantine: 'Puerta trasera en cuarentena' }, probe: { undefined: 'Encontró una ruta expuesta' } };
+      phpfile: { hit: 'Pidió una puerta trasera', suspect: 'Puerta trasera detectada', quarantine: 'Puerta trasera en cuarentena' }, probe: { undefined: 'Encontró una ruta expuesta' },
+      login: { new: 'Entró a un panel desde una IP nueva', guessed: 'Entró a un panel después de fallar la contraseña' } };
     const ev = d.events.map(e => `<li><span class="grow"><b>${esc((EV[e.kind] || {})[e.action] || e.kind)}</b>${e.reason ? ` · ${esc(e.reason)}` : ''}${e.name ? ` · ${where(e)}` : ''}${e.path ? `<br><code>${esc(e.path)}</code>` : ''}${e.status ? ` <span class="dmuted">(respuesta ${e.status})</span>` : ''}</span><span class="mono dmuted">${dt(e.t)}</span></li>`).join('');
     const rec = d.records.map(r => `<li><span class="grow"><b>${esc(r.why)}</b>${r.name ? ` · ${where(r)}` : ''}<br><span class="dmuted">${r.by === 'auto' ? 'defensa automática' : 'por ' + esc(r.by)} · ${r.status === 'active' ? `sale ${dt(r.until)}` : r.status === 'lifted' ? `liberada ${dt(r.liftedAt)}` : `venció ${dt(r.until)}`}</span></span><span class="mono dmuted">${dt(r.at)}</span></li>`).join('');
     const R = d.reqs;
@@ -762,6 +763,8 @@ export class Drawer {
         : d.blockable ? `<section class="dsec"><p class="row"><button class="btn small danger" data-block-ip="${esc(d.id)}">Llevar a la cárcel</button></p></section>` : ''}
       ${rec ? `<section class="dsec"><h4>Historial de bloqueos</h4><ul class="dlist">${rec}</ul></section>` : ''}
       ${d.php.length ? `<section class="dsec"><h4>Puertas traseras que buscó</h4><ul class="dlist">${d.php.map(x => `<li><span class="grow"><code>${esc(x.path)}</code>${x.name ? `<br>${where(x)}` : ''}</span>${x.quarantined ? '<span class="pill ok">en cuarentena</span>' : '<span class="pill bad">sigue ahí</span>'}</li>`).join('')}</ul></section>` : ''}
+      ${d.panel ? `<section class="dsec"><h4>Paneles de control</h4>${d.panel.failed ? `<p><b>${fmtNum(d.panel.failed)} contraseña${d.panel.failed === 1 ? '' : 's'} equivocada${d.panel.failed === 1 ? '' : 's'}</b> en ${esc(d.panel.svcs.join(', '))} esta semana, como ${d.panel.users.map(u => `<b>${esc(u)}</b>`).join(', ')}<span class="dmuted"> · la última ${dt(d.panel.last)}</span></p>` : ''}
+        ${d.panel.logins.length ? `<p><b>Entró</b> a los paneles:</p><ul class="dlist">${d.panel.logins.map(l => `<li><span class="grow">${esc(l.svc)} como <b>${esc(l.user)}</b></span><span class="mono dmuted">${dt(l.t)}</span></li>`).join('')}</ul>` : ''}</section>` : ''}
       ${d.sites.length ? `<section class="dsec"><h4>Sitios donde la vio la defensa web</h4><ul class="dlist">${d.sites.map(x => `<li><span class="grow">${where(x)}</span><span class="mono">${fmtNum(x.n)} sondeo(s)</span><span class="mono dmuted">${dt(x.t)}</span></li>`).join('')}</ul></section>` : ''}
       ${ev ? `<section class="dsec"><h4>Historial de seguridad</h4><ul class="dlist">${ev}</ul></section>` : ''}
       ${R.topPaths.length ? `<section class="dsec"><h4>Lo que más pidió</h4><ul class="dlist">${R.topPaths.map(x => `<li><code class="grow">${esc(x.path)}</code><span class="dmuted">${x.status}</span><b>${fmtNum(x.n)}</b></li>`).join('')}</ul></section>` : ''}
@@ -808,12 +811,15 @@ export class Drawer {
   healthHtml(h, compact) {
     if (!h) return '';
     const ST = { ok: ['ok', 'En orden'], warn: ['warn', 'Para revisar'], bad: ['bad', 'Grave'], unknown: ['off', 'Sin revisar'] };
+    // una IP (accesos a los paneles): clic abre su expediente
+    const when = t => t ? new Date(t).toLocaleString('es-VE', { hour12: false, day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' }) : '';
+    const rowIp = r => `<li class="link" data-go="prisoner:${esc(r.ip)}"><span class="mono">${esc(r.ip)}</span> <span class="dmuted">${r.svc ? `${esc(r.svc)} como <b>${esc(r.user || '')}</b> · ${when(r.t)}` : `${fmtNum(r.n || 0)} intento${r.n === 1 ? '' : 's'}${r.users ? ` como ${esc(r.users.join(', '))}` : ''}${r.svcs ? ` en ${esc(r.svcs.join(', '))}` : ''} · ${when(r.t)}`}</span>${r.newIp ? ' <span class="pill warn">IP nueva</span>' : ''}</li>`;
     const sec = x => {
       const st = ST[x.status] || ST.unknown;
       const btn = x.canCheck ? `<button class="btn small" data-audit-updates="1" ${h.running ? 'disabled' : ''}>${h.running ? 'Revisando…' : 'Revisar actualizaciones'}</button>` : '';
       if (compact && x.status === 'ok') return `<div class="hline">${px(x.icon)} <b>${esc(x.title)}</b> <span class="pill ok">En orden</span> <span class="dmuted">${x.items.map(i => `${esc(i.label)}: ${esc(i.value)}`).join(' · ')}</span></div>`;
       const finds = h.priv ? x.findings.map(f => `<div class="afind ${f.sev}"><h5>${esc(f.title)}</h5><p>${esc(f.detail || '')}</p>${f.fix ? `<p class="fix">${esc(f.fix)}</p>` : ''}
-          ${f.rows && f.rows.length ? `<ul>${f.rows.map(r => `<li>${r.port ? `puerto <b>${r.port}</b> ${esc(r.proc || '')}` : `<b>${esc(r.user || '')}</b> <span class="dmuted">${esc(r.schedule || '')}</span> <code>${esc(r.command || '')}</code>`}</li>`).join('')}</ul>` : ''}
+          ${f.rows && f.rows.length ? `<ul>${f.rows.map(r => r.ip ? rowIp(r) : `<li>${r.port ? `puerto <b>${r.port}</b> ${esc(r.proc || '')}` : `<b>${esc(r.user || '')}</b> <span class="dmuted">${esc(r.schedule || '')}</span> <code>${esc(r.command || '')}</code>`}</li>`).join('')}</ul>` : ''}
           ${f.names && f.names.length ? `<p class="dmuted">${esc(f.names.slice(0, 20).join(', '))}${f.names.length > 20 ? '…' : ''}</p>` : ''}</div>`).join('')
         : (x.findings.length ? `<p class="dmuted">${x.findings.length} hallazgo${x.findings.length === 1 ? '' : 's'}. Active el modo privado para verlos con su «cómo arreglarlo».</p>` : '');
       return `<section class="dsec"><h4>${px(x.icon)} ${esc(x.title)} <span class="pill ${st[0]}">${st[1]}</span></h4>
