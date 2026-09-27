@@ -55,12 +55,30 @@ function listThemes() {
 const clients = new Set();
 let current = arg('theme') || 'ciudad';
 let lastState = null;
-const overrides = { down: new Set(), waiting: null };
+const overrides = { down: new Set(), waiting: null, jail: 3, quarantine: 1, saturated: 0, quota: null };
+// la grabacion es anterior a la carcel y a los silos de datos: si no los trae, se inventan para que el tema
+// tenga algo que dibujar (un silo por cuenta con sitios, tuberias a sus dos primeros sitios, consultas que van y vienen)
+function fakeSilos(o) {
+  const list = [];
+  for (const a of o.accounts.filter(x => x.id !== 'root')) {
+    const sites = (o.sites || []).filter(x => x.account === a.id).slice(0, 2);
+    if (!sites.length) continue;
+    const k = [...a.id].reduce((n, c) => n + c.charCodeAt(0), 0), wave = Math.max(0, Math.sin(Date.now() / 9000 + k));
+    const active = Math.round(wave * 3), sleep = k % 3 === 0 ? 14 : 2;
+    list.push({ account: a.id, size: (k % 9 + 1) * 90 * 1048576, n: k % 4 + 1, conns: active + sleep, active, sleep, busy: Math.round(wave * 40), slow: false,
+      links: sites.map((x, i) => ({ kind: 'site', id: x.id, active: i === 0 ? active : 0, busy: Math.round(wave * 40) })) });
+  }
+  return { list, hot: 0.4, sb: [] };
+}
 function write(c, e, d) { try { c.write(`event: ${e}\ndata: ${JSON.stringify(d)}\n\n`); } catch { } }
 function broadcast(e, d) { for (const c of clients) write(c, e, d); }
 function patchState(s) {
   const o = JSON.parse(JSON.stringify(s));
   for (const a of o.apps) if (overrides.down.has(a.id)) { a.status = 'down'; a.online = 0; }
+  if (!o.silos) o.silos = fakeSilos(o);
+  if (overrides.saturated > Date.now()) o.saturation = { level: 'bad', causes: [{ id: 'cpu', level: 'bad', label: 'CPU al 97 %' }], since: overrides.saturated - 40000 };
+  if (overrides.quota && overrides.quota.until > Date.now()) for (const a of o.accounts) if (a.id === overrides.quota.account) a.quota = overrides.quota.q;
+  if (!o.jail) o.jail = { n: overrides.jail, atalaya: Math.max(0, overrides.jail - 2), quarantine: overrides.quarantine };
   if (overrides.waiting && overrides.waiting.until > Date.now()) for (const x of o.sessions) if (x.id === overrides.waiting.sid) { x.waitKind = 'permission'; x.waitSince = overrides.waiting.since; }
   return o;
 }
@@ -112,7 +130,35 @@ function scenario(name) {
     return '120 visitas en 7 s';
   }
   if (name === 'dominio') { const a = pick(s.accounts.filter(x => x.id !== 'root')); broadcast('ev', { kind: 'domain', t: now, action: pick(['added', 'removed', 'changed']), account: a.id }); return `Cambio de dominio en ${a.label}`; }
-  if (name === 'correo') { for (let i = 0; i < 8; i++) setTimeout(() => broadcast('ev', { kind: 'mail', t: Date.now(), dir: pick(['in', 'out', 'bounce']) }), i * 300); return '8 correos'; }
+  if (name === 'carcel') {
+    const x = pick(s.sites && s.sites.length ? s.sites : s.apps);
+    overrides.jail++;
+    broadcast('ev', { kind: 'defense', t: now, action: 'block', by: 'auto', reason: 'scan', account: x.account, [s.apps.includes(x) ? 'app' : 'site']: x.id });
+    return `Una IP va a la cárcel desde «${x.name}» (${overrides.jail} presos)`;
+  }
+  if (name === 'cuarentena') {
+    const x = pick(s.sites || []);
+    if (!x) return 'No hay sitios en la grabación';
+    overrides.quarantine++;
+    broadcast('ev', { kind: 'phpfile', t: now, action: 'quarantine', account: x.account, site: x.id, why: 'webshell' });
+    return `Un archivo de «${x.name}» va a cuarentena (${overrides.quarantine} en total)`;
+  }
+  if (name === 'correo') {
+    const accs = s.accounts.filter(x => x.id !== 'root');
+    for (let i = 0; i < 8; i++) setTimeout(() => broadcast('ev', { kind: 'mail', t: Date.now(), dir: pick(['in', 'out', 'bounce']), account: pick(accs).id, cat: pick(['auth', 'nouser', 'full', 'spam']) }), i * 300);
+    return '8 correos';
+  }
+  if (name === 'limite') {
+    overrides.saturated = now + 40000;
+    broadcast('ev', { kind: 'saturation', t: now, action: 'start', causes: ['CPU al 97 %'] });
+    setTimeout(() => broadcast('ev', { kind: 'saturation', t: Date.now(), action: 'end', causes: [] }), 40000);
+    return 'El servidor llega al límite por 40 s (use también «Pico de visitas» para ver el atasco)';
+  }
+  if (name === 'cuota') {
+    const a = pick(s.accounts.filter(x => x.id !== 'root')), bad = Math.random() < 0.5;
+    overrides.quota = { account: a.id, until: now + 60000, q: { what: pick(['disco', 'inodos']), pct: bad ? 98 : 88, level: bad ? 'bad' : 'warn' } };
+    return `${a.label} llega al ${overrides.quota.q.pct} % de su cuota por 60 s`;
+  }
   return 'Escenario desconocido';
 }
 const SIM_PAGE = `<!doctype html><meta charset="utf-8"><title>Simulador de Atalaya</title>
@@ -120,6 +166,8 @@ const SIM_PAGE = `<!doctype html><meta charset="utf-8"><title>Simulador de Atala
 <h1>Simulador de Atalaya</h1><p>Provoca eventos que en la grabación casi no aparecen, para ver cómo los muestra su tema. Abra la pantalla en otra pestaña: <a href="/" target="_blank">/</a></p>
 <button data-s="caida">Un servicio se cae (45 s)</button><button data-s="ataque">Ataque: 25 intentos de acceso</button><button data-s="permiso">Un agente pide permiso (30 s)</button>
 <button data-s="despliegue">Un despliegue (a veces falla)</button><button data-s="pico">Pico de visitas</button><button data-s="dominio">Cambio de dominio</button><button data-s="correo">Correo</button>
+<button data-s="limite">El servidor llega al límite (40 s)</button><button data-s="cuota">Una cuenta al límite de su cuota (60 s)</button>
+<button data-s="carcel">Una IP va a la cárcel</button><button data-s="cuarentena">Un archivo PHP va a cuarentena</button>
 <p id="out"></p><script src="/sim/sim.js"></script>`;
 const SIM_JS = `document.querySelectorAll('[data-s]').forEach(b => b.onclick = async () => { const r = await fetch('/sim/' + b.dataset.s, { method: 'POST' }); document.getElementById('out').textContent = await r.text(); });`;
 

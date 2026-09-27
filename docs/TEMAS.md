@@ -177,7 +177,7 @@ export default class MiTema extends Stage3D {
   sessions: [{ id, account, state, station, activity, waitKind, subagents: [...], tokensOut, tools }],
   keys: [{ label, unit, state }],    // servicios clave: 'active' | 'failed' | 'inactive'
   saturation: { level, causes: [{ id, level, label }], since },   // 'ok' | 'warn' | 'bad' (servidor al límite)
-  silos: { accounts: [{ account, size, n, conns, active, sleep, busy, slow, links: [{ kind, id, active, busy }] }], sb: [{ from, to }] },
+  silos: { list: [{ account, size, n, conns, active, sleep, busy, slow, links: [{ kind, id, active, busy }] }], hot, sb: [{ from, to }] },
   jail: { n, atalaya, quarantine },  // presos (IPs bloqueadas), cuántos puso Atalaya y archivos en cuarentena
   security: { ... }, mail: { ... }, traffic: [...], top: [...]
 }
@@ -199,7 +199,7 @@ export default class MiTema extends Stage3D {
   ancho de banda; la ciudad lo marca con una línea bajo su distrito.
 - `saturation`: la ciudad pone la torre en rojo («SERVIDOR AL LÍMITE») y un atasco en el peaje cuando `level` es
   `bad`. `silos`: un silo de datos por cuenta con tuberías a los sitios que usan sus bases (`links`); `sb` une
-  cada proyecto de Supabase con su app. `jail`: la cárcel y sus cápsulas de cuarentena. Los tres son opcionales:
+  cada proyecto de Supabase con su app; `hot` (0 a 1) es cuánto del máximo de conexiones del servidor de bases está en uso. `jail`: la cárcel y sus cápsulas de cuarentena. Los tres son opcionales:
   si su tema no los dibuja, el detalle igual está en las fichas.
 - `state` de una sesión: `working`, `thinking` o `idle`. `waitKind` (`permission`, `question`,
   `idle`) si espera al usuario.

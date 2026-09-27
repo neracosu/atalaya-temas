@@ -81,8 +81,11 @@ export class Stage3D {
     const k = kind === 'agent' ? 'session' : kind, want = kind === 'agent' ? String(id).split('/')[0] : id;
     const o = this.pickables.find(m => m.userData && m.userData.id === want && (m.userData.kind === k || (k !== 'session' && (m.userData.kind === 'app' || m.userData.kind === 'site'))));
     if (!o || !o.visible) return null;
-    const v = new THREE.Vector3();
-    o.getWorldPosition(v); v.project(this.camera);
+    return this.screenAt(o.getWorldPosition(new THREE.Vector3()));
+  }
+  // un punto del mundo en pixeles de la ventana (null si queda detras de la camara o fuera de la vista)
+  screenAt(p) {
+    const v = p.clone().project(this.camera);
     if (v.z > 1 || Math.abs(v.x) > 1.05 || Math.abs(v.y) > 1.05) return null;
     const r = this.renderer.domElement.getBoundingClientRect();
     return { x: r.left + (v.x + 1) / 2 * r.width, y: r.top + (1 - v.y) / 2 * r.height };
