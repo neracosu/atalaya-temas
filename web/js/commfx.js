@@ -60,6 +60,9 @@ export class CommFx {
     if (e.kind === 'probe') return this.probe(e);
     // bloqueo: las patrullas se llevan al auto sospechoso a la torre
     if (e.kind === 'defense' && e.action === 'block' && (e.app || e.site)) return this.escort(e.app ? 'app' : 'site', e.app || e.site);
+    // puerta trasera: en cuarentena (una patrulla se lleva los bichos en una capsula a la carcel) o alguien la busco
+    if (e.kind === 'phpfile' && e.site && e.action === 'quarantine') return this.capsule('site', e.site);
+    if (e.kind === 'phpfile' && e.site && e.action === 'hit') { (this.phpHit || (this.phpHit = new Map())).set(e.site, performance.now() / 1000 + 8); this.run(); return; }
     // un preso sale de la carcel (vencio su bloqueo o lo liberaron) y se va por la autopista
     if (e.kind === 'defense' && (e.action === 'unblock' || e.action === 'expire')) return this.release();
     // consulta lenta: un solo pulso ambar sobre el edificio que usa la base (si no se sabe cual, solo el ticker)
@@ -178,6 +181,46 @@ export class CommFx {
     try { p = w && w.screenOf ? w.screenOf('jail') : null; } catch { p = null; }
     return p && Number.isFinite(p.x) && Number.isFinite(p.y) ? p : null; // aunque este fuera de pantalla: vuelan hacia alla
   }
+  // cuarentena: la patrulla baja desde la torre, encierra los bichos en una capsula verde y la lleva a la carcel
+  capsule(kind, id) {
+    const b = this.pos(kind, id); if (!b || this.still) return;
+    // los bichos de ese edificio dejan de dibujarse ya (van dentro de la capsula)
+    for (const [k, P] of this.patrols) if (P.w.reason === 'phpbad' && P.w.id === id) this.patrols.delete(k);
+    this.fx.push({ type: 'capsule', kind, id, last: b, t: 0, dur: 16 });
+    this.run();
+  }
+  drawCapsule(f) {
+    const { cx } = this, t = f.t;
+    const b = this.pos(f.kind, f.id) || f.last; f.last = b;
+    const home = this.home(b) || { x: b.x, y: -60 }, jail = this.jailPos() || home;
+    const ease = u => (u < 0.5 ? 2 * u * u : 1 - (-2 * u + 2) ** 2 / 2);
+    const arc = (a, c, u, lift) => { const k = ease(Math.min(1, Math.max(0, u))), mx = (a.x + c.x) / 2, my = Math.min(a.y, c.y) - lift;
+      return { x: (1 - k) ** 2 * a.x + 2 * (1 - k) * k * mx + k * k * c.x, y: (1 - k) ** 2 * a.y + 2 * (1 - k) * k * my + k * k * c.y }; };
+    const above = { x: b.x, y: b.y - 62 };
+    // 0-5 s: baja la patrulla · 5-7.5 s: captura (la capsula crece alrededor de los bichos) · 7.5-15 s: a la carcel
+    let car = null, cap = null, grow = 1;
+    if (t < 5) { car = arc(home, above, t / 5, 120); this.drawBugs(b, t, 1); }
+    else if (t < 7.5) { car = { x: above.x, y: above.y + Math.sin(t * 3) * 2 }; grow = (t - 5) / 2.5; cap = { x: b.x, y: b.y - 24 - grow * 20 }; this.drawBugs({ x: b.x, y: b.y - grow * 20 }, t, 1 - grow * 0.4); }
+    else if (t < 15) { car = arc(above, { x: jail.x, y: jail.y - 50 }, (t - 7.5) / 7.5, 160); cap = { x: car.x, y: car.y + 24 }; }
+    if (cap) {
+      const r = 14 + 6 * Math.min(1, grow);
+      cx.globalAlpha = 0.85; cx.fillStyle = 'rgba(74, 222, 128, .18)'; cx.strokeStyle = '#4ade80'; cx.lineWidth = 2;
+      cx.beginPath(); cx.ellipse(cap.x, cap.y, r * 0.7, r, 0, 0, Math.PI * 2); cx.fill(); cx.stroke();
+      if (t >= 7.5) { const img = this.bug[Math.floor(t * 10) % 2]; cx.drawImage(img, cap.x - img.width, cap.y - img.height, img.width * 2, img.height * 2); }
+      cx.fillStyle = '#bbf7d0'; cx.fillRect(Math.round(cap.x - 3), Math.round(cap.y - r - 3), 6, 3); // tapa
+      cx.globalAlpha = 1;
+      if (car) { cx.strokeStyle = 'rgba(148, 163, 184, .8)'; cx.lineWidth = 1; cx.beginPath(); cx.moveTo(car.x, car.y + 8); cx.lineTo(cap.x, cap.y - r); cx.stroke(); } // cable
+    }
+    if (car) this.car('fly', car.x, car.y, t, (t < 5 ? above.x < home.x : jail.x < above.x));
+    if (t > 5 && t < 15) this.watchLabel({ x: (cap || b).x, y: (cap || b).y + 8 }, 'EN CUARENTENA', '#4ade80');
+  }
+  // bichos caminando sobre un punto (los usa la capsula mientras los atrapa)
+  drawBugs(p, t, a = 1) {
+    const { cx } = this; cx.globalAlpha = a;
+    for (let i = 0; i < 2; i++) { const ang = t * 1.3 + i * 2.1, img = this.bug[Math.floor(t * 8 + i) % 2];
+      cx.save(); cx.translate(Math.round(p.x + Math.cos(ang) * 22), Math.round(p.y - 24 + Math.sin(ang) * 10)); cx.rotate(ang + Math.PI); cx.drawImage(img, -img.width, -img.height, img.width * 2, img.height * 2); cx.restore(); }
+    cx.globalAlpha = 1;
+  }
   release() {
     const from = this.jailPos(); if (!from || this.still) return;
     const w = this.getWorld();
@@ -213,12 +256,17 @@ export class CommFx {
       if (w.reason === 'phpbad') {
         // archivo PHP sospechoso: un bicho rojo que camina en circulos sobre el edificio
         if (!b) continue;
-        for (let i = 0; i < Math.min(3, w.n || 1); i++) {
-          const a = t * 1.3 + i * 2.1, img = this.bug[Math.floor(t * 8 + i) % 2], s = 2;
-          const x = b.x + Math.cos(a) * 26, y = b.y - 24 + Math.sin(a) * 12;
+        const hit = this.phpHit && this.phpHit.get(w.id) > t; // alguien la busco: se agitan, sirena y cartel
+        if (hit) {
+          cx.globalAlpha = 0.25 + 0.2 * Math.sin(t * 12); cx.fillStyle = '#ef4444'; cx.beginPath(); cx.ellipse(b.x, b.y - 20, 46, 26, 0, 0, Math.PI * 2); cx.fill(); cx.globalAlpha = 1;
+          cx.fillStyle = Math.floor(t * 8) % 2 ? '#ef4444' : '#3b82f6'; cx.fillRect(Math.round(b.x - 5), Math.round(b.y - 92), 10, 6);
+        }
+        for (let i = 0; i < Math.min(3, w.n || 1) + (hit ? 2 : 0); i++) {
+          const sp = hit ? 4 : 1.3, a = t * sp + i * 2.1, img = this.bug[Math.floor(t * (hit ? 16 : 8) + i) % 2], s = hit ? 2.4 : 2;
+          const x = b.x + Math.cos(a) * 26 + (hit ? Math.sin(t * 40 + i) * 2 : 0), y = b.y - 24 + Math.sin(a) * 12;
           cx.save(); cx.translate(Math.round(x), Math.round(y)); cx.rotate(a + Math.PI); cx.drawImage(img, -img.width * s / 2, -img.height * s / 2, img.width * s, img.height * s); cx.restore();
         }
-        this.watchLabel(b, w.n > 1 ? `${w.n} ARCHIVOS PHP SOSPECHOSOS` : 'ARCHIVO PHP SOSPECHOSO', '#ef4444');
+        this.watchLabel(b, hit ? 'ALGUIEN LA BUSCÓ' : w.n > 1 ? `${w.n} ARCHIVOS PHP SOSPECHOSOS` : 'ARCHIVO PHP SOSPECHOSO', '#ef4444');
         continue;
       }
       if (w.reason === 'php') {
@@ -368,7 +416,7 @@ export class CommFx {
     cx.imageSmoothingEnabled = false;
     if (this.sat) this.drawSaturation(now);
     if (this.patrols.size) this.drawWatch(now);
-    for (const f of this.fx) { f.t += dt; (f.type === 'packet' ? this.drawPacket : f.type === 'probe' ? this.drawProbe : f.type === 'warp' ? this.drawWarp : f.type === 'dbslow' ? this.drawDbSlow : f.type === 'spot' ? this.drawSpot : f.type === 'release' ? this.drawRelease : this.drawBeam).call(this, f); }
+    for (const f of this.fx) { f.t += dt; (f.type === 'packet' ? this.drawPacket : f.type === 'probe' ? this.drawProbe : f.type === 'warp' ? this.drawWarp : f.type === 'dbslow' ? this.drawDbSlow : f.type === 'spot' ? this.drawSpot : f.type === 'release' ? this.drawRelease : f.type === 'capsule' ? this.drawCapsule : this.drawBeam).call(this, f); }
     // un archivo expuesto queda marcado 6 s; lo demas se va al terminar
     this.fx = this.fx.filter(f => f.t < f.dur + (f.type === 'probe' && f.exposed ? 6 : 0.35));
     this.raf = this.fx.length || this.patrols.size || this.sat ? requestAnimationFrame(t => this.frame(t)) : 0;

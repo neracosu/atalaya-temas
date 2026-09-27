@@ -552,6 +552,19 @@ export class World {
     }
   }
 
+  // archivos en cuarentena: capsulas verdes con un bicho adentro, en la esquina del patio de la carcel
+  drawQuarantine(n) {
+    const J = this.jail; if (!J || J.qn === n) return;
+    J.qn = n;
+    if (!J.caps) { J.caps = new Container(); J.c.addChild(J.caps); }
+    J.caps.removeChildren().forEach(x => x.destroy());
+    for (let i = 0; i < Math.min(4, n); i++) {
+      const g = new Graphics(), x = 40 - i * 9, y = 10 + i * 4;
+      g.ellipse(x, y, 5, 8).fill({ color: 0x4ade80, alpha: 0.25 }).stroke({ width: 1.5, color: 0x4ade80 });
+      g.rect(x - 2, y - 2, 4, 3).fill(0xef4444).rect(x - 2, y - 10, 4, 2).fill(0xbbf7d0);
+      J.caps.addChild(g);
+    }
+  }
   drawJail(n) {
     const J = this.jail; if (!J || J.n === n) return;
     J.n = n;
@@ -949,7 +962,7 @@ export class World {
     }
     this.hq.heat = clamp((state.system?.cpu || 0) / 100, 0, 1);
     this.hq.alarm = (state.keys || []).filter(k => k.state === 'failed').map(k => k.label);
-    if (state.jail) this.drawJail(state.jail.n);
+    if (state.jail) { this.drawJail(state.jail.n); this.drawQuarantine(state.jail.quarantine || 0); }
     this.lastQueue = state.mailQueue; this.drawPost(state.mailQueue);
     if (this.hqName) { const n = forEdition('TORRE DE CONTROL'); if (this.hqName.text !== n) this.hqName.text = n; }
     this.updateSilos(state.silos);

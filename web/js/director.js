@@ -44,6 +44,7 @@ export class Director {
         multi: `La misma IP sondea ${e.n} de sus sitios`, scan: `Escaneo en ${n || 'un sitio'}: ${e.n} sondeos` }[e.reason] || `Vigilancia en ${n || 'un sitio'}`) }; }
     else if (e.kind === 'defense' && e.action === 'block') { const [k, id] = where(e.app, e.site); if (k) c = { kind: k, id, icon: 'shield', score: 80,
       text: n => `Las patrullas se llevan a la IP que atacaba ${n || 'el sitio'}${e.by === 'auto' ? ' · defensa automática' : ''}` }; }
+    else if (e.kind === 'phpfile' && e.site && e.action === 'quarantine') c = { kind: 'site', id: e.site, icon: 'ok', score: 70, text: n => `Una patrulla se lleva la puerta trasera de ${n || 'un sitio'} a la cárcel` };
     else if (e.kind === 'phpfile' && e.site) c = { kind: 'site', id: e.site, icon: 'bad', score: 97, urgent: true, text: n => e.action === 'hit' ? `Alguien buscó el archivo PHP sospechoso de ${n || 'un sitio'}` : `Archivo PHP sospechoso en ${n || 'un sitio'}: posible puerta trasera` };
     else if (e.kind === 'saturation' && e.action === 'start') c = { kind: 'system', id: 'root', icon: 'fire', score: 92, urgent: true, text: () => `Servidor al límite: ${(e.causes || []).join(', ')}` };
     else if (e.kind === 'keysvc' && e.action === 'down') c = { kind: 'system', id: 'root', icon: 'siren', score: 95, urgent: true, text: () => `${e.label} falló` };
