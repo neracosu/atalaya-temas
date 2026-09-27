@@ -192,6 +192,7 @@ $('menu').addEventListener('click', async e => {
   if (act === 'director') document.dispatchEvent(new KeyboardEvent('keydown', { key: 'd' }));
   if (act === 'lockall') { await post('api/public-all').catch(() => { }); flash('Todas las pantallas pasaron a modo público'); }
   if (act === 'users') openUsers();
+  if (act === 'alerts') openAlerts();
   if (act === 'maestro') openMaestro();
   if (act === 'logout') { await post('api/logout').catch(() => { }); location.href = 'login'; }
 });
@@ -444,6 +445,69 @@ $('usersBody').addEventListener('submit', async e => {
   renderUsers(r.users);
 });
 
+// alertas por Telegram: conectar el bot (token de @BotFather), enganchar el chat con /start <codigo> y elegir
+// que avisa, con horario de silencio y resumen matutino. Solo un dueno con el modo privado activo.
+const alertsDlg = $('alertsDlg');
+alertsDlg.querySelector('.aclose').addEventListener('click', () => alertsDlg.close());
+let alertsPoll = null;
+async function openAlerts() {
+  if (needPrivate('configurar las alertas')) return;
+  const r = await ipost('api/alerts/state');
+  if (r.error) { flash(r.error); return; }
+  renderAlerts(r);
+  if (!alertsDlg.open) alertsDlg.showModal();
+}
+function renderAlerts(st, code) {
+  const b = $('alertsBody'); clearInterval(alertsPoll);
+  if (!st.connected) {
+    b.innerHTML = `<p class="lead">Reciba en su teléfono lo importante aunque nadie esté mirando la pantalla: puertas traseras, caídas, el servidor al límite y más.</p>
+      <ol class="asteps"><li>En Telegram, abra <b>@BotFather</b> y escríbale <code>/newbot</code>. Elija un nombre (por ejemplo «Atalaya de mi servidor»).</li>
+      <li>BotFather le da un <b>token</b> que se ve así: <code>123456789:AAE...</code>. Cópielo y péguelo aquí:</li></ol>
+      <form id="atok" class="uform"><label>Token del bot<input id="atokv" type="text" autocomplete="off" spellcheck="false" placeholder="123456789:AAE..."></label>
+      <p class="error" id="aerr"></p><div class="actions one"><button class="btn primary">Conectar el bot</button></div></form>`;
+    return;
+  }
+  const chats = st.chats.map(c => `<li><span class="grow"><b>${ie(c.name)}</b></span><button class="btn small ghost" data-aunlink="${ie(c.id)}">Quitar</button></li>`).join('');
+  const linking = code ? `<div class="alink"><p>Abra su bot <b>@${ie(code.bot)}</b> en Telegram y envíele este mensaje:</p><div class="copy"><pre class="cmd">/start ${ie(code.code)}</pre></div>
+      <p class="dmuted">Esperando su mensaje… (el código vale 15 minutos)</p><p class="row"><a class="btn small" href="https://t.me/${encodeURIComponent(code.bot)}?start=${encodeURIComponent(code.code)}" target="_blank" rel="noopener">Abrir el bot en Telegram</a></p></div>` : '';
+  const C = st.conf, cats = Object.entries(st.cats).map(([k, l]) => `<label class="check"><input type="checkbox" data-acat="${k}" ${C.cats[k] ? 'checked' : ''}><span>${ie(l)}</span></label>`).join('');
+  const hours = sel => Array.from({ length: 24 }, (_, h) => `<option value="${h}"${h === sel ? ' selected' : ''}>${String(h).padStart(2, '0')}:00</option>`).join('');
+  b.innerHTML = `<p class="lead">Bot conectado: <b>@${ie(st.bot || '')}</b>.</p>
+    <section><h4>Chats que reciben las alertas</h4>${chats ? `<ul class="dlist">${chats}</ul>` : '<p class="dmuted">Todavía ningún chat. Enganche el suyo:</p>'}
+      ${linking || '<p class="row"><button class="btn small" id="alinkb">Enganchar un chat</button></p>'}</section>
+    <section><h4>Qué me avisa</h4><div class="acats">${cats}</div></section>
+    <section><h4>Horario</h4><div class="urow"><label>Silencio desde<select id="aqf">${hours(C.quiet ? C.quiet.from : 23)}</select></label><label>hasta<select id="aqt">${hours(C.quiet ? C.quiet.to : 7)}</select></label><label>Resumen a las<select id="ash">${hours(C.summaryHour)}</select></label></div>
+      <p class="hint">En el horario de silencio solo llega lo grave (seguridad, caídas y saturación). El mismo aviso no se repite en 30 minutos. Los mensajes no llevan IPs ni rutas: el sitio, el motivo y un enlace a su ficha.</p></section>
+    <p class="error" id="aerr"></p>
+    <div class="actions"><button class="btn" id="atest">Enviar prueba</button><button class="btn primary" id="asave">Guardar</button></div>
+    <p class="row"><button class="btn small ghost" id="asum">Enviar el resumen ahora</button><button class="btn small ghost" id="adisc">Desconectar el bot</button></p>`;
+  if (code) alertsPoll = setInterval(async () => {
+    const r = await ipost('api/alerts/check');
+    if (r.error) { clearInterval(alertsPoll); const e = $('aerr'); if (e) e.textContent = r.error; return; }
+    if (r.linked) { clearInterval(alertsPoll); flash(`Chat enganchado: ${r.chat.name}`); openAlerts(); }
+  }, 3000);
+}
+$('alertsBody').addEventListener('submit', async e => {
+  e.preventDefault();
+  const r = await ipost('api/alerts/token', { token: $('atokv').value });
+  if (r.error) { $('aerr').textContent = r.error; return; }
+  const st = await ipost('api/alerts/state'); renderAlerts(st, r);
+});
+$('alertsBody').addEventListener('click', async e => {
+  const id = e.target.id, un = e.target.closest('[data-aunlink]');
+  const err = m => { const x = $('aerr'); if (x) x.textContent = m || ''; };
+  if (id === 'alinkb') { const r = await ipost('api/alerts/link'); if (r.error) return err(r.error); renderAlerts(await ipost('api/alerts/state'), r); }
+  if (un) { if (!(await ask({ title: 'Quitar este chat', icon: 'warn', ok: 'Quitar', body: 'Deja de recibir las alertas de Atalaya.' }))) return; await ipost('api/alerts/unlink', { chat: un.dataset.aunlink }); openAlerts(); }
+  if (id === 'asave' || id === 'atest') {
+    const cats = {}; for (const c of $('alertsBody').querySelectorAll('[data-acat]')) cats[c.dataset.acat] = c.checked;
+    const r = await ipost('api/alerts/conf', { cats, quiet: { from: +$('aqf').value, to: +$('aqt').value }, summaryHour: +$('ash').value });
+    if (r.error) return err(r.error);
+    if (id === 'atest') { const t = await ipost('api/alerts/test'); if (t.error) return err(t.error); flash('Prueba enviada: revise Telegram'); } else flash('Alertas guardadas');
+  }
+  if (id === 'asum') { const r = await ipost('api/alerts/summary'); if (r.error) return err(r.error); flash('Resumen enviado'); }
+  if (id === 'adisc') { if (!(await ask({ title: 'Desconectar el bot', danger: true, ok: 'Desconectar', body: 'Atalaya deja de enviar alertas y olvida el token y los chats.' }))) return; await ipost('api/alerts/disconnect'); openAlerts(); }
+});
+
 // panel maestro de la nube (solo si en este servidor corre Atalaya Cloud): pase firmado de un solo uso
 async function openMaestro() {
   if (needPrivate('abrir el panel maestro')) return;
@@ -511,6 +575,9 @@ function connect() {
   });
   es.addEventListener('state', e => {
     state = JSON.parse(e.data);
+    // enlace directo (?go=site:abc, desde una alerta de Telegram): abre esa ficha con el primer estado
+    const go = new URLSearchParams(location.search).get('go');
+    if (go && !window.__went && /^[a-z]+:[\w:-]+$/.test(go)) { window.__went = true; const [k, ...r] = go.split(':'); setTimeout(() => openDetail(k, r.join(':')), 600); history.replaceState(null, '', location.pathname); }
     if (window.atalaya) window.atalaya.state = state;
     withFavicons(state.apps); withFavicons(state.sites);
     renderState(state);

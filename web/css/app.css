@@ -586,3 +586,19 @@ body.ed-equipo .sysonly, body.sys-lite .sysprocs, body.sys-lite #kpi-rx, body.sy
 .defbox .stack { display: grid; gap: .3rem; }
 .defbox textarea { font-family: var(--mono); resize: vertical; }
 .btn.danger { border-color: rgba(248, 113, 113, .55); color: #fca5a5; } .btn.danger:hover { border-color: #f87171; background: rgba(239, 68, 68, .12); }
+
+/* alertas por Telegram */
+.alerts .lbody { display: grid; gap: 1rem; }
+.alerts .lead { margin: 0; color: var(--ink-2); }
+.alerts section h4 { margin: 0 0 .5rem; }
+.asteps { margin: 0; padding-left: 1.2rem; display: grid; gap: .5rem; color: var(--ink-2); }
+.asteps code, .alerts code { font-family: var(--mono); background: rgba(148, 163, 184, .12); padding: .05em .35em; border-radius: 4px; }
+.acats { display: grid; gap: .45rem; }
+.acats .check { display: flex; gap: .6rem; align-items: flex-start; font-size: .88rem; color: var(--ink-2); cursor: pointer; }
+.acats .check input { margin-top: .15rem; accent-color: var(--accent); width: 1rem; height: 1rem; }
+.alink { border: 1px solid var(--accent); border-radius: 12px; padding: .7rem .9rem; background: rgba(34, 211, 238, .06); }
+.alink p { margin: .2rem 0; }
+.alerts select { background: var(--bg-2); border: 1px solid var(--line-strong); border-radius: 8px; color: var(--ink); padding: .45rem .6rem; font: inherit; font-size: .88rem; }
+.alerts .urow { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: .7rem; }
+.alerts .urow label { display: grid; gap: .3rem; font-size: .78rem; color: var(--ink-3); }
+@media (max-width: 600px) { .alerts .urow { grid-template-columns: minmax(0, 1fr); } }

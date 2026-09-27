@@ -39,6 +39,7 @@
       <button data-act="lockall">Bloquear todas las pantallas</button>
       <button data-act="setup" class="owneronly">Asistente de configuración</button>
       <button data-act="users" class="owneronly">Usuarios</button>
+      <button data-act="alerts" class="owneronly">Alertas por Telegram</button>
       <button data-act="maestro" class="owneronly" id="maestroBtn" hidden>Panel maestro de la nube</button>
       <button data-act="install" class="owneronly nocloud">Instalar en otro servidor</button>
       <button data-act="hosting" class="owneronly noequipo">Conectar un hosting compartido</button>
@@ -120,6 +121,11 @@
   <header><h3 id="instTitle">Instalar Atalaya</h3><button class="iclose icon-btn" aria-label="Cerrar">✕</button></header>
   <div class="itabs" role="tablist"><button role="tab" data-itab="vps"><span data-px="terminal"></span> Servidor VPS</button><button role="tab" data-itab="hosting"><span data-px="house"></span> Hosting compartido</button></div>
   <div class="lbody" id="instBody"></div>
+</dialog>
+
+<dialog id="alertsDlg" class="legend alerts" aria-labelledby="alertsTitle">
+  <header><h3 id="alertsTitle">Alertas por Telegram</h3><button class="aclose icon-btn" aria-label="Cerrar">✕</button></header>
+  <div class="lbody" id="alertsBody"></div>
 </dialog>
 
 <dialog id="usersDlg" class="legend users" aria-labelledby="usersTitle">
